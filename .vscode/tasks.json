@@ -436,6 +436,11 @@
             "type": "shell",
             "command": "scp ${workspaceFolder}/out/${input:pickCentiApp} ${input:centiTargetHost}:/${input:pickDestinationAddr}"
           },
+          {
+            "label": "Install OTBR",
+            "type": "shell",
+            "command": "sudo ${workspaceFolder}/scripts/centi/centi_mattertool.sh -iotbr ${input:otPlatformTarget}"
+          }
         
     ],
     "inputs": [
@@ -753,6 +758,13 @@
             "description": "Enter full path for destination address",
             "default": "/home/ubuntu/centi-matter/"
   
+        },
+        {
+            "id": "otPlatformTarget",
+            "type": "pickString",
+            "description": "Select OT-RCP target platform",
+            "options": ["silabs", "nrf"],
+            "default": "silabs"
         }
     ]
 }

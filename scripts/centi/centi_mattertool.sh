@@ -6,14 +6,18 @@ if [ $(id -u) -ne 0 ]; then
 fi
 
 SCRIPT_DIR=basedir=$(dirname "$0")
-BASE_DIR=$(cd "${basedir}"; pwd)
-USER_HOME=$(getent passwd $SUDO_USER | cut -d: -f6)
-THIRD_PARTY_DIR="$BASE_DIR/third_party"
 
-MATTER_ROOT="$SCRIPT_DIR/../.."
-MQTT_ROOT="$THIRD_PARTY_DIR/paho.mqtt.cpp"
-OTBR_ROOT="$MATTER_ROOT/third_party/ot-br-posix/repo"
-OT_ROOT="$MATTER_ROOT/third_party/openthread/repo"
+if [[ ! $MATTER_ROOT  ]]; then
+	export MATTER_ROOT=$(cd "${basedir}"; pwd)
+fi
+
+if [[ ! $MQTT_ROOT ]]; then
+    export MQTT_ROOT="$MATTER_ROOT/third_party/paho.mqtt.cpp/repo"
+fi
+
+if [[ ! $USER_DIR ]]; then
+    export USER_DIR=$(cd $MATTER_ROOT; cd ..; pwd)
+fi
 
 check_repo_exists() {
     repoUrl="$1"
@@ -57,13 +61,18 @@ Print_Help() {
     for commands in "${!cmd_list[@]}"; do echo $commands; done
 
     echo_bold_white "Available options  :"
-    echo " -h, --help			                                            Print this help."
-    echo " -imqtt, --install_mqtt 		                                    Install Paho MQTT client Libraries."
-    echo " -imatter, --install_matter_sdk 		                            Install Matter SDK."
+    echo " -h, --help			                                  Print this help."
+    echo " -imqtt, --install_mqtt 		                          Install Paho MQTT client Libraries."
+    echo " -imatter, --install_matter_sdk 		                  Install Matter SDK."
     echo " -iotbr, --install_otbr                                           Install OTBR POSIX."
     echo " -sthread, --start_otbr                                           Create and start new thread network."
     echo " -crpisys <hostname@IP>, --create_rpi_sysroot <hostname@IP>       Create the RPi sysroot on your host machine."
     echo " -brpi, --build_rpi                                               Cross-Compile build for Rasberry Pi 4 (64bit Ubuntu Server)."
+    echo ""
+    echo_bold_white "Available env variables which you can change according to your needs:"
+    echo_blue "USER_DIR: $USER_DIR"
+    echo_blue "CHIP DIR: $MATTER_ROOT"
+    echo_blue "MQTT_DIR: $MQTT_ROOT"
 }
 
 Install_MQTT() {
@@ -111,7 +120,7 @@ Install_Matter_SDK() {
 
     echo_blue "Updating submodules..."
     ./scripts/checkout_submodules.py --shallow --platform linux
-
+    
     echo_blue "Activating Matter environment"
     source scripts/bootstrap.sh
 
@@ -149,23 +158,27 @@ Install_OTBR() {
     # Currently using Silicon Labs OT-RCP project so trying here to make the OTBR build compatible
     # Commit hashes are below
     # https://github.com/SiliconLabs/matter/releases/tag/v2.3.0-1.3
-    otbrPosixCommit="42f98b27b"
-    otCommit="7074a43e4"
+
+    if [ "$1" = "silabs" ]; then
+        otbrPosixCommit="42f98b27b"
+        otCommit="7074a43e4"
+    elif [ "$1" = "nrf" ]; then
+    #https://docs.nordicsemi.com/bundle/ncs-latest/page/nrf/protocols/thread/tools.html#ug-thread-tools-tbr
+        otbrPosixCommit="98dda6c"
+        otCommit="b9dcdbc" #hash is the same
+    fi
 
     ethIfName=$(ip link | awk -F: '$0 !~ "lo|vir|wl|^[^0-9]"{print $2;getline}' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-    
-    git config --global --add safe.directory $MATTER_ROOT
-    git config --global --add safe.directory $OTBR_ROOT
-    git config --global --add safe.directory $OT_ROOT
-
-    cd $OTBR_ROOT
-    #git clone https://github.com/openthread/ot-br-posix
+    set -x
+    cd $USER_DIR
+    git clone https://github.com/openthread/ot-br-posix
+    cd ot-br-posix
     git checkout $otbrPosixCommit
     ./script/bootstrap
-    cd $OT_ROOT
+    cd third_party/openthread/repo
     git checkout $otCommit
-    cd $OTBR_ROOT
-    INFRA_IF_NAME=$ethIfName ./scripts/setup
+    cd $USER_DIR/ot-br-posix
+    INFRA_IF_NAME=$ethIfName ./script/setup
 }
 
 Start_NewThreadNetwork() {
@@ -189,13 +202,6 @@ Clean_Install_OTBR() {
 }
 
 echo_banner
-
-echo_bold_white "BASE_DIR: $BASE_DIR"
-echo_bold_white "THIRD_PARTY_DIR: $THIRD_PARTY_DIR"
-echo_bold_white "CHIP DIR: $MATTER_ROOT"
-echo_bold_white "MQTT_DIR: $MQTT_ROOT"
-echo_bold_white "OTBR_DIR: $OTBR_ROOT"
-echo_bold_white "OT_ROOT: $OT_ROOT"
 
 if [ $# -eq 0 ]; then
     Print_Help
@@ -231,8 +237,16 @@ while [ $# -gt 0 ]; do
         exit 0
         ;;
     --install_otbr | -iotbr)
-        Install_OTBR
-        exit 0
+        shift
+
+        case $1 in "silabs"|"nrf")
+            Install_OTBR "$1"
+            exit 0
+            ;;
+        *)
+            echo_red "Wrong platform supplied (only silabs/nrf are supported)"
+            ;;
+        esac
         ;;
     --start_otbr | -sthread)
         Start_NewThreadNetwork
