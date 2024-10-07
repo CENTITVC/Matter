@@ -410,7 +410,33 @@
                     "endsPattern": "^.*Connected to localhost*"
                 }
             }
-        }
+        },
+        
+        {
+            "label": "Build CeNTI Apps",
+            "type": "shell",
+            "command": "./scripts/gn_build_example.sh",
+            "args": ["${input:centiBuildApp}",
+                      "${input:centiBuildAppOutput}"],
+            "group": "build",
+            "problemMatcher": {
+              "base": "$gcc",
+              "fileLocation": ["relative", "${workspaceFolder}/apps/"]
+            },
+        },
+
+        {
+            "label": "Create RPi Sysroot",
+            "type": "shell",
+            "command": "sudo ${workspaceFolder}/scripts/centi/centi_mattertool.sh --build_rpi_sysroot ${input:centiTargetHost}",
+            "group": "build"
+          },
+          {
+            "label": "Transfer exe to RPi",
+            "type": "shell",
+            "command": "scp ${workspaceFolder}/out/${input:pickCentiApp} ${input:centiTargetHost}:/${input:pickDestinationAddr}"
+          },
+        
     ],
     "inputs": [
         {
@@ -698,6 +724,35 @@
                 "fieldSeparator": "|",
                 "description": "Select target device"
             }
+        },
+        {
+            "id": "centiTargetHost",
+            "type": "promptString",
+            "description": "Enter RPi address with hostname (format <hostname>@<ip>)",
+            "default": "ubuntu@192.168.62.42"
+        },
+        {
+            "id": "centiBuildApp",
+            "type": "command",
+            "command": "shellCommand.execute",
+            "args":
+            {
+              "command": "find ${workspaceFolder}/out/centi-* -maxdepth 2 -type d | sort | sed 's$${workspaceFolder}/out/$$'",
+              "description": "Select the app to build"
+            }
+        },
+        {
+            "id": "buildOutput",
+            "type": "promptString",
+            "description": "Enter a build directory",
+            "default": "centi-matter-controller"
+        },
+        {
+            "id": "pickDestinationAddr",
+            "type": "promptString",
+            "description": "Enter full path for destination address",
+            "default": "/home/ubuntu/centi-matter/"
+  
         }
     ]
 }
