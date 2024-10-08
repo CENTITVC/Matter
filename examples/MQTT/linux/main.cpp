@@ -15,39 +15,67 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-#include <AppMain.h>
 
+#include <iostream>
+#include "mqtt/async_client.h"
 
-#define AIR_PURIFIER_ENDPOINT 1
-#define AIR_QUALITY_SENSOR_ENDPOINT 2
-#define TEMPERATURE_SENSOR_ENDPOINT 3
-#define RELATIVE_HUMIDITY_SENSOR_ENDPOINT 4
-#define THERMOSTAT_ENDPOINT 5
-
-using namespace chip;
-using namespace chip::app;
-using namespace chip::app::Clusters;
-
-
-// Initialize the Air Purifier Manager and set up the endpoint composition tree.
-void ApplicationInit()
+static void SSL_ErrorHandler(const std::string& errMsg)
 {
-    ChipLogProgress(NotSpecified, "ApplicationInit");
-
+    std::cout << "SSL Error: " << errMsg << std::endl;
 }
 
-void ApplicationShutdown()
-{
-    ChipLogDetail(NotSpecified, "Air Purifier: ApplicationShutdown()");
-}
 
 int main(int argc, char * argv[])
 {
-    if (ChipLinuxAppInit(argc, argv) != 0)
+    std::cout << "Hello Test example!" << std::endl;
+
+    // Options to use if we need to reconnect
+    mqtt::connect_options mConnOpts;
+
+    std::shared_ptr<mqtt::async_client> mClientPtr;
+
+    std::cout << "creating Client" << std::endl;
+
+    mClientPtr = std::make_shared<mqtt::async_client>("mqtts://mqtt.ilce-sensehome.ss-centi.com:1883", "gnTest");
+
+    std::cout << "Client created" << std::endl;
+
+    mConnOpts.set_user_name("userCenti");
+    mConnOpts.set_password("Qweasd123zxc");   
+
+    mConnOpts.set_automatic_reconnect(true);
+    mConnOpts.set_clean_session(true);
+    mConnOpts.set_keep_alive_interval(60);
+
+    std::cout << "Configuring SSL..." << std::endl;
+
+    mqtt::ssl_options ssl;
+    ssl.set_trust_store("centi_broker_CA.pem");
+    ssl.set_enable_server_cert_auth(false);
+    ssl.set_ssl_version(MQTT_SSL_VERSION_TLS_1_2);
+    ssl.set_verify(MQTT_SSL_VERSION_TLS_1_2);
+    ssl.set_error_handler(&SSL_ErrorHandler);
+    mConnOpts.set_ssl(ssl);
+
+    std::cout << "[MQTT] Connecting to " << mClientPtr->get_server_uri().c_str() << " as " <<
+                                                            mClientPtr->get_client_id().c_str() << std::endl;
+
+    try
     {
-        return -1;
+        mqtt::token_ptr conntok = mClientPtr->connect(mConnOpts);
+        conntok->wait();
+        std::cout << "[MQTT] Connected!" << std::endl;
+    }
+    catch(const mqtt::exception& e)
+    {
+        std::cout << "[MQTT] Failed to connect to broker: " << e.what() << std::endl;
+		return 1;
     }
 
-    ChipLinuxAppMainLoop();
+    while(1)
+    {
+
+    }
+
     return 0;
 }

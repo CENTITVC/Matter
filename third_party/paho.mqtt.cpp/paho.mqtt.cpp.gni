@@ -2,10 +2,8 @@ import("//build_overrides/build.gni")
 import("//build_overrides/chip.gni")
 
 declare_args() {
-  paho_build_static = false  # Default: Build static library
-  paho_build_shared = true  # Default: Build shared library (DLL)
+  paho_build_static = true  # Default: Build static library
+  paho_build_shared = false  # Default: Build shared library (DLL)
   paho_with_ssl = true  # Default: SSL-enabled library (OpenSSL)
   paho_with_mqtt_c = true
-  paho_build_samples = false  # Default: Do not build examples
-  paho_build_tests = false  # Default: Do not build tests
 }
