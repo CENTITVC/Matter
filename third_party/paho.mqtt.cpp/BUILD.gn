@@ -1,0 +1,141 @@
+import("//build_overrides/build.gni")
+import("${build_root}/config/compiler/compiler.gni")
+import("paho.mqtt.cpp.gni")
+
+paho_include_dir = "repo/include"
+paho_sources = [
+  "repo/src/async_client.cpp",
+  "repo/src/client.cpp",
+  "repo/src/connect_options.cpp",
+  "repo/src/create_options.cpp",
+  "repo/src/disconnect_options.cpp",
+  "repo/src/iclient_persistence.cpp",
+  "repo/src/message.cpp",
+  "repo/src/properties.cpp",
+  "repo/src/response_options.cpp",
+  "repo/src/ssl_options.cpp",
+  "repo/src/string_collection.cpp",
+  "repo/src/subscribe_options.cpp",
+  "repo/src/token.cpp",
+  "repo/src/topic.cpp",
+  "repo/src/will_options.cpp",
+]
+
+# ---- Build Paho C Library from Source ----
+if (paho_with_mqtt_c) {
+  paho_c_sources = [
+    "repo/externals/paho-mqtt-c/src/Base64.c",
+    "repo/externals/paho-mqtt-c/src/Clients.c",
+    "repo/externals/paho-mqtt-c/src/Heap.c",
+    "repo/externals/paho-mqtt-c/src/LinkedList.c",
+    "repo/externals/paho-mqtt-c/src/Log.c",
+    "repo/externals/paho-mqtt-c/src/MQTTAsync.c",
+    "repo/externals/paho-mqtt-c/src/MQTTAsyncUtils.c",
+    "repo/externals/paho-mqtt-c/src/MQTTClient.c",
+    "repo/externals/paho-mqtt-c/src/MQTTPacket.c",
+    "repo/externals/paho-mqtt-c/src/MQTTPacketOut.c",
+    "repo/externals/paho-mqtt-c/src/MQTTPersistence.c",
+    "repo/externals/paho-mqtt-c/src/MQTTPersistenceDefault.c",
+    "repo/externals/paho-mqtt-c/src/MQTTProperties.c",
+    "repo/externals/paho-mqtt-c/src/MQTTProtocolClient.c",
+    "repo/externals/paho-mqtt-c/src/MQTTProtocolOut.c",
+    "repo/externals/paho-mqtt-c/src/MQTTReasonCodes.c",
+    "repo/externals/paho-mqtt-c/src/MQTTTime.c",
+    "repo/externals/paho-mqtt-c/src/MQTTVersion.c",
+    "repo/externals/paho-mqtt-c/src/Messages.c",
+    "repo/externals/paho-mqtt-c/src/Proxy.c",
+    "repo/externals/paho-mqtt-c/src/SHA1.c",
+    "repo/externals/paho-mqtt-c/src/Socket.c",
+    "repo/externals/paho-mqtt-c/src/SocketBuffer.c",
+    "repo/externals/paho-mqtt-c/src/Thread.c",
+    "repo/externals/paho-mqtt-c/src/Tree.c",
+    "repo/externals/paho-mqtt-c/src/WebSocket.c",
+    "repo/externals/paho-mqtt-c/src/utf-8.c",
+  ]
+
+  if (paho_build_static) {
+    sources = paho_c_sources
+    public_configs = [ ":paho_mqtt_c_config" ]
+    include_dirs = [ "repo/externals/paho-mqtt-c/src" ]
+
+    if (paho_with_ssl) {
+      ldflags = [ "L/usr/lib/ssl" ]
+      libs = [ "openssl" ]
+      paho_c_sources += [ "repo/externals/paho-mqtt-c/src/SSLSocket.c" ]
+    }
+  }
+
+  # Define the shared library for the Paho C library
+  if (paho_build_shared) {
+    shared_library("paho_mqtt_c") {
+      sources = paho_c_sources
+      public_configs = [ ":paho_mqtt_c_config" ]
+      include_dirs = [ "repo/externals/paho-mqtt-c/src" ]
+      if (paho_with_ssl) {
+        ldflags = [ "L/usr/lib/ssl" ]
+        libs = [ "openssl" ]
+        paho_c_sources += [ "repo/externals/paho-mqtt-c/src/SSLSocket.c" ]
+      }
+    }
+  }
+}
+
+# Define the static or shared library for Paho C++ based on the build arguments
+if (paho_build_static) {
+  static_library("paho_mqttpp") {
+    sources = paho_sources
+    public_configs = [ ":paho_mqttpp_config" ]
+    deps = [ ":paho_mqtt_c" ]  # Link to the Paho C library
+  }
+}
+
+if (paho_build_shared) {
+  shared_library("paho_mqttpp") {
+    sources = paho_sources
+    public_configs = [ ":paho_mqttpp_config" ]
+    deps = [ ":paho_mqtt_c" ]  # Link to the Paho C library
+  }
+}
+
+# Compiler and linker settings for Paho C++
+config("paho_mqttpp_config") {
+  include_dirs = [ paho_include_dir ]
+
+  # Use C++11
+  cflags = [
+    "-std=c++11",
+    "-fPIC",
+  ]
+}
+
+# Compiler and linker settings for Paho C
+config("paho_mqtt_c_config") {
+  include_dirs = [ "repo/externals/paho-mqtt-c/src" ]
+}
+
+# ---- Sample Applications ----
+if (paho_build_samples) {
+  executable("async_subscribe_example") {
+    sources = [ "repo/examples/async_subscribe.cpp" ]
+    deps = [ ":paho_mqttpp" ]
+  }
+
+  executable("sync_publish_example") {
+    sources = [ "repo/examples/sync_publish.cpp" ]
+    deps = [ ":paho_mqttpp" ]
+  }
+}
+
+# ---- Unit Tests ----
+if (paho_build_tests) {
+  executable("unit_tests") {
+    sources = [
+      "repo/test/unit/test_async.cpp",
+      "repo/test/unit/test_sync.cpp",
+    ]
+    deps = [
+      ":catch2",
+      ":paho_mqttpp",
+    ]  # Assuming Catch2 is available
+  }
+}
