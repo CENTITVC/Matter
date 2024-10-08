@@ -324,8 +324,7 @@
 	path = third_party/infineon/psoc6/psoc6_sdk/libs/lwip-network-interface-integration
 	url = https://github.com/Infineon/lwip-network-interface-integration.git
 	platforms = infineon
-[submodule "third_party/paho.mqtt.cpp/repo"]
+[submodule "paho.mqtt.cpp"]
 	path = third_party/paho.mqtt.cpp/repo
 	url = https://github.com/eclipse/paho.mqtt.cpp
-	branch = v1.4.1
-	platforms = linux
+	branch = v1.4.x

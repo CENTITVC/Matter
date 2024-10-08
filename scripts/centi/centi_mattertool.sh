@@ -120,7 +120,8 @@ Install_Matter_SDK() {
 
     echo_blue "Updating submodules..."
     ./scripts/checkout_submodules.py --shallow --platform linux
-    
+    git submodule update --init --remote third_party/paho.mqtt.cpp/repo
+
     echo_blue "Activating Matter environment"
     source scripts/bootstrap.sh
 
