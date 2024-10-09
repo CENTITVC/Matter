@@ -81,11 +81,10 @@ if (paho_with_mqtt_c) {
         ]
         public_configs = [ ":paho_mqtt_c_config" ]
         include_dirs = paho_mqtt_c_include_dirs
-        lib_dirs = [
-          "/usr/lib",
+        include_dirs += [
           "/usr/include/openssl",
         ]
-        ldflags = [ "-Llibssl" ]
+        defines = [ "OPENSSL=1" ]
         sources += paho_ssl_sources
       }
 
@@ -222,12 +221,11 @@ config("paho_mqtt_c_config") {
     "-Wno-error",
     "-fcommon",
   ]
-  lib_dirs = [ "/lib/x86_64-linux-gnu/" ]
-  libs = [ "pthread" ]
-  defines = [ "HIGH_PERFORMANCE" ]
-
-  if (paho_with_ssl) {
-    defines += [ "OPENSSL" ]
-    lib_dirs += [ "/usr/lib/ssl" ]
+  
+  if (target_os == "linux")
+  {
+    lib_dirs = [ "/lib/x86_64-linux-gnu/" ]
+    libs = [ "pthread", "ssl", "crypto" ]
   }
+  defines = [ "HIGH_PERFORMANCE" ]
 }
