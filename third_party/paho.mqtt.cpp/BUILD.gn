@@ -1,208 +1,275 @@
 import("//build_overrides/build.gni")
 import("${build_root}/config/compiler/compiler.gni")
 import("paho.mqtt.cpp.gni")
-
-paho_include_dir = "repo/include"
-paho_sources = [
-  "repo/src/async_client.cpp",
-  "repo/src/client.cpp",
-  "repo/src/connect_options.cpp",
-  "repo/src/create_options.cpp",
-  "repo/src/disconnect_options.cpp",
-  "repo/src/iclient_persistence.cpp",
-  "repo/src/message.cpp",
-  "repo/src/properties.cpp",
-  "repo/src/response_options.cpp",
-  "repo/src/ssl_options.cpp",
-  "repo/src/string_collection.cpp",
-  "repo/src/subscribe_options.cpp",
-  "repo/src/token.cpp",
-  "repo/src/topic.cpp",
-  "repo/src/will_options.cpp",
-]
+import("${build_root}/config/linux/pkg_config.gni")
 
 # ---- Build Paho C Library from Source ----
 if (paho_with_mqtt_c) {
-  # Define action to generate VersionInfo.h
-  exec_script("${chip_root}/scripts/centi/gn_paho_mqtt_c_version_info.py")
+    # Define action to generate VersionInfo.h
+    exec_script("${chip_root}/scripts/centi/gn_paho_mqtt_c_version_info.py")
 
-  paho_c_sources = [
-    "repo/externals/paho-mqtt-c/src/Base64.c",
-    "repo/externals/paho-mqtt-c/src/Clients.c",
-    "repo/externals/paho-mqtt-c/src/LinkedList.c",
-    "repo/externals/paho-mqtt-c/src/Log.c",
-    "repo/externals/paho-mqtt-c/src/MQTTPacket.c",
-    "repo/externals/paho-mqtt-c/src/MQTTPacketOut.c",
-    "repo/externals/paho-mqtt-c/src/MQTTPersistence.c",
-    "repo/externals/paho-mqtt-c/src/MQTTPersistenceDefault.c",
-    "repo/externals/paho-mqtt-c/src/MQTTProperties.c",
-    "repo/externals/paho-mqtt-c/src/MQTTProtocolClient.c",
-    "repo/externals/paho-mqtt-c/src/MQTTProtocolOut.c",
-    "repo/externals/paho-mqtt-c/src/MQTTReasonCodes.c",
-    "repo/externals/paho-mqtt-c/src/MQTTTime.c",
-    "repo/externals/paho-mqtt-c/src/Messages.c",
-    "repo/externals/paho-mqtt-c/src/Proxy.c",
-    "repo/externals/paho-mqtt-c/src/SHA1.c",
-    "repo/externals/paho-mqtt-c/src/Socket.c",
-    "repo/externals/paho-mqtt-c/src/SocketBuffer.c",
-    "repo/externals/paho-mqtt-c/src/Thread.c",
-    "repo/externals/paho-mqtt-c/src/Tree.c",
-    "repo/externals/paho-mqtt-c/src/WebSocket.c",
-    "repo/externals/paho-mqtt-c/src/utf-8.c",
-  ]
-
-  paho_mqtt_c_include_dirs = [ "repo/externals/paho-mqtt-c/src" ]
-
-  if (paho_build_static) {
-    source_set("paho-mqtt-async-static") {
-      sources = paho_c_sources
-      sources += [
-        "repo/externals/paho-mqtt-c/src/MQTTAsync.c",
-        "repo/externals/paho-mqtt-c/src/MQTTAsyncUtils.c",
-      ]
-      public_configs = [ ":paho_mqtt_c_config" ]
-      include_dirs = paho_mqtt_c_include_dirs
-    }
-
-    source_set("paho-mqtt-sync-static") {
-      sources = paho_c_sources
-      sources += [ "repo/externals/paho-mqtt-c/src/MQTTClient.c" ]
-      public_configs = [ ":paho_mqtt_c_config" ]
-      include_dirs = paho_mqtt_c_include_dirs
-    }
-
-    if (paho_with_ssl) {
-      paho_ssl_sources = [ "repo/externals/paho-mqtt-c/src/SSLSocket.c" ]
-      source_set("paho-mqtt-async-ssl-static") {
-        sources = paho_c_sources
-        sources += [
-          "repo/externals/paho-mqtt-c/src/MQTTAsync.c",
-          "repo/externals/paho-mqtt-c/src/MQTTAsyncUtils.c",
-        ]
+    source_set ("paho-common")
+    {
+        sources = [
+            "repo/externals/paho-mqtt-c/src/Base64.c",
+            "repo/externals/paho-mqtt-c/src/Clients.c",
+            "repo/externals/paho-mqtt-c/src/LinkedList.c",
+            "repo/externals/paho-mqtt-c/src/Log.c",
+            "repo/externals/paho-mqtt-c/src/MQTTPacket.c",
+            "repo/externals/paho-mqtt-c/src/MQTTPacketOut.c",
+            "repo/externals/paho-mqtt-c/src/MQTTPersistence.c",
+            "repo/externals/paho-mqtt-c/src/MQTTPersistenceDefault.c",
+            "repo/externals/paho-mqtt-c/src/MQTTProperties.c",
+            "repo/externals/paho-mqtt-c/src/MQTTProtocolClient.c",
+            "repo/externals/paho-mqtt-c/src/MQTTProtocolOut.c",
+            "repo/externals/paho-mqtt-c/src/MQTTReasonCodes.c",
+            "repo/externals/paho-mqtt-c/src/MQTTTime.c",
+            "repo/externals/paho-mqtt-c/src/Messages.c",
+            "repo/externals/paho-mqtt-c/src/Proxy.c",
+            "repo/externals/paho-mqtt-c/src/SHA1.c",
+            "repo/externals/paho-mqtt-c/src/Socket.c",
+            "repo/externals/paho-mqtt-c/src/SocketBuffer.c",
+            "repo/externals/paho-mqtt-c/src/Thread.c",
+            "repo/externals/paho-mqtt-c/src/Tree.c",
+            "repo/externals/paho-mqtt-c/src/WebSocket.c",
+            "repo/externals/paho-mqtt-c/src/utf-8.c",
+          ]
         public_configs = [ ":paho_mqtt_c_config" ]
-        include_dirs = paho_mqtt_c_include_dirs
-        include_dirs += [
-          "/usr/include/openssl",
-        ]
-        defines = [ "OPENSSL=1" ]
-        sources += paho_ssl_sources
-      }
-
-      source_set("paho-mqtt-sync-ssl-static") {
-        sources = paho_c_sources
-        public_configs = [ ":paho_mqtt_c_config" ]
-        include_dirs = paho_mqtt_c_include_dirs
-        lib_dirs = [ "/usr/lib" ]
-        ldflags = [ "-Llibssl" ]
-        sources += paho_ssl_sources
-      }
-    }
-  }
-
-  # Define the shared library for the Paho C library
-  if (paho_build_shared) {
-    paho_c_sources += [ "repo/externals/paho-mqtt-c/src/MQTTVersion.c" ]
-
-    shared_library("paho_mqtt-async") {
-      sources = paho_c_sources
-      sources += [
-        "repo/externals/paho-mqtt-c/src/MQTTAsync.c",
-        "repo/externals/paho-mqtt-c/src/MQTTAsyncUtils.c",
-      ]
-      public_configs = [ ":paho_mqtt_c_config" ]
-      include_dirs = paho_mqtt_c_include_dirs
     }
 
-    shared_library("paho-mqtt-sync") {
-      sources = paho_c_sources
-      sources += [ "repo/externals/paho-mqtt-c/src/MQTTClient.c" ]
-      public_configs = [ ":paho_mqtt_c_config" ]
-      include_dirs = paho_mqtt_c_include_dirs
+    if (paho_build_static)
+    {
+        source_set("paho-common-static")
+        {
+            public_deps = [":paho-common"]
+        }
+
+        if (paho_sync_cli)
+        {
+            source_set("paho-c-sync-static")
+            {
+                sources = [ "repo/externals/paho-mqtt-c/src/MQTTClient.c" ]
+                public_deps = [ ":paho-common-static" ]
+            }
+        }
+
+        if (paho_async_cli)
+        {
+            source_set("paho-c-async-static")
+            {
+                sources = [
+                  "repo/externals/paho-mqtt-c/src/MQTTAsync.c",
+                  "repo/externals/paho-mqtt-c/src/MQTTAsyncUtils.c"
+                  ]
+                public_deps = [ ":paho-common-static" ]
+            }
+        }
+    }
+    
+    if (paho_build_shared)
+    {
+        source_set("paho-common-shared")
+        {
+            sources = [ "repo/externals/paho-mqtt-c/src/MQTTVersion.c" ]
+            public_deps = [ ":paho-common" ]
+        }
+
+        if (paho_sync_cli)
+        {
+            source_set("paho-c-sync-shared")
+            {
+                sources = [ "repo/externals/paho-mqtt-c/src/MQTTClient.c" ]
+                public_deps = [ ":paho-common-shared" ]
+            }
+        }
+
+        if (paho_async_cli)
+        {
+            source_set("paho-c-async-shared")
+            {
+                sources = [
+                  "repo/externals/paho-mqtt-c/src/MQTTAsync.c",
+                  "repo/externals/paho-mqtt-c/src/MQTTAsyncUtils.c"
+                  ]
+                public_deps = [ ":paho-common-shared" ]
+            }
+        }
     }
 
-    if (paho_with_ssl) {
-      paho_ssl_sources = [ "repo/externals/paho-mqtt-c/src/SSLSocket.c" ]
-      shared_library("paho-mqtt-async-ssl") {
-        sources = paho_c_sources
-        public_configs = [ ":paho_mqtt_c_config" ]
-        include_dirs = paho_mqtt_c_include_dirs
-        sources += paho_ssl_sources
-        lib_dirs = [ "/usr/lib" ]
-        ldflags = [ "-Llibssl" ]
-      }
+    if (paho_with_ssl)
+    {
+        pkg_config("openssl_config") 
+        {
+            packages = [ "openssl"]
+        }
 
-      shared_library("paho-mqtt-sync-ssl") {
-        sources = paho_c_sources
-        public_configs = [ ":paho_mqtt_c_config" ]
-        include_dirs = paho_mqtt_c_include_dirs
-        lib_dirs = [ "/usr/lib" ]
-        ldflags = [ "-Llibssl" ]
-        sources += paho_ssl_sources
-      }
+        if (paho_build_static)
+        {
+            if (paho_sync_cli)
+            {
+                source_set("paho-c-sync-ssl-static")
+                {
+                    sources = [ "repo/externals/paho-mqtt-c/src/MQTTClient.c",
+                                "repo/externals/paho-mqtt-c/src/SSLSocket.c"]
+                    public_deps = [ ":paho-common-static" ]
+                    public_configs = [ ":openssl_config" ]
+                    defines = [ "OPENSSL=1" ]
+                }
+            }
+
+            if (paho_async_cli)
+            {
+                source_set("paho-c-async-ssl-static")
+                {
+                    sources = [
+                      "repo/externals/paho-mqtt-c/src/MQTTAsync.c",
+                      "repo/externals/paho-mqtt-c/src/MQTTAsyncUtils.c",
+                      "repo/externals/paho-mqtt-c/src/SSLSocket.c"
+                    ]
+                    public_deps = [ ":paho-common-static" ]
+                    public_configs = [ ":openssl_config" ]
+                    defines = [ "OPENSSL=1" ]
+                }
+            }
+        }
+
+        if (paho_build_shared)
+        {
+            if (paho_sync_cli)
+            {
+                source_set("paho-c-sync-ssl-shared")
+                {
+                    sources = [ "repo/externals/paho-mqtt-c/src/MQTTClient.c",
+                                "repo/externals/paho-mqtt-c/src/SSLSocket.c"]
+                    public_deps = [ ":paho-common-shared" ]
+                    public_configs = [ ":openssl_config" ]
+                    defines = [ "OPENSSL=1" ]
+                }
+            }
+
+            if (paho_async_cli)
+            {
+                source_set("paho-c-async-ssl-shared")
+                {
+                    sources = [
+                      "repo/externals/paho-mqtt-c/src/MQTTAsync.c",
+                      "repo/externals/paho-mqtt-c/src/MQTTAsyncUtils.c",
+                      "repo/externals/paho-mqtt-c/src/SSLSocket.c"
+                    ]
+                    public_deps = [ ":paho-common-shared" ]
+                    public_configs = [ ":openssl_config" ]
+                    defines = [ "OPENSSL=1" ]
+                }
+            }
+        }
     }
-  }
+}
+
+source_set ("paho-cpp-common")
+{
+     sources = [
+"repo/src/async_client.cpp",
+"repo/src/client.cpp",
+"repo/src/connect_options.cpp",
+"repo/src/create_options.cpp",
+"repo/src/disconnect_options.cpp",
+"repo/src/iclient_persistence.cpp",
+"repo/src/message.cpp",
+"repo/src/properties.cpp",
+"repo/src/response_options.cpp",
+"repo/src/ssl_options.cpp",
+"repo/src/string_collection.cpp",
+"repo/src/subscribe_options.cpp",
+"repo/src/token.cpp",
+"repo/src/topic.cpp",
+"repo/src/will_options.cpp",
+]
+public_configs = [ ":paho_mqttpp_config" ]
+
 }
 
 # Define the static or shared library for Paho C++ based on the build arguments
-if (paho_build_static) {
-  static_library("paho_mqtt-cpp-sync-static") {
-    sources = paho_sources
-    public_configs = [ ":paho_mqttpp_config" ]
-    deps = [ ":paho-mqtt-sync-static" ]  # Link to the Paho C library
+if (paho_build_static)
+{
+  if (paho_sync_cli)
+  {
+      if (paho_with_ssl)
+      {
+          static_library("paho-mqtt-cpp-sync-ssl-static")
+          {
+              public_deps = [ ":paho-cpp-common", ":paho-c-sync-ssl-static" ]
+          }
+      }
+      else
+      {
+          static_library("paho-mqtt-cpp-sync-static")
+          {
+              public_deps = [ ":paho-cpp-common", ":paho-c-sync-static" ]
+          }
+      }
   }
 
-  static_library("paho-mqtt-cpp-async-static") {
-    sources = paho_sources
-    public_configs = [ ":paho_mqttpp_config" ]
-    deps = [ ":paho-mqtt-async-static" ]  # Link to the Paho C library
-  }
-
-  if (paho_with_ssl) {
-    static_library("paho_mqtt-cpp-sync-ssl-static") {
-      sources = paho_sources
-      public_configs = [ ":paho_mqttpp_config" ]
-      deps = [ ":paho-mqtt-sync-ssl-static" ]  # Link to the Paho C library
+    if (paho_async_cli)
+    {   
+        if(paho_with_ssl)
+        {
+            static_library("paho-mqtt-cpp-async-ssl-static")
+            {
+              public_deps = [ ":paho-cpp-common", ":paho-c-async-ssl-static" ]
+            }
+        }
+        else
+        {
+            static_library("paho-mqtt-cpp-async-static")
+            {
+              public_deps = [ ":paho-cpp-common", ":paho-c-async-static" ]
+            }
+        }
     }
-
-    static_library("paho-mqtt-cpp-async-ssl-static") {
-      sources = paho_sources
-      public_configs = [ ":paho_mqttpp_config" ]
-      deps = [ ":paho-mqtt-async-ssl-static" ]  # Link to the Paho C library
-    }
-  }
 }
 
-if (paho_build_shared) {
-  shared_library("paho_mqtt-cpp-sync-shared") {
-    sources = paho_sources
-    public_configs = [ ":paho_mqttpp_config" ]
-    deps = [ ":paho-mqtt-sync-shared" ]  # Link to the Paho C library
-  }
+  if (paho_build_shared)
+  {
+      if(paho_sync_cli)
+      {
+          if (paho_with_ssl)
+          {
+              shared_library("paho-mqtt-cpp-sync-ssl")
+              {
+              public_deps = [ ":paho-cpp-common", ":paho-c-sync-ssl-shared" ]
+              }
+          }
+          else
+          {
+              shared_library("paho-mqtt-cpp-sync")
+              {
+              public_deps = [ ":paho-cpp-common", ":paho-c-sync-shared" ]
+              }
+          }
+      }
 
-  shared_library("paho-mqtt-cpp-async-shared") {
-    sources = paho_sources
-    public_configs = [ ":paho_mqttpp_config" ]
-    deps = [ ":paho-mqtt-async-shared" ]  # Link to the Paho C library
+      if (paho_async_cli)
+      {
+          if (paho_with_ssl)
+          {
+              shared_library("paho-mqtt-cpp-async-ssl")
+              {
+              public_deps = [ ":paho-cpp-common", ":paho-c-async-ssl-shared" ]
+              }
+          }
+          else
+          {
+              shared_library("paho-mqtt-cpp-async")
+              {
+              public_deps = [ ":paho-cpp-common", ":paho-c-async-shared" ]
+              }
+          }
+      }
   }
-
-  if (paho_with_ssl) {
-    shared_library("paho_mqtt-cpp-sync-ssl-shared") {
-      sources = paho_sources
-      public_configs = [ ":paho_mqttpp_config" ]
-      deps = [ ":paho-mqtt-sync-ssl-shared" ]  # Link to the Paho C library
-    }
-
-    shared_library("paho-mqtt-cpp-async-ssl-shared") {
-      sources = paho_sources
-      public_configs = [ ":paho_mqttpp_config" ]
-      deps = [ ":paho-mqtt-async-ssl-shared" ]  # Link to the Paho C library
-    }
-  }
-}
 
 # Compiler and linker settings for Paho C++
 config("paho_mqttpp_config") {
-  include_dirs = [ paho_include_dir ]
+  include_dirs = [ "repo/include" ]
 
   # Use C++11
   cflags = [
@@ -212,20 +279,23 @@ config("paho_mqttpp_config") {
     "-fexceptions",
     "-fcommon",
   ]
+    lib_dirs = [ "/lib/x86_64-linux-gnu/" ]
+libs = [ "pthread", "rt", "c", "dl" ]
+
+
 }
 
 # Compiler and linker settings for Paho C
 config("paho_mqtt_c_config") {
+
   include_dirs = [ "repo/externals/paho-mqtt-c/src" ]
+
   cflags = [
     "-Wno-error",
     "-fcommon",
   ]
-  
-  if (target_os == "linux")
-  {
     lib_dirs = [ "/lib/x86_64-linux-gnu/" ]
-    libs = [ "pthread", "ssl", "crypto" ]
-  }
+libs = [ "pthread", "rt", "c", "dl" ]
+
   defines = [ "HIGH_PERFORMANCE" ]
 }
