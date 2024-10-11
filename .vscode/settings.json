@@ -123,6 +123,7 @@
     "files.watcherExclude": {
         "**/.git/objects/**": true,
         "**/.git/subtree-cache/**": true,
+        ".git*": true,
         "out/": true,
         "**/third_party/**": true
     },

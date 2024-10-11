@@ -6,9 +6,12 @@ Matter SDK takes a really long time to build on the RPi and usually fails due to
 RAM constraints.
 
 The PC must have the Linux OS (or macOS), since Windows is not very well
-supported currently in the Matter SDK. If you want to use Windows, you must use
-WSL and you can only use it to develop code, because you won't be able to run
-the executable. Nonetheless, ESP has a
+supported currently in the Matter SDK. If you want to use Windows, you have to
+use WSL and you can only use it to build code, because you won't be able to run
+the executable. On a final, you can check this recent [PR] to test if with
+DevContainers extension it's possible to run Matter inside Windows.
+
+Nonetheless, ESP has a
 [guide](https://docs.espressif.com/projects/esp-matter/en/latest/esp32/developing.html)
 where Windows is supported with some changes in the BIOS settings.
 
