@@ -22,15 +22,16 @@ assert(chip_build_tools)
 import("${chip_root}/examples/common/pigweed/pigweed_rpcs.gni")
 
 executable("mqtt-app") {
-  sources = [
-    "main.cpp",
-  ]
+  sources = [ "main.cpp" ]
 
   deps = [
-    "${chip_root}/third_party/paho.mqtt.cpp:paho-mqtt-cpp-async-ssl-static",
+    "${chip_root}/third_party/paho.mqtt.cpp:paho_mqtt_cpp_async_ssl_static",
   ]
 
-  cflags = [ "-Wconversion", "-Wno-error" ]
+  cflags = [
+    "-Wconversion",
+    "-Wno-error",
+  ]
 
   include_dirs = [ "include" ]
   output_dir = root_out_dir

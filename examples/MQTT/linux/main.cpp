@@ -32,11 +32,11 @@ int main(int argc, char * argv[])
     // Options to use if we need to reconnect
     mqtt::connect_options mConnOpts;
 
-    std::shared_ptr<mqtt::async_client> mClientPtr;
+    std::unique_ptr<mqtt::async_client> mClientPtr;
 
     std::cout << "creating Client" << std::endl;
 
-    mClientPtr = std::make_shared<mqtt::async_client>("mqtts://mqtt.ilce-sensehome.ss-centi.com:1883", "gnTest");
+    mClientPtr = std::make_unique<mqtt::async_client>("mqtts://mqtt.ilce-sensehome.ss-centi.com:1883", "gnTest");
 
     std::cout << "Client created" << std::endl;
 
