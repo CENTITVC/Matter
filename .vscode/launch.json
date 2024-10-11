@@ -501,11 +501,26 @@
             "showDevDebugOutput": "parsed"
         },
         {
-            "name": "Run CeNTI Matter Application",
+            "name": "[CeNTI] Run CeNTI Matter Application",
             "type": "cppdbg",
             "request": "launch",
             "cwd": "${workspaceFolder}",
-            "program": "${workspaceFolder}/out/${input:outAppCenti}",
+            "program": "${workspaceFolder}/examples/${input:outAppCenti}",
+            "miDebuggerPath": "${workspaceFolder}/scripts/sudo_gdb.sh",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "[CeNTI] Run Matter Application",
+            "type": "cppdbg",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "program": "${workspaceFolder}/examples/${input:outAppMatter}",
             "miDebuggerPath": "${workspaceFolder}/scripts/sudo_gdb.sh",
             "setupCommands": [
                 {
@@ -616,8 +631,16 @@
             "id": "outAppCenti",
             "command": "shellCommand.execute",
             "args": {
-                "command": "find examples/centi-* -type f -executable |sort |sed 's$${workspaceFolder}/out/$$'",
+                "command": "find ${workspaceFolder}/examples/ -type f -executable -name \"centi\" |sort |sed 's$${workspaceFolder}/out/$$'",
                 "description": "Select the app to run"
+            }
+        },
+        {
+            "type": "command",
+            "id": "outAppMatter",
+            "command": "shellComand.execute",
+            "args": {
+                "command": "find ${workspaceFolder}/examples/ -maxdepth 5 -type f -executable ! -name \"*.*\" ! -name \"gradlew\" -perm -og+rx  | sort | sed 's$${workspaceFolder}/examples/$$'"
             }
         }
     ]

@@ -7,8 +7,11 @@ fi
 
 SCRIPT_DIR=basedir=$(dirname "$0")
 
-if [[ ! $MATTER_ROOT  ]]; then
-	export MATTER_ROOT=$(cd "${basedir}"; pwd)
+if [[ ! $MATTER_ROOT ]]; then
+    export MATTER_ROOT=$(
+        cd "${basedir}"
+        pwd
+    )
 fi
 
 if [[ ! $MQTT_ROOT ]]; then
@@ -16,7 +19,11 @@ if [[ ! $MQTT_ROOT ]]; then
 fi
 
 if [[ ! $USER_DIR ]]; then
-    export USER_DIR=$(cd $MATTER_ROOT; cd ..; pwd)
+    export USER_DIR=$(
+        cd $MATTER_ROOT
+        cd ..
+        pwd
+    )
 fi
 
 check_repo_exists() {
@@ -67,7 +74,8 @@ Print_Help() {
     echo " -iotbr, --install_otbr                                           Install OTBR POSIX."
     echo " -sthread, --start_otbr                                           Create and start new thread network."
     echo " -crpisys <hostname@IP>, --create_rpi_sysroot <hostname@IP>       Create the RPi sysroot on your host machine."
-    echo " -brpi, --build_rpi                                               Cross-Compile build for Rasberry Pi 4 (64bit Ubuntu Server)."
+    echo " -ccrpi <appDir>, --cross_compile_rpi <appDir>,                            Cross-Compile build for Rasberry Pi 4 (64bit Ubuntu Server).
+                                                                        Path is relative to Matter repo."
     echo ""
     echo_bold_white "Available env variables which you can change according to your needs:"
     echo_blue "USER_DIR: $USER_DIR"
@@ -147,11 +155,16 @@ Create_RPISysroot() {
 }
 
 Build_RPI() {
+    set -e
+    local ROOT_DIR="$1"
+    local OUT_DIR="$ROOT_DIR/out/aarch64"
+
     source $MATTER_ROOT/scripts/activate.sh
+    cd $MATTER_ROOT
     bash -c '
     PKG_CONFIG_PATH="/opt/rpi-sysroot/lib/aarch64-linux-gnu/pkgconfig" \
-    gn gen --check --fail-on-unused-args --export-compile-commands --root=examples/centi-matter-controller '"'"'--args=is_clang=false treat_warnings_as_errors=false target_cpu="arm64" sysroot="/opt/rpi-sysroot"'"'"' out/centi-matter-controller-rpi'
-    ninja -C 'out/centi-matter-controller-rpi'
+    gn gen --check --fail-on-unused-args --export-compile-commands --root='"$ROOT_DIR"' '"'"'--args=is_clang=false treat_warnings_as_errors=false target_cpu="arm64" sysroot="/opt/rpi-sysroot"'"'"' '"$OUT_DIR"''
+    ninja -C "$OUT_DIR"
 }
 
 Install_OTBR() {
@@ -163,13 +176,13 @@ Install_OTBR() {
         otbrPosixCommit="42f98b27b"
         otCommit="7074a43e4"
     elif [ "$1" = "nrf" ]; then
-    #https://docs.nordicsemi.com/bundle/ncs-latest/page/nrf/protocols/thread/tools.html#ug-thread-tools-tbr
+        #https://docs.nordicsemi.com/bundle/ncs-latest/page/nrf/protocols/thread/tools.html#ug-thread-tools-tbr
         otbrPosixCommit="98dda6c"
         otCommit="b9dcdbc" #hash is the same
     fi
 
     ethIfName=$(ip link | awk -F: '$0 !~ "lo|vir|wl|^[^0-9]"{print $2;getline}' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-    set -x
+    set -e
     cd $USER_DIR
     git clone https://github.com/openthread/ot-br-posix
     cd ot-br-posix
@@ -228,23 +241,33 @@ while [ $# -gt 0 ]; do
             Create_RPISysroot "$1" # Pass the IP to the function
             exit 0
         else
+            Print_Help
             echo "Error: --create_rpi_sysroot requires an IP address."
             exit 1
         fi
         ;;
-    --build_rpi | -brpi)
-        Build_RPI
-        exit 0
+    --cross_compile_rpi | -ccrpi)
+        shift
+        if [ -n "$1" ]; then
+            Build_RPI "$1"
+            exit 0
+        else
+            Print_Help
+            echo_red "Error: --build_rpi requires the root directory of the app to build"
+            exit 1
+        fi
+
         ;;
     --install_otbr | -iotbr)
         shift
 
-        case $1 in "silabs"|"nrf")
+        case $1 in "silabs" | "nrf")
             Install_OTBR "$1"
             exit 0
             ;;
         *)
             echo_red "Wrong platform supplied (only silabs/nrf are supported)"
+            Print_Help
             ;;
         esac
         ;;

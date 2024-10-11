@@ -412,36 +412,50 @@
             }
         },
         {
-            "label": "Build CeNTI Apps",
+            "label": "[CeNTI] Build CeNTI Application",
             "type": "shell",
             "command": "./scripts/gn_build_example.sh",
-            "args": ["${input:centiBuildApp}", "${input:centiBuildAppOutput}"],
+            "args": ["${input:centiBuildApp}", "${input:centiBuildApp}/out"],
             "group": "build",
             "problemMatcher": {
                 "base": "$gcc",
-                "fileLocation": ["relative", "${workspaceFolder}/apps/"]
+                "fileLocation": ["relative", "${workspaceFolder}/examples/"]
             }
         },
         {
-            "label": "Create RPi Sysroot",
+            "label": "[CeNTI] Build Matter Application",
+            "type": "shell",
+            "command": "${workspaceFolder}/scripts/examples/gn_build_example.sh",
+            "args": [
+                "${input:centiPickAnyApp}",
+                "${input:centiPickAnyApp}/out"
+            ],
+            "group": "build",
+            "problemMatcher": {
+                "base": "$gcc",
+                "fileLocation": ["relative", "${workspaceFolder}/examples/"]
+            }
+        },
+        {
+            "label": "[CeNTI] Create RPi Sysroot",
             "type": "shell",
             "command": "sudo ${workspaceFolder}/scripts/centi/centi_mattertool.sh --create_rpi_sysroot ${input:centiTargetHost}",
             "group": "build"
         },
         {
-            "label": "Build RPi Sysroot",
+            "label": "[CeNTI] Build RPi Sysroot",
             "type": "shell",
             "command": "sudo ${workspaceFolder}/scripts/centi/centi_mattertool.sh --cross_compile_rpi examples/${input:centiPickAnyApp}",
             "group": "build"
         },
         {
-            "label": "Transfer binary to RPi",
+            "label": "[CeNTI] Transfer binary to RPi",
             "type": "shell",
             "command": "scp ${workspaceFolder}/examples/${input:centiPickAnyBinary} ${input:centiTargetHost}:/${input:pickDestinationDir}",
             "group": "build"
         },
         {
-            "label": "Install OTBR",
+            "label": "[CeNTI] Install OTBR",
             "type": "shell",
             "command": "sudo ${workspaceFolder}/scripts/centi/centi_mattertool.sh -iotbr ${input:otPlatformTarget}"
         }
@@ -744,7 +758,7 @@
             "type": "command",
             "command": "shellCommand.execute",
             "args": {
-                "command": "find ${workspaceFolder}/examples/centi-* -maxdepth 2 -type d | sort | sed 's$${workspaceFolder}/out/$$'",
+                "command": "find ${workspaceFolder}/examples/centi* -maxdepth 2 -type d | sort | sed 's$${workspaceFolder}/out/$$'",
                 "description": "Select the app to build"
             }
         },
@@ -766,7 +780,7 @@
             }
         },
         {
-            "id": "buildOutput",
+            "id": "centiBuildOutput",
             "type": "promptString",
             "description": "Enter a build directory",
             "default": "centi-matter-controller"
