@@ -1,5 +1,5 @@
 {
-    "C_Cpp.intelliSenseEngineFallback": "Enabled",
+    "C_Cpp.intelliSenseEngineFallback": "enabled",
     "C_Cpp.default.includePath": [
         "${workspaceFolder}/build/default/src/",
         "${workspaceFolder}/build/default/src/**",
