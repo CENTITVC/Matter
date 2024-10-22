@@ -279,6 +279,12 @@ config("paho_mqtt_c_config") {
   cflags = [
     "-Wno-error",
     "-fcommon",
+    "-Wno-sign-compare",
+    "-Wno-shadow",
+    "-Wno-unused-function",
+    "-Wno-unused-but-set-variable",
+    "-Wno-vla",
+    "-Wno-format-nonliteral",
   ]
 
   defines = [ "HIGH_PERFORMANCE" ]

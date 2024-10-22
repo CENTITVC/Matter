@@ -427,14 +427,10 @@
             "type": "shell",
             "command": "${workspaceFolder}/scripts/examples/gn_build_example.sh",
             "args": [
-                "${input:centiPickAnyApp}",
-                "${input:centiPickAnyApp}/out"
+                "${workspaceFolder}/examples/${input:centiPickAnyApp}",
+                "${workspaceFolder}/examples/${input:centiPickAnyApp}/out"
             ],
-            "group": "build",
-            "problemMatcher": {
-                "base": "$gcc",
-                "fileLocation": ["relative", "${workspaceFolder}/examples/"]
-            }
+            "group": "build"
         },
         {
             "label": "[CeNTI] Create RPi Sysroot",
