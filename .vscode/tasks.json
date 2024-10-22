@@ -785,7 +785,7 @@
             "id": "pickDestinationDir",
             "type": "promptString",
             "description": "Enter full path for destination directory",
-            "default": "/home/ubuntu/centi-matter/"
+            "default": "/home/ubuntu/CeNTI-Matter-Controller/apps"
         },
         {
             "id": "otPlatformTarget",

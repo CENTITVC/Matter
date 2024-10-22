@@ -23,6 +23,10 @@
 #include "IllianceDevices/IllianceDevice.h"
 #include "IllianceDevices/MatterDevicesCallbacks.h"
 
+#define ILLIANCE_INERGY                 (0)
+#define ILLIANCE_IPOWER_SENSING_HOME    (1)
+#define ILLIANCE_PROJECT_VERSION        ILLIANCE_IPOWER_SENSING_HOME
+
 class AppTask {
 public:
     AppTask() { mRunning.store(true); }

@@ -392,8 +392,7 @@ CHIP_ERROR AppTask::MQTT__Initialize(void)
 
     //brokerConfig.hostname = "mqtt://broker.hivemq.com";
 #if  (MQTT_BROKER_HOST == MQTT_BROKER_HOST_ILLIANCE)
-    //#if (ILLIANCE_PROJECT_VERSION == ILLIANCE_IPOWER_SENSING_HOME)
-    #if 1
+    #if (ILLIANCE_PROJECT_VERSION == ILLIANCE_IPOWER_SENSING_HOME)
         brokerConfig.hostname = "mqtts://mqtt.ilce-sensehome.ss-centi.com:1883";
         brokerConfig.port = 1883;
         brokerConfig.username = "userCenti";
@@ -408,9 +407,9 @@ CHIP_ERROR AppTask::MQTT__Initialize(void)
 
     #if CONFIG_CROSS_COMPILATION
         #if (ILLIANCE_PROJECT_VERSION == ILLIANCE_IPOWER_SENSING_HOME)
-            brokerConfig.tls.ca_certificate = "centi_broker_CA.pem";
+            brokerConfig.tls.ca_certificate = "/etc/ssl/certs/centi_broker_CA.pem";
         #else
-            brokerConfig.tls.ca_certificate = "bandora_broker_CA.pem";
+            brokerConfig.tls.ca_certificate = "/etc/ssl/certs/bandora_broker_CA.pem";
         #endif /* ILLIANCE_PROJECT_VERSION == ILLIANCE_IPOWER_SENSING_HOME */
     #else
         #if (ILLIANCE_PROJECT_VERSION == ILLIANCE_IPOWER_SENSING_HOME)
@@ -551,7 +550,6 @@ void AppTask::RunLoop(void)
                 std::cout <<"Waiting Command... "  << std::endl;
                 command->WaitForCompletionOrTimeout();
                 std::cout <<"Command complete... "  << std::endl;
-
             }
             else
             {
