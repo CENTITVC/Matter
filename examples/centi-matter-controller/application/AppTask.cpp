@@ -149,9 +149,6 @@ CHIP_ERROR AppTask::Matter__Initialize(void)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
 
-    #ifdef CHIP_CONFIG_KVS_PATH
-        ChipLogProgress(NotSpecified, "KVS Path redefine " CHIP_CONFIG_KVS_PATH);
-    #endif
     err = MatterManager::MatterMgr().Init();
     ReturnErrorOnFailure(err);
 

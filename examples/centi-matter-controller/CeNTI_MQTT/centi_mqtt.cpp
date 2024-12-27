@@ -502,7 +502,7 @@ int CentiMqttClient::Publish_ExtendedColorLight_Hue(uint64_t nodeId, uint16_t hu
         
         json["hue"] = hue;
 
-        std::string topic = mMacAddress + "/device/" + std::to_string(nodeId) + "measurements";
+        std::string topic = mMacAddress + "/device/" + std::to_string(nodeId) + "/measurements";
     
         ChipLogProgress(NotSpecified, "[MQTT] Publishing Matter ExtendedColorLight Hue");
 
