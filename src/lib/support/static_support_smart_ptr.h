@@ -54,7 +54,6 @@ template <class T>
 class CheckedGlobalInstanceReference
 {
 public:
-    CheckedGlobalInstanceReference() = default;
     CheckedGlobalInstanceReference(T * e) { VerifyOrDie(e == GlobalInstanceProvider<T>::InstancePointer()); }
     CheckedGlobalInstanceReference & operator=(T * value)
     {
@@ -64,7 +63,6 @@ public:
 
     inline T * operator->() { return GlobalInstanceProvider<T>::InstancePointer(); }
     inline const T * operator->() const { return GlobalInstanceProvider<T>::InstancePointer(); }
-    inline operator bool() const { return true; }
 };
 
 /// A class that acts as a wrapper to a pointer and provides
@@ -89,7 +87,6 @@ template <class T>
 class SimpleInstanceReference
 {
 public:
-    SimpleInstanceReference() = default;
     SimpleInstanceReference(T * e) : mValue(e) {}
     SimpleInstanceReference & operator=(T * value)
     {
@@ -99,10 +96,9 @@ public:
 
     T * operator->() { return mValue; }
     const T * operator->() const { return mValue; }
-    inline operator bool() const { return mValue != nullptr; }
 
 private:
-    T * mValue = nullptr;
+    T * mValue;
 };
 
 } // namespace chip

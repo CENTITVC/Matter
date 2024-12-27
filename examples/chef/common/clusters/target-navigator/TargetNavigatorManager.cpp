@@ -20,9 +20,7 @@
 #include "TargetNavigatorManager.h"
 #include <app-common/zap-generated/attributes/Accessors.h>
 
-#include <list>
-#include <string>
-
+using namespace std;
 using namespace chip::app;
 using namespace chip::app::Clusters::TargetNavigator;
 

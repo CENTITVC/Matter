@@ -44,6 +44,7 @@ namespace chip {
 namespace System {
 
 class Layer;
+class TestTimer;
 
 /**
  * Basic Timer information: time and callback.
@@ -237,7 +238,7 @@ public:
     }
 
 private:
-    friend class TestSystemTimer_CheckTimerPool_Test;
+    friend class TestTimer;
     ObjectPool<Timer, CHIP_SYSTEM_CONFIG_NUM_TIMERS> mTimerPool;
 };
 

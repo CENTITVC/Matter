@@ -20,7 +20,6 @@ package chip.devicecontroller;
 /** Class for holding ICD Client information. */
 public class ICDClientInfo {
   private final long peerNodeId;
-  private final long checkInNodeId;
   private final long startCounter;
   private final long offset;
   private final long monitoredSubject;
@@ -29,14 +28,12 @@ public class ICDClientInfo {
 
   public ICDClientInfo(
       long peerNodeId,
-      long checkInNodeId,
       long startCounter,
       long offset,
       long monitoredSubject,
       byte[] icdAesKey,
       byte[] icdHmacKey) {
     this.peerNodeId = peerNodeId;
-    this.checkInNodeId = checkInNodeId;
     this.startCounter = startCounter;
     this.offset = offset;
     this.monitoredSubject = monitoredSubject;
@@ -44,14 +41,9 @@ public class ICDClientInfo {
     this.icdHmacKey = icdHmacKey;
   }
 
-  /** Returns the peer node ID. */
+  /** Returns the check in peer node ID. */
   public long getPeerNodeId() {
     return peerNodeId;
-  }
-
-  /** Returns the check in node ID. */
-  public long getCheckInNodeId() {
-    return checkInNodeId;
   }
 
   /** Returns the Start Counter. */
@@ -84,8 +76,6 @@ public class ICDClientInfo {
     return "ICDClientInfo{"
         + "\n\tpeerNodeId="
         + peerNodeId
-        + "\n\tcheckInNodeId="
-        + checkInNodeId
         + "\n\t, startCounter="
         + startCounter
         + "\n\t, offset="

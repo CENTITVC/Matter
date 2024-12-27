@@ -24,7 +24,7 @@
 #include <lock/BoltLockManager.h>
 
 #include "freertos/FreeRTOS.h"
-#include <ble/Ble.h>
+#include <ble/BLEEndPoint.h>
 #include <lib/support/CodeUtils.h>
 #include <platform/CHIPDeviceLayer.h>
 

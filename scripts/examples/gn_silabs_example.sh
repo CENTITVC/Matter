@@ -28,21 +28,14 @@ else
     CHIP_ROOT="$MATTER_ROOT"
 fi
 
-if [[ -z "${PW_ENVIRONMENT_ROOT}" ]]; then
-    echo "Using the bootstrapped pigweed ENV in Matter root"
-    PW_PATH="$CHIP_ROOT/.environment/cipd/packages/pigweed"
-else
-    echo "Using provided $PW_ENVIRONMENT_ROOT as Pigweed ENV root"
-    PW_PATH="$PW_ENVIRONMENT_ROOT/cipd/packages/pigweed"
-fi
-
 set -x
 env
 USE_WIFI=false
 USE_DOCKER=false
 USE_GIT_SHA_FOR_VERSION=true
 USE_SLC=false
-GN_PATH="$PW_PATH/gn"
+GN_PATH=gn
+GN_PATH_PROVIDED=false
 USE_BOOTLOADER=false
 DOTFILE=".gn"
 
@@ -63,18 +56,14 @@ if [ "$#" == "0" ]; then
     <silabs_board_name>
         Identifier of the board for which this app is built
         Currently Supported :
+            BRD4161A
+            BRD4163A
+            BRD4164A
+            BRD4166A
+            BRD4170A
             BRD4186A
             BRD4187A
-            BRD4186C
-            BRD4187C
-            BRD2601B
-            BRD2703A
-            BRD2704A
-            BRD4316A
-            BRD4317A
-            BRD4318A
-            BRD4319A
-
+            BRD4304A
 
     <Build options> - optional noteworthy build options for EFR32
         chip_build_libshell
@@ -204,7 +193,7 @@ else
                 shift
                 ;;
             --icd)
-                optArgs+="chip_enable_icd_server=true chip_openthread_ftd=false sl_enable_test_event_trigger=true "
+                optArgs+="chip_enable_icd_server=true chip_openthread_ftd=false "
                 shift
                 ;;
             --low-power)
@@ -267,6 +256,7 @@ else
                 ;;
             --slc_reuse_files)
                 optArgs+="slc_reuse_files=true "
+                USE_SLC=true
                 shift
                 ;;
             --gn_path)
@@ -276,6 +266,7 @@ else
                 else
                     GN_PATH="$2"
                 fi
+                GN_PATH_PROVIDED=true
                 shift
                 shift
                 ;;
@@ -302,20 +293,25 @@ else
     fi
 
     # 917 exception. TODO find a more generic way
-    if [ "$SILABS_BOARD" == "BRD4338A" ] || [ "$SILABS_BOARD" == "BRD2605A" ]; then
+    if [ "$SILABS_BOARD" == "BRD4338A" ]; then
         echo "Compiling for 917 WiFi SOC"
         USE_WIFI=true
+        optArgs+="chip_device_platform =\"SiWx917\" is_debug=false "
     fi
 
     if [ "$USE_GIT_SHA_FOR_VERSION" == true ]; then
         {
             ShortCommitSha=$(git describe --always --dirty --exclude '*')
             branchName=$(git rev-parse --abbrev-ref HEAD)
-            optArgs+="sl_matter_version_str=\"v1.3-$branchName-$ShortCommitSha\" "
+            optArgs+="sl_matter_version_str=\"v1.2-$branchName-$ShortCommitSha\" "
         } &>/dev/null
     fi
 
-    if [ "$USE_SLC" == false ]; then
+    if [ "$USE_SLC" == true ]; then
+        if [ "$GN_PATH_PROVIDED" == false ]; then
+            GN_PATH=./.environment/cipd/packages/pigweed/gn
+        fi
+    elif [ "$USE_SLC" == false ]; then
         # Activation needs to be after SLC generation which is done in gn gen.
         # Zap generation requires activation and is done in the build phase
         source "$CHIP_ROOT/scripts/activate.sh"

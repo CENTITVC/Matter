@@ -25,7 +25,6 @@
 #include <app-common/zap-generated/ids/Attributes.h>
 #include <app-common/zap-generated/ids/Clusters.h>
 #include <app/AttributeAccessInterface.h>
-#include <app/AttributeAccessInterfaceRegistry.h>
 #include <app/util/attribute-storage.h>
 #include <lib/support/CodeUtils.h>
 #include <lib/support/logging/CHIPLogging.h>
@@ -209,7 +208,7 @@ void emberAfLocalizationConfigurationClusterServerInitCallback(EndpointId endpoi
 
         it->Release();
 
-        if (err == CHIP_ERROR_PERSISTED_STORAGE_VALUE_NOT_FOUND && validLocaleCached)
+        if (err == CHIP_ERROR_PERSISTED_STORAGE_VALUE_NOT_FOUND)
         {
             // If initial value is not one of the allowed values, write the valid value it.
             status = ActiveLocale::Set(endpoint, validLocale);
@@ -221,5 +220,5 @@ void emberAfLocalizationConfigurationClusterServerInitCallback(EndpointId endpoi
 
 void MatterLocalizationConfigurationPluginServerInitCallback()
 {
-    AttributeAccessInterfaceRegistry::Instance().Register(&gAttrAccess);
+    registerAttributeAccessOverride(&gAttrAccess);
 }

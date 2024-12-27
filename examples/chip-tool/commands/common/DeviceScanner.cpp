@@ -55,8 +55,7 @@ CHIP_ERROR DeviceScanner::Stop()
 
 void DeviceScanner::OnNodeDiscovered(const DiscoveredNodeData & nodeData)
 {
-    VerifyOrReturn(nodeData.Is<CommissionNodeData>());
-    auto & commissionData = nodeData.Get<CommissionNodeData>();
+    auto & commissionData = nodeData.commissionData;
 
     auto discriminator = commissionData.longDiscriminator;
     auto vendorId      = static_cast<VendorId>(commissionData.vendorId);
@@ -65,7 +64,7 @@ void DeviceScanner::OnNodeDiscovered(const DiscoveredNodeData & nodeData)
     ChipLogProgress(chipTool, "OnNodeDiscovered (MDNS): discriminator: %u, vendorId: %u, productId: %u", discriminator, vendorId,
                     productId);
 
-    const CommonResolutionData & resolutionData = commissionData;
+    auto & resolutionData = nodeData.resolutionData;
 
     auto & instanceData  = mDiscoveredResults[commissionData.instanceName];
     auto & interfaceData = instanceData[resolutionData.interfaceId.GetPlatformInterface()];
@@ -77,7 +76,7 @@ void DeviceScanner::OnNodeDiscovered(const DiscoveredNodeData & nodeData)
         interfaceData.push_back(result);
     }
 
-    commissionData.LogDetail();
+    nodeData.LogDetail();
 }
 
 void DeviceScanner::OnBrowseAdd(chip::Dnssd::DnssdService service)

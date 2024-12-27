@@ -37,7 +37,6 @@ enum class UDCClientProcessingState : uint8_t
     kPromptingUser,
     kUserDeclined,
     kObtainingOnboardingPayload,
-    kWaitingForCommissionerPasscodeReady,
     kCommissioningNode,
     kCommissioningFailed,
 };

@@ -22,7 +22,7 @@
 #include <lib/support/logging/CHIPLogging.h>
 
 static constexpr time_t kMinValidTimeStampEpoch = 1704067200; // 1 Jan 2019
-static constexpr uint32_t kMilliSecondsInADay   = 24 * 60 * 60 * 1000;
+static constexpr uint32_t kSecondsInADay        = 24 * 60 * 60;
 
 namespace {
 const uint8_t kMaxNtpServerStringSize = 128;
@@ -86,11 +86,6 @@ namespace chip {
 namespace Esp32TimeSync {
 void Init(const char * aSntpServerName, const uint16_t aSyncSntpIntervalDay)
 {
-    if (!aSyncSntpIntervalDay)
-    {
-        ChipLogError(DeviceLayer, "Invalid SNTP synchronization time interval.");
-        return;
-    }
     chip::Platform::CopyString(sSntpServerName, aSntpServerName);
     if (esp_sntp_enabled())
     {
@@ -99,9 +94,9 @@ void Init(const char * aSntpServerName, const uint16_t aSyncSntpIntervalDay)
     ChipLogProgress(DeviceLayer, "Initializing SNTP. Using the SNTP server: %s", sSntpServerName);
     esp_sntp_setoperatingmode(SNTP_OPMODE_POLL);
     esp_sntp_setservername(0, sSntpServerName);
-    esp_sntp_set_sync_interval(kMilliSecondsInADay * aSyncSntpIntervalDay);
-    sntp_set_time_sync_notification_cb(TimeSyncCallback);
+    esp_sntp_set_sync_interval(kSecondsInADay * aSyncSntpIntervalDay);
     esp_sntp_init();
+    sntp_set_time_sync_notification_cb(TimeSyncCallback);
 }
 } // namespace Esp32TimeSync
 } // namespace chip

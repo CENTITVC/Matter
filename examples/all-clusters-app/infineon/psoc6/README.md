@@ -30,11 +30,10 @@ will then join the network.
 
 ## Building
 
--   Download and install
-    [Modustoolbox Software v3.2](https://www.infineon.com/modustoolbox)
+-   [Modustoolbox Software](https://www.cypress.com/products/modustoolbox)
 
-    Refer to `integrations/docker/images/stage-2/chip-build-infineon/Dockerfile`
-    or `scripts/examples/gn_psoc6_example.sh` for downloading the Software and
+    Refer to `integrations/docker/images/chip-build-infineon/Dockerfile` or
+    `scripts/examples/gn_psoc6_example.sh` for downloading the Software and
     related tools.
 
 -   Install some additional tools (likely already present for Matter
@@ -63,12 +62,11 @@ will then join the network.
 
 -   Put CY8CKIT-062S2-43012 board on KitProg3 CMSIS-DAP Mode by pressing the
     `MODE SELECT` button. `KITPROG3 STATUS` LED is ON confirms board is in
-    proper mode. (Modustoolbox Software needs to be installed)
+    proper mode.
 
 -   On the command line:
 
           $ cd ~/connectedhomeip
-          $ export CY_TOOLS_PATHS=<Modustoolbox install location>/tools_3.2
           $ python3 out/infineon-psoc6-all-clusters/chip-psoc6-clusters-example.flash.py
 
 ## Commissioning and cluster control

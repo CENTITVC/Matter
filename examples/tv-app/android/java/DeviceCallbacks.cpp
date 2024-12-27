@@ -26,6 +26,7 @@
 
 #include <app/CommandHandler.h>
 #include <app/server/Dnssd.h>
+#include <app/util/af.h>
 #include <app/util/basic-types.h>
 #include <app/util/util.h>
 #include <jni.h>

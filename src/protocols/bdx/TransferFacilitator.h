@@ -45,12 +45,7 @@ class TransferFacilitator : public Messaging::ExchangeDelegate, public Messaging
 {
 public:
     TransferFacilitator() : mExchangeCtx(nullptr), mSystemLayer(nullptr), mPollFreq(kDefaultPollFreq) {}
-    ~TransferFacilitator() override;
-
-    /**
-     * Calls reset on the TransferSession object and stops the poll timer.
-     */
-    void ResetTransfer();
+    ~TransferFacilitator() override = default;
 
 private:
     //// UnsolicitedMessageHandler Implementation ////
@@ -101,6 +96,7 @@ protected:
     System::Clock::Timeout mPollFreq;
     static constexpr System::Clock::Timeout kDefaultPollFreq    = System::Clock::Milliseconds32(500);
     static constexpr System::Clock::Timeout kImmediatePollDelay = System::Clock::Milliseconds32(1);
+    bool mStopPolling                                           = false;
 };
 
 /**
@@ -125,6 +121,11 @@ public:
     CHIP_ERROR PrepareForTransfer(System::Layer * layer, TransferRole role, BitFlags<TransferControlFlags> xferControlOpts,
                                   uint16_t maxBlockSize, System::Clock::Timeout timeout,
                                   System::Clock::Timeout pollFreq = TransferFacilitator::kDefaultPollFreq);
+
+    /**
+     * Calls reset on the TransferSession object and stops the poll timer.
+     */
+    void ResetTransfer();
 };
 
 /**
@@ -149,6 +150,10 @@ public:
     CHIP_ERROR InitiateTransfer(System::Layer * layer, TransferRole role, const TransferSession::TransferInitData & initData,
                                 System::Clock::Timeout timeout,
                                 System::Clock::Timeout pollFreq = TransferFacilitator::kDefaultPollFreq);
+    /**
+     * Calls reset on the TransferSession object and stops the poll timer.
+     */
+    void ResetTransfer();
 };
 
 } // namespace bdx

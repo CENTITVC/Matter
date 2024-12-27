@@ -20,6 +20,7 @@
 #include <app-common/zap-generated/attributes/Accessors.h>
 #include <app/util/config.h>
 
+using namespace std;
 using namespace chip;
 using namespace chip::app::Clusters::ContentAppObserver;
 
@@ -34,8 +35,8 @@ void ContentAppObserverManager::HandleContentAppMessage(chip::app::CommandRespon
 {
     ChipLogProgress(Zcl, "ContentAppObserverManager::HandleContentAppMessage");
 
-    std::string dataString(data.HasValue() ? data.Value().data() : "", data.HasValue() ? data.Value().size() : 0);
-    std::string encodingHintString(encodingHint.data(), encodingHint.size());
+    string dataString(data.HasValue() ? data.Value().data() : "", data.HasValue() ? data.Value().size() : 0);
+    string encodingHintString(encodingHint.data(), encodingHint.size());
 
     ChipLogProgress(Zcl, "ContentAppObserverManager::HandleContentAppMessage TEST CASE hint=%s data=%s ",
                     encodingHintString.c_str(), dataString.c_str());

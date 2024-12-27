@@ -156,52 +156,46 @@ async def AddNOCForNewFabricFromExisting(commissionerDevCtrl, newFabricDevCtrl, 
         newNodeId (int): Node ID to use for the target node on the new fabric.
 
     Return:
-        tuple:  (bool, Optional[nocResp], Optional[rcacResp]: True if successful, False otherwise, along with nocResp, rcacResp value.
+        bool: True if successful, False otherwise.
 
     '''
-    nocResp = None
-
     resp = await commissionerDevCtrl.SendCommand(existingNodeId, 0, generalCommissioning.Commands.ArmFailSafe(60))
     if resp.errorCode is not generalCommissioning.Enums.CommissioningErrorEnum.kOk:
-        return False, nocResp
+        return False
 
     csrForAddNOC = await commissionerDevCtrl.SendCommand(existingNodeId, 0, opCreds.Commands.CSRRequest(CSRNonce=os.urandom(32)))
 
-    chainForAddNOC = await newFabricDevCtrl.IssueNOCChain(csrForAddNOC, newNodeId)
+    chainForAddNOC = newFabricDevCtrl.IssueNOCChain(csrForAddNOC, newNodeId)
     if (chainForAddNOC.rcacBytes is None or
             chainForAddNOC.icacBytes is None or
             chainForAddNOC.nocBytes is None or chainForAddNOC.ipkBytes is None):
         # Expiring the failsafe timer in an attempt to clean up.
         await commissionerDevCtrl.SendCommand(existingNodeId, 0, generalCommissioning.Commands.ArmFailSafe(0))
-        return False, nocResp
+        return False
 
     await commissionerDevCtrl.SendCommand(existingNodeId, 0, opCreds.Commands.AddTrustedRootCertificate(chainForAddNOC.rcacBytes))
-    nocResp = await commissionerDevCtrl.SendCommand(existingNodeId,
-                                                    0,
-                                                    opCreds.Commands.AddNOC(chainForAddNOC.nocBytes,
-                                                                            chainForAddNOC.icacBytes,
-                                                                            chainForAddNOC.ipkBytes,
-                                                                            newFabricDevCtrl.nodeId,
-                                                                            newFabricDevCtrl.fabricAdmin.vendorId))
-
-    rcacResp = chainForAddNOC.rcacBytes
-
-    if nocResp.statusCode is not opCreds.Enums.NodeOperationalCertStatusEnum.kOk:
+    resp = await commissionerDevCtrl.SendCommand(existingNodeId,
+                                                 0,
+                                                 opCreds.Commands.AddNOC(chainForAddNOC.nocBytes,
+                                                                         chainForAddNOC.icacBytes,
+                                                                         chainForAddNOC.ipkBytes,
+                                                                         newFabricDevCtrl.nodeId,
+                                                                         newFabricDevCtrl.fabricAdmin.vendorId))
+    if resp.statusCode is not opCreds.Enums.NodeOperationalCertStatusEnum.kOk:
         # Expiring the failsafe timer in an attempt to clean up.
         await commissionerDevCtrl.SendCommand(existingNodeId, 0, generalCommissioning.Commands.ArmFailSafe(0))
-        return False, nocResp
+        return False
 
     resp = await newFabricDevCtrl.SendCommand(newNodeId, 0, generalCommissioning.Commands.CommissioningComplete())
-
     if resp.errorCode is not generalCommissioning.Enums.CommissioningErrorEnum.kOk:
         # Expiring the failsafe timer in an attempt to clean up.
         await commissionerDevCtrl.SendCommand(existingNodeId, 0, generalCommissioning.Commands.ArmFailSafe(0))
-        return False, nocResp
+        return False
 
     if not await _IsNodeInFabricList(newFabricDevCtrl, newNodeId):
-        return False, nocResp
+        return False
 
-    return True, nocResp, rcacResp
+    return True
 
 
 async def UpdateNOC(devCtrl, existingNodeId, newNodeId):
@@ -225,7 +219,7 @@ async def UpdateNOC(devCtrl, existingNodeId, newNodeId):
         return False
     csrForUpdateNOC = await devCtrl.SendCommand(
         existingNodeId, 0, opCreds.Commands.CSRRequest(CSRNonce=os.urandom(32), isForUpdateNOC=True))
-    chainForUpdateNOC = await devCtrl.IssueNOCChain(csrForUpdateNOC, newNodeId)
+    chainForUpdateNOC = devCtrl.IssueNOCChain(csrForUpdateNOC, newNodeId)
     if (chainForUpdateNOC.rcacBytes is None or
             chainForUpdateNOC.icacBytes is None or
             chainForUpdateNOC.nocBytes is None or chainForUpdateNOC.ipkBytes is None):

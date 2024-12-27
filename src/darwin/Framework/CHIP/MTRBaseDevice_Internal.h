@@ -116,8 +116,7 @@ static inline MTRTransportType MTRMakeTransportType(chip::Transport::Type type)
 
 /**
  * Like the public invokeCommandWithEndpointID but allows passing through a
- * serverSideProcessingTimeout and controlling whether we log the call (so we
- * can not log when the call is not actually originating with MTRBaseDevice).
+ * serverSideProcessingTimeout.
  */
 - (void)_invokeCommandWithEndpointID:(NSNumber *)endpointID
                            clusterID:(NSNumber *)clusterID
@@ -125,7 +124,6 @@ static inline MTRTransportType MTRMakeTransportType(chip::Transport::Type type)
                        commandFields:(id)commandFields
                   timedInvokeTimeout:(NSNumber * _Nullable)timeoutMs
          serverSideProcessingTimeout:(NSNumber * _Nullable)serverSideProcessingTimeout
-                             logCall:(BOOL)logCall
                                queue:(dispatch_queue_t)queue
                           completion:(MTRDeviceResponseHandler)completion;
 
@@ -196,17 +194,6 @@ static inline MTRTransportType MTRMakeTransportType(chip::Transport::Type type)
         includeDataVersion:(BOOL)includeDataVersion
                      queue:(dispatch_queue_t)queue
                 completion:(MTRDeviceResponseHandler)completion;
-
-/**
- * Same as the public version, except for logging.  For use from MTRDevice only.
- */
-- (void)_writeAttributeWithEndpointID:(NSNumber *)endpointID
-                            clusterID:(NSNumber *)clusterID
-                          attributeID:(NSNumber *)attributeID
-                                value:(id)value
-                    timedWriteTimeout:(NSNumber * _Nullable)timeoutMs
-                                queue:(dispatch_queue_t)queue
-                           completion:(MTRDeviceResponseHandler)completion;
 
 @end
 

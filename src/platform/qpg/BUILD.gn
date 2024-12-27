@@ -41,6 +41,7 @@ static_library("qpg") {
     "FactoryDataProvider.cpp",
     "FactoryDataProvider.h",
     "InetPlatformConfig.h",
+    "Logging.cpp",
     "OTAImageProcessorImpl.cpp",
     "PlatformManagerImpl.cpp",
     "PlatformManagerImpl.h",
@@ -88,12 +89,4 @@ static_library("qpg") {
       deps += [ "${chip_root}/src/lib/dnssd:platform_header" ]
     }
   }
-}
-
-source_set("logging") {
-  deps = [
-    "${chip_root}/src/platform:platform_base",
-    "${chip_root}/src/platform/logging:headers",
-  ]
-  sources = [ "Logging.cpp" ]
 }

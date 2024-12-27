@@ -23,9 +23,6 @@
 
 #include <protocols/interaction_model/StatusCode.h>
 
-#ifdef MATTER_DM_PLUGIN_OPERATIONAL_STATE_SERVER
-using chip::Protocols::InteractionModel::Status;
-
 namespace chip {
 namespace app {
 namespace Clusters {
@@ -111,9 +108,9 @@ private:
         GenericOperationalState(to_underlying(OperationalStateEnum::kError)),
     };
 
-public:
     const uint32_t kExampleCountDown = 30;
 
+public:
     OperationalStateDelegate()
     {
         GenericOperationalStateDelegateImpl::mOperationalStateList = Span<const GenericOperationalState>(opStateList);
@@ -141,7 +138,6 @@ public:
 };
 
 Instance * GetOperationalStateInstance();
-OperationalStateDelegate * GetOperationalStateDelegate();
 
 void Shutdown();
 
@@ -149,12 +145,3 @@ void Shutdown();
 } // namespace Clusters
 } // namespace app
 } // namespace chip
-
-chip::Protocols::InteractionModel::Status chefOperationalStateWriteCallback(chip::EndpointId endpoint, chip::ClusterId clusterId,
-                                                                            const EmberAfAttributeMetadata * attributeMetadata,
-                                                                            uint8_t * buffer);
-chip::Protocols::InteractionModel::Status chefOperationalStateReadCallback(chip::EndpointId endpoint, chip::ClusterId clusterId,
-                                                                           const EmberAfAttributeMetadata * attributeMetadata,
-                                                                           uint8_t * buffer, uint16_t maxReadLength);
-
-#endif // MATTER_DM_PLUGIN_OPERATIONAL_STATE_SERVER

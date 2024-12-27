@@ -21,28 +21,31 @@
  *      This file implements unit tests for the SessionManager implementation.
  */
 
-#include <errno.h>
-#include <vector>
-
-#include <pw_unit_test/framework.h>
-
+#include "system/SystemClock.h"
 #include <lib/core/CHIPCore.h>
-#include <lib/core/StringBuilderAdapters.h>
 #include <lib/support/CodeUtils.h>
-#include <system/SystemClock.h>
+#include <lib/support/UnitTestRegistration.h>
 #include <transport/SecureSessionTable.h>
 #include <transport/SessionHolder.h>
+
+#include <nlbyteorder.h>
+#include <nlunit-test.h>
+
+#include <errno.h>
+#include <vector>
 
 namespace chip {
 namespace Transport {
 
-class TestSecureSessionTable : public ::testing::Test
+class TestSecureSessionTable
 {
 public:
-    static void SetUpTestSuite() { ASSERT_EQ(chip::Platform::MemoryInit(), CHIP_NO_ERROR); }
-    static void TearDownTestSuite() { chip::Platform::MemoryShutdown(); }
-
-    void ValidateSessionSorting();
+    //
+    // This test specifically validates eviction of sessions in the session table
+    // with various scenarios based on the existing set of sessions in the table
+    // and a provided session eviction hint
+    //
+    static void ValidateSessionSorting(nlTestSuite * inSuite, void * inContext);
 
 private:
     struct SessionParameters
@@ -85,6 +88,7 @@ private:
     //
     void CreateSessionTable(std::vector<SessionParameters> & sessionParams);
 
+    nlTestSuite * mTestSuite;
     Platform::UniquePtr<SecureSessionTable> mSessionTable;
     std::vector<Platform::UniquePtr<SessionNotificationListener>> mSessionList;
 };
@@ -93,8 +97,8 @@ void TestSecureSessionTable::AllocateSession(const ScopedNodeId & sessionEvictio
                                              std::vector<SessionParameters> & sessionParameters, uint16_t evictedSessionIndex)
 {
     auto session = mSessionTable->CreateNewSecureSession(SecureSession::Type::kCASE, sessionEvictionHint);
-    EXPECT_TRUE(session.HasValue());
-    EXPECT_TRUE(mSessionList[evictedSessionIndex].get()->mSessionReleased);
+    NL_TEST_ASSERT(mTestSuite, session.HasValue());
+    NL_TEST_ASSERT(mTestSuite, mSessionList[evictedSessionIndex].get()->mSessionReleased == true);
 }
 
 void TestSecureSessionTable::CreateSessionTable(std::vector<SessionParameters> & sessionParams)
@@ -102,7 +106,7 @@ void TestSecureSessionTable::CreateSessionTable(std::vector<SessionParameters> &
     mSessionList.clear();
 
     mSessionTable = Platform::MakeUnique<SecureSessionTable>();
-    EXPECT_NE(mSessionTable.get(), nullptr);
+    NL_TEST_ASSERT(mTestSuite, mSessionTable.get() != nullptr);
 
     mSessionTable->Init();
     mSessionTable->SetMaxSessionTableSize(static_cast<uint32_t>(sessionParams.size()));
@@ -110,7 +114,7 @@ void TestSecureSessionTable::CreateSessionTable(std::vector<SessionParameters> &
     for (unsigned int i = 0; i < sessionParams.size(); i++)
     {
         auto session = mSessionTable->CreateNewSecureSession(SecureSession::Type::kCASE, ScopedNodeId());
-        EXPECT_TRUE(session.HasValue());
+        NL_TEST_ASSERT(mTestSuite, session.HasValue());
 
         session.Value()->AsSecureSession()->Activate(
             ScopedNodeId(1, sessionParams[i].mPeer.GetFabricIndex()), sessionParams[i].mPeer, CATValues(), static_cast<uint16_t>(i),
@@ -127,8 +131,11 @@ void TestSecureSessionTable::CreateSessionTable(std::vector<SessionParameters> &
     }
 }
 
-void TestSecureSessionTable::ValidateSessionSorting()
+void TestSecureSessionTable::ValidateSessionSorting(nlTestSuite * inSuite, void * inContext)
 {
+    Platform::UniquePtr<TestSecureSessionTable> & _this = *static_cast<Platform::UniquePtr<TestSecureSessionTable> *>(inContext);
+    _this->mTestSuite                                   = inSuite;
+
     //
     // This validates basic eviction. The table is full of sessions from Fabric1 from the same
     // Node (2). Eviction should select the oldest session in the table (with timestamp 1) and evict that
@@ -145,8 +152,8 @@ void TestSecureSessionTable::ValidateSessionSorting()
             { { 2, kFabric1 }, System::Clock::Timestamp(2), SecureSession::State::kActive },
         };
 
-        CreateSessionTable(sessionParamList);
-        AllocateSession(ScopedNodeId(2, kFabric1), sessionParamList, 4);
+        _this->CreateSessionTable(sessionParamList);
+        _this->AllocateSession(ScopedNodeId(2, kFabric1), sessionParamList, 4);
     }
 
     //
@@ -167,8 +174,8 @@ void TestSecureSessionTable::ValidateSessionSorting()
             { { 2, kFabric1 }, System::Clock::Timestamp(2), SecureSession::State::kActive },
         };
 
-        CreateSessionTable(sessionParamList);
-        AllocateSession(ScopedNodeId(2, kFabric2), sessionParamList, 4);
+        _this->CreateSessionTable(sessionParamList);
+        _this->AllocateSession(ScopedNodeId(2, kFabric2), sessionParamList, 4);
     }
 
     //
@@ -193,8 +200,8 @@ void TestSecureSessionTable::ValidateSessionSorting()
             { { 4, kFabric2 }, System::Clock::Timestamp(2), SecureSession::State::kActive },
         };
 
-        CreateSessionTable(sessionParamList);
-        AllocateSession(ScopedNodeId(2, kFabric1), sessionParamList, 1);
+        _this->CreateSessionTable(sessionParamList);
+        _this->AllocateSession(ScopedNodeId(2, kFabric1), sessionParamList, 1);
     }
 
     //
@@ -219,8 +226,8 @@ void TestSecureSessionTable::ValidateSessionSorting()
             { { 4, kFabric2 }, System::Clock::Timestamp(2), SecureSession::State::kActive },
         };
 
-        CreateSessionTable(sessionParamList);
-        AllocateSession(ScopedNodeId(2, kFabric1), sessionParamList, 3);
+        _this->CreateSessionTable(sessionParamList);
+        _this->AllocateSession(ScopedNodeId(2, kFabric1), sessionParamList, 3);
     }
 
     //
@@ -245,8 +252,8 @@ void TestSecureSessionTable::ValidateSessionSorting()
             { { 4, kFabric2 }, System::Clock::Timestamp(2), SecureSession::State::kActive },
         };
 
-        CreateSessionTable(sessionParamList);
-        AllocateSession(ScopedNodeId(2, kFabric1), sessionParamList, 4);
+        _this->CreateSessionTable(sessionParamList);
+        _this->AllocateSession(ScopedNodeId(2, kFabric1), sessionParamList, 4);
     }
 
     //
@@ -268,8 +275,8 @@ void TestSecureSessionTable::ValidateSessionSorting()
             { { 4, kFabric2 }, System::Clock::Timestamp(2), SecureSession::State::kActive },
         };
 
-        CreateSessionTable(sessionParamList);
-        AllocateSession(ScopedNodeId(3, kFabric1), sessionParamList, 2);
+        _this->CreateSessionTable(sessionParamList);
+        _this->AllocateSession(ScopedNodeId(3, kFabric1), sessionParamList, 2);
     }
 
     //
@@ -296,8 +303,8 @@ void TestSecureSessionTable::ValidateSessionSorting()
             { { 4, kFabric2 }, System::Clock::Timestamp(2), SecureSession::State::kDefunct },
         };
 
-        CreateSessionTable(sessionParamList);
-        AllocateSession(ScopedNodeId(3, kFabric1), sessionParamList, 3);
+        _this->CreateSessionTable(sessionParamList);
+        _this->AllocateSession(ScopedNodeId(3, kFabric1), sessionParamList, 3);
     }
 
     //
@@ -330,8 +337,8 @@ void TestSecureSessionTable::ValidateSessionSorting()
             { { 4, kFabric2 }, System::Clock::Timestamp(3), SecureSession::State::kActive },
         };
 
-        CreateSessionTable(sessionParamList);
-        AllocateSession(ScopedNodeId(3, kFabric1), sessionParamList, 3);
+        _this->CreateSessionTable(sessionParamList);
+        _this->AllocateSession(ScopedNodeId(3, kFabric1), sessionParamList, 3);
     }
 
     //
@@ -356,8 +363,8 @@ void TestSecureSessionTable::ValidateSessionSorting()
             { { 4, kFabric2 }, System::Clock::Timestamp(2), SecureSession::State::kActive },
         };
 
-        CreateSessionTable(sessionParamList);
-        AllocateSession(ScopedNodeId(3, kFabric1), sessionParamList, 2);
+        _this->CreateSessionTable(sessionParamList);
+        _this->AllocateSession(ScopedNodeId(3, kFabric1), sessionParamList, 2);
     }
 
     //
@@ -383,8 +390,8 @@ void TestSecureSessionTable::ValidateSessionSorting()
             { { 4, kFabric2 }, System::Clock::Timestamp(2), SecureSession::State::kActive },
         };
 
-        CreateSessionTable(sessionParamList);
-        AllocateSession(ScopedNodeId(3, kFabric1), sessionParamList, 0);
+        _this->CreateSessionTable(sessionParamList);
+        _this->AllocateSession(ScopedNodeId(3, kFabric1), sessionParamList, 0);
     }
 
     //
@@ -405,8 +412,8 @@ void TestSecureSessionTable::ValidateSessionSorting()
             { { 4, kFabric2 }, System::Clock::Timestamp(2), SecureSession::State::kActive },
         };
 
-        CreateSessionTable(sessionParamList);
-        AllocateSession(ScopedNodeId(4, kFabric1), sessionParamList, 2);
+        _this->CreateSessionTable(sessionParamList);
+        _this->AllocateSession(ScopedNodeId(4, kFabric1), sessionParamList, 2);
     }
 
     //
@@ -425,8 +432,8 @@ void TestSecureSessionTable::ValidateSessionSorting()
             { { 4, kFabric2 }, System::Clock::Timestamp(2), SecureSession::State::kActive },
         };
 
-        CreateSessionTable(sessionParamList);
-        AllocateSession(ScopedNodeId(4, kFabric3), sessionParamList, 4);
+        _this->CreateSessionTable(sessionParamList);
+        _this->AllocateSession(ScopedNodeId(4, kFabric3), sessionParamList, 4);
     }
 
     //
@@ -447,19 +454,67 @@ void TestSecureSessionTable::ValidateSessionSorting()
             { { 4, kFabric2 }, System::Clock::Timestamp(2), SecureSession::State::kActive },
         };
 
-        CreateSessionTable(sessionParamList);
-        AllocateSession(ScopedNodeId(4, kFabric3), sessionParamList, 5);
+        _this->CreateSessionTable(sessionParamList);
+        _this->AllocateSession(ScopedNodeId(4, kFabric3), sessionParamList, 5);
     }
 }
 
-TEST_F(TestSecureSessionTable, ValidateSessionSorting)
-{
-    // This calls TestSecureSessionTable::ValidateSessionSorting instead of just doing the
-    // tests directly in here, since the tests reference `SecureSession::State`, which is
-    // private.  Defining the function inside TestSecureSessionTable allows State to be
-    // accessible since SecureSession contains `friend class TestSecureSessionTable`.
-    ValidateSessionSorting();
-}
+Platform::UniquePtr<TestSecureSessionTable> gTestSecureSessionTable;
 
 } // namespace Transport
 } // namespace chip
+
+// Test Suite
+
+namespace {
+
+/**
+ *  Test Suite that lists all the test functions.
+ */
+// clang-format off
+const nlTest sTests[] =
+{
+    NL_TEST_DEF("Validate Session Sorting (Over Minima)",               chip::Transport::TestSecureSessionTable::ValidateSessionSorting),
+    NL_TEST_SENTINEL()
+};
+// clang-format on
+
+int Initialize(void * apSuite)
+{
+    VerifyOrReturnError(chip::Platform::MemoryInit() == CHIP_NO_ERROR, FAILURE);
+    chip::Transport::gTestSecureSessionTable = chip::Platform::MakeUnique<chip::Transport::TestSecureSessionTable>();
+    return SUCCESS;
+}
+
+int Finalize(void * aContext)
+{
+    chip::Transport::gTestSecureSessionTable.reset();
+    chip::Platform::MemoryShutdown();
+    return SUCCESS;
+}
+
+// clang-format off
+nlTestSuite sSuite =
+{
+    "TestSecureSessionTable",
+    &sTests[0],
+    Initialize,
+    Finalize
+};
+// clang-format on
+
+} // namespace
+
+/**
+ *  Main
+ */
+int SecureSessionTableTest()
+{
+    // Run test suit against one context
+    nlTestRunner(&sSuite, &chip::Transport::gTestSecureSessionTable);
+
+    int r = (nlTestRunnerStats(&sSuite));
+    return r;
+}
+
+CHIP_REGISTER_TEST_SUITE(SecureSessionTableTest);

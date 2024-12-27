@@ -27,7 +27,6 @@
 
 #include <controller/CHIPDeviceController.h>
 #include <controller/CommissioningWindowOpener.h>
-#include <controller/python/chip/icd/PyChipCheckInDelegate.h>
 #include <controller/python/chip/native/PyChipError.h>
 
 namespace chip {
@@ -69,14 +68,11 @@ public:
     void OnCommissioningFailure(PeerId peerId, CHIP_ERROR error, CommissioningStage stageFailed,
                                 Optional<Credentials::AttestationVerificationResult> additionalErrorInfo) override;
     void OnCommissioningStatusUpdate(PeerId peerId, CommissioningStage stageCompleted, CHIP_ERROR error) override;
-    void OnICDRegistrationComplete(ScopedNodeId deviceId, uint32_t icdCounter) override;
-    void OnICDStayActiveComplete(ScopedNodeId deviceId, uint32_t promisedActiveDuration) override;
     void OnFabricCheck(NodeId matchingNodeId) override;
     Callback::Callback<Controller::OnOpenCommissioningWindow> *
     GetOpenWindowCallback(Controller::CommissioningWindowOpener * context);
     void OnOpenCommissioningWindow(NodeId deviceId, CHIP_ERROR status, SetupPayload payload);
     void SetExpectingPairingComplete(bool value) { expectingPairingComplete = value; }
-    void SetFabricIndex(FabricIndex fabricIndex) { mFabricIndex = fabricIndex; }
 
 private:
     DevicePairingDelegate_OnPairingCompleteFunct mOnPairingCompleteCallback                     = nullptr;
@@ -88,9 +84,7 @@ private:
     DevicePairingDelegate_OnFabricCheckFunct mOnFabricCheckCallback                             = nullptr;
     Callback::Callback<Controller::OnOpenCommissioningWindow> mOpenWindowCallback;
     Controller::CommissioningWindowOpener * mWindowOpener = nullptr;
-
-    bool expectingPairingComplete = false;
-    FabricIndex mFabricIndex      = 0;
+    bool expectingPairingComplete                         = false;
 };
 
 } // namespace Controller

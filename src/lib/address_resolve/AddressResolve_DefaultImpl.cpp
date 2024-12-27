@@ -47,16 +47,13 @@ void NodeLookupHandle::LookupResult(const ResolveResult & result)
     char addr_string[Transport::PeerAddress::kMaxToStringSize];
     result.address.ToString(addr_string);
 
-    const PeerId peerId = GetRequest().GetPeerId();
     if (success)
     {
-        ChipLogProgress(Discovery, "%s: new best score: %u (for " ChipLogFormatPeerId ")", addr_string, to_underlying(score),
-                        ChipLogValuePeerId(peerId));
+        ChipLogProgress(Discovery, "%s: new best score: %u", addr_string, to_underlying(score));
     }
     else
     {
-        ChipLogProgress(Discovery, "%s: score has not improved: %u (for " ChipLogFormatPeerId ")", addr_string,
-                        to_underlying(score), ChipLogValuePeerId(peerId));
+        ChipLogProgress(Discovery, "%s: score has not improved: %u", addr_string, to_underlying(score));
     }
 #endif
 }
@@ -100,8 +97,7 @@ NodeLookupAction NodeLookupHandle::NextAction(System::Clock::Timestamp now)
 {
     const System::Clock::Timestamp elapsed = now - mRequestStartTime;
 
-    ChipLogProgress(Discovery, "Checking node lookup status for " ChipLogFormatPeerId " after %lu ms",
-                    ChipLogValuePeerId(mRequest.GetPeerId()), static_cast<unsigned long>(elapsed.count()));
+    ChipLogProgress(Discovery, "Checking node lookup status after %lu ms", static_cast<unsigned long>(elapsed.count()));
 
     // We are still within the minimal search time. Wait for more results.
     if (elapsed < mRequest.GetMinLookupTime())
@@ -190,11 +186,9 @@ CHIP_ERROR Resolver::LookupNode(const NodeLookupRequest & request, Impl::NodeLoo
     VerifyOrReturnError(mSystemLayer != nullptr, CHIP_ERROR_INCORRECT_STATE);
 
     handle.ResetForLookup(mTimeSource.GetMonotonicTimestamp(), request);
-    auto & peerId = request.GetPeerId();
-    ReturnErrorOnFailure(Dnssd::Resolver::Instance().ResolveNodeId(peerId));
+    ReturnErrorOnFailure(Dnssd::Resolver::Instance().ResolveNodeId(request.GetPeerId()));
     mActiveLookups.PushBack(&handle);
     ReArmTimer();
-    ChipLogProgress(Discovery, "Lookup started for " ChipLogFormatPeerId, ChipLogValuePeerId(peerId));
     return CHIP_NO_ERROR;
 }
 
@@ -248,10 +242,6 @@ CHIP_ERROR Resolver::Init(System::Layer * systemLayer)
 
 void Resolver::Shutdown()
 {
-    // mSystemLayer is set in ::Init, so if it's null that means the resolver
-    // has not been initialized or has already been shut down.
-    VerifyOrReturn(mSystemLayer != nullptr);
-
     while (mActiveLookups.begin() != mActiveLookups.end())
     {
         auto current = mActiveLookups.begin();
@@ -294,13 +284,12 @@ void Resolver::OnOperationalNodeResolved(const Dnssd::ResolvedNodeData & nodeDat
 
         result.address.SetPort(nodeData.resolutionData.port);
         result.address.SetInterface(nodeData.resolutionData.interfaceId);
-        result.mrpRemoteConfig   = nodeData.resolutionData.GetRemoteMRPConfig();
-        result.supportsTcpClient = nodeData.resolutionData.supportsTcpClient;
-        result.supportsTcpServer = nodeData.resolutionData.supportsTcpServer;
+        result.mrpRemoteConfig = nodeData.resolutionData.GetRemoteMRPConfig();
+        result.supportsTcp     = nodeData.resolutionData.supportsTcp;
 
-        if (nodeData.resolutionData.isICDOperatingAsLIT.has_value())
+        if (nodeData.resolutionData.isICDOperatingAsLIT.HasValue())
         {
-            result.isICDOperatingAsLIT = *(nodeData.resolutionData.isICDOperatingAsLIT);
+            result.isICDOperatingAsLIT = nodeData.resolutionData.isICDOperatingAsLIT.Value();
         }
 
         for (size_t i = 0; i < nodeData.resolutionData.numIPs; i++)

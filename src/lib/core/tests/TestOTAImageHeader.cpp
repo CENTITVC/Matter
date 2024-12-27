@@ -16,10 +16,10 @@
  *    limitations under the License.
  */
 
-#include <pw_unit_test/framework.h>
-
 #include <lib/core/OTAImageHeader.h>
-#include <lib/core/StringBuilderAdapters.h>
+#include <lib/support/UnitTestRegistration.h>
+
+#include <nlunit-test.h>
 
 using namespace chip;
 
@@ -70,49 +70,42 @@ const uint8_t kMinOtaImageWithoutVendor[] = { 0x1e, 0xf1, 0xee, 0x1b, 0x44, 0x00
                                               0x42, 0x36, 0x67, 0xdb, 0xb7, 0x3b, 0x6e, 0x15, 0x45, 0x4f, 0x0e, 0xb1, 0xab,
                                               0xd4, 0x59, 0x7f, 0x9a, 0x1b, 0x07, 0x8e, 0x3f, 0x5b, 0x5a, 0x6b, 0xc7, 0x18 };
 
-class TestOTAImageHeader : public ::testing::Test
-{
-public:
-    static void SetUpTestSuite() { ASSERT_EQ(chip::Platform::MemoryInit(), CHIP_NO_ERROR); }
-    static void TearDownTestSuite() { chip::Platform::MemoryShutdown(); }
-};
-
-TEST_F(TestOTAImageHeader, TestHappyPath)
+void TestHappyPath(nlTestSuite * inSuite, void * inContext)
 {
     ByteSpan buffer(kOtaImage);
     OTAImageHeader header;
     OTAImageHeaderParser parser;
 
     parser.Init();
-    EXPECT_EQ(parser.AccumulateAndDecode(buffer, header), CHIP_NO_ERROR);
-    EXPECT_TRUE(parser.IsInitialized());
-    EXPECT_EQ(buffer.size(), strlen("test payload"));
-    EXPECT_EQ(header.mVendorId, 0xDEAD);
-    EXPECT_EQ(header.mProductId, 0xBEEF);
-    EXPECT_EQ(header.mSoftwareVersion, 0xFFFFFFFF);
-    EXPECT_TRUE(header.mSoftwareVersionString.data_equal("1.0"_span));
-    EXPECT_EQ(header.mPayloadSize, strlen("test payload"));
-    EXPECT_TRUE(header.mMinApplicableVersion.HasValue());
-    EXPECT_EQ(header.mMinApplicableVersion.Value(), 1u);
-    EXPECT_TRUE(header.mMaxApplicableVersion.HasValue());
-    EXPECT_EQ(header.mMaxApplicableVersion.Value(), 2u);
-    EXPECT_TRUE(header.mReleaseNotesURL.data_equal("https://rn"_span));
-    EXPECT_EQ(header.mImageDigestType, OTAImageDigestType::kSha256);
-    EXPECT_EQ(header.mImageDigest.size(), 256u / 8);
+    NL_TEST_ASSERT(inSuite, parser.AccumulateAndDecode(buffer, header) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, parser.IsInitialized());
+    NL_TEST_ASSERT(inSuite, buffer.size() == strlen("test payload"));
+    NL_TEST_ASSERT(inSuite, header.mVendorId == 0xDEAD);
+    NL_TEST_ASSERT(inSuite, header.mProductId == 0xBEEF);
+    NL_TEST_ASSERT(inSuite, header.mSoftwareVersion == 0xFFFFFFFF);
+    NL_TEST_ASSERT(inSuite, header.mSoftwareVersionString.data_equal("1.0"_span));
+    NL_TEST_ASSERT(inSuite, header.mPayloadSize == strlen("test payload"));
+    NL_TEST_ASSERT(inSuite, header.mMinApplicableVersion.HasValue());
+    NL_TEST_ASSERT(inSuite, header.mMinApplicableVersion.Value() == 1);
+    NL_TEST_ASSERT(inSuite, header.mMaxApplicableVersion.HasValue());
+    NL_TEST_ASSERT(inSuite, header.mMaxApplicableVersion.Value() == 2);
+    NL_TEST_ASSERT(inSuite, header.mReleaseNotesURL.data_equal("https://rn"_span));
+    NL_TEST_ASSERT(inSuite, header.mImageDigestType == OTAImageDigestType::kSha256);
+    NL_TEST_ASSERT(inSuite, header.mImageDigest.size() == 256 / 8);
 }
 
-TEST_F(TestOTAImageHeader, TestEmptyBuffer)
+void TestEmptyBuffer(nlTestSuite * inSuite, void * inContext)
 {
     ByteSpan buffer{};
     OTAImageHeader header;
     OTAImageHeaderParser parser;
 
     parser.Init();
-    EXPECT_EQ(parser.AccumulateAndDecode(buffer, header), CHIP_ERROR_BUFFER_TOO_SMALL);
-    EXPECT_TRUE(parser.IsInitialized());
+    NL_TEST_ASSERT(inSuite, parser.AccumulateAndDecode(buffer, header) == CHIP_ERROR_BUFFER_TOO_SMALL);
+    NL_TEST_ASSERT(inSuite, parser.IsInitialized());
 }
 
-TEST_F(TestOTAImageHeader, TestInvalidFileIdentifier)
+void TestInvalidFileIdentifier(nlTestSuite * inSuite, void * inContext)
 {
     static const uint8_t otaImage[] = { 0x1e, 0xf1, 0xee, 0x1c, 0x10, 0x00, 0x00, 0x00,
                                         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
@@ -122,37 +115,37 @@ TEST_F(TestOTAImageHeader, TestInvalidFileIdentifier)
     OTAImageHeaderParser parser;
 
     parser.Init();
-    EXPECT_EQ(parser.AccumulateAndDecode(buffer, header), CHIP_ERROR_INVALID_FILE_IDENTIFIER);
-    EXPECT_FALSE(parser.IsInitialized());
+    NL_TEST_ASSERT(inSuite, parser.AccumulateAndDecode(buffer, header) == CHIP_ERROR_INVALID_FILE_IDENTIFIER);
+    NL_TEST_ASSERT(inSuite, !parser.IsInitialized());
 }
 
-TEST_F(TestOTAImageHeader, TestTooSmallHeader)
+void TestTooSmallHeader(nlTestSuite * inSuite, void * inContext)
 {
     ByteSpan buffer(kMinOtaImage);
     OTAImageHeader header;
     OTAImageHeaderParser parser;
 
     parser.Init();
-    EXPECT_EQ(parser.AccumulateAndDecode(buffer, header), CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, parser.AccumulateAndDecode(buffer, header) == CHIP_NO_ERROR);
 
     buffer = ByteSpan(kMinOtaImage, sizeof(kMinOtaImage) - 1);
     parser.Init();
-    EXPECT_EQ(parser.AccumulateAndDecode(buffer, header), CHIP_ERROR_BUFFER_TOO_SMALL);
-    EXPECT_TRUE(parser.IsInitialized());
+    NL_TEST_ASSERT(inSuite, parser.AccumulateAndDecode(buffer, header) == CHIP_ERROR_BUFFER_TOO_SMALL);
+    NL_TEST_ASSERT(inSuite, parser.IsInitialized());
 }
 
-TEST_F(TestOTAImageHeader, TestMissingMandatoryField)
+void TestMissingMandatoryField(nlTestSuite * inSuite, void * inContext)
 {
     ByteSpan buffer(kMinOtaImageWithoutVendor);
     OTAImageHeader header;
     OTAImageHeaderParser parser;
 
     parser.Init();
-    EXPECT_EQ(parser.AccumulateAndDecode(buffer, header), CHIP_ERROR_UNEXPECTED_TLV_ELEMENT);
-    EXPECT_FALSE(parser.IsInitialized());
+    NL_TEST_ASSERT(inSuite, parser.AccumulateAndDecode(buffer, header) == CHIP_ERROR_UNEXPECTED_TLV_ELEMENT);
+    NL_TEST_ASSERT(inSuite, !parser.IsInitialized());
 }
 
-TEST_F(TestOTAImageHeader, TestSmallBlocks)
+void TestSmallBlocks(nlTestSuite * inSuite, void * inContext)
 {
     constexpr size_t kImageSize = sizeof(kOtaImage);
 
@@ -171,20 +164,55 @@ TEST_F(TestOTAImageHeader, TestSmallBlocks)
             error = parser.AccumulateAndDecode(block, header);
         }
 
-        EXPECT_EQ(error, CHIP_NO_ERROR);
-        EXPECT_TRUE(parser.IsInitialized());
-        EXPECT_EQ(header.mVendorId, 0xDEAD);
-        EXPECT_EQ(header.mProductId, 0xBEEF);
-        EXPECT_EQ(header.mSoftwareVersion, 0xFFFFFFFF);
-        EXPECT_TRUE(header.mSoftwareVersionString.data_equal("1.0"_span));
-        EXPECT_EQ(header.mPayloadSize, strlen("test payload"));
-        EXPECT_TRUE(header.mMinApplicableVersion.HasValue());
-        EXPECT_EQ(header.mMinApplicableVersion.Value(), 1u);
-        EXPECT_TRUE(header.mMaxApplicableVersion.HasValue());
-        EXPECT_EQ(header.mMaxApplicableVersion.Value(), 2u);
-        EXPECT_TRUE(header.mReleaseNotesURL.data_equal("https://rn"_span));
-        EXPECT_EQ(header.mImageDigestType, OTAImageDigestType::kSha256);
-        EXPECT_EQ(header.mImageDigest.size(), 256u / 8);
+        NL_TEST_ASSERT(inSuite, error == CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, parser.IsInitialized());
+        NL_TEST_ASSERT(inSuite, header.mVendorId == 0xDEAD);
+        NL_TEST_ASSERT(inSuite, header.mProductId == 0xBEEF);
+        NL_TEST_ASSERT(inSuite, header.mSoftwareVersion == 0xFFFFFFFF);
+        NL_TEST_ASSERT(inSuite, header.mSoftwareVersionString.data_equal("1.0"_span));
+        NL_TEST_ASSERT(inSuite, header.mPayloadSize == strlen("test payload"));
+        NL_TEST_ASSERT(inSuite, header.mMinApplicableVersion.HasValue());
+        NL_TEST_ASSERT(inSuite, header.mMinApplicableVersion.Value() == 1);
+        NL_TEST_ASSERT(inSuite, header.mMaxApplicableVersion.HasValue());
+        NL_TEST_ASSERT(inSuite, header.mMaxApplicableVersion.Value() == 2);
+        NL_TEST_ASSERT(inSuite, header.mReleaseNotesURL.data_equal("https://rn"_span));
+        NL_TEST_ASSERT(inSuite, header.mImageDigestType == OTAImageDigestType::kSha256);
+        NL_TEST_ASSERT(inSuite, header.mImageDigest.size() == 256 / 8);
     }
 }
+
+// clang-format off
+const nlTest sTests[] =
+{
+    NL_TEST_DEF("Test happy path", TestHappyPath),
+    NL_TEST_DEF("Test empty buffer", TestEmptyBuffer),
+    NL_TEST_DEF("Test invalid File Identifier", TestInvalidFileIdentifier),
+    NL_TEST_DEF("Test too small header", TestTooSmallHeader),
+    NL_TEST_DEF("Test missing mandatory field", TestMissingMandatoryField),
+    NL_TEST_DEF("Test small blocks", TestSmallBlocks),
+    NL_TEST_SENTINEL()
+};
+// clang-format on
+
+int SetupSuite(void * inContext)
+{
+    return Platform::MemoryInit() == CHIP_NO_ERROR ? SUCCESS : FAILURE;
+}
+
+int TearDownSuite(void * inContext)
+{
+    Platform::MemoryShutdown();
+    return SUCCESS;
+}
+
 } // namespace
+
+int TestOTAImageHeader()
+{
+    nlTestSuite theSuite = { "OTA Image header test", &sTests[0], SetupSuite, TearDownSuite };
+    nlTestRunner(&theSuite, nullptr);
+
+    return nlTestRunnerStats(&theSuite);
+}
+
+CHIP_REGISTER_TEST_SUITE(TestOTAImageHeader)

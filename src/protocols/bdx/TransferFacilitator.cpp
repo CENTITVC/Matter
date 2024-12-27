@@ -32,20 +32,6 @@ namespace bdx {
 constexpr System::Clock::Timeout TransferFacilitator::kDefaultPollFreq;
 constexpr System::Clock::Timeout TransferFacilitator::kImmediatePollDelay;
 
-TransferFacilitator::~TransferFacilitator()
-{
-    ResetTransfer();
-}
-
-void TransferFacilitator::ResetTransfer()
-{
-    mTransfer.Reset();
-    ChipLogProgress(BDX, "Stop polling for messages");
-
-    VerifyOrReturn(mSystemLayer != nullptr);
-    mSystemLayer->CancelTimer(PollTimerHandler, this);
-}
-
 CHIP_ERROR TransferFacilitator::OnMessageReceived(chip::Messaging::ExchangeContext * ec, const chip::PayloadHeader & payloadHeader,
                                                   chip::System::PacketBufferHandle && payload)
 {
@@ -92,7 +78,15 @@ void TransferFacilitator::PollForOutput()
     HandleTransferSessionOutput(outEvent);
 
     VerifyOrReturn(mSystemLayer != nullptr, ChipLogError(BDX, "%s mSystemLayer is null", __FUNCTION__));
-    mSystemLayer->StartTimer(mPollFreq, PollTimerHandler, this);
+    if (!mStopPolling)
+    {
+        mSystemLayer->StartTimer(mPollFreq, PollTimerHandler, this);
+    }
+    else
+    {
+        mSystemLayer->CancelTimer(PollTimerHandler, this);
+        mStopPolling = false;
+    }
 }
 
 void TransferFacilitator::ScheduleImmediatePoll()
@@ -112,8 +106,16 @@ CHIP_ERROR Responder::PrepareForTransfer(System::Layer * layer, TransferRole rol
     ReturnErrorOnFailure(mTransfer.WaitForTransfer(role, xferControlOpts, maxBlockSize, timeout));
 
     ChipLogProgress(BDX, "Start polling for messages");
+    mStopPolling = false;
     mSystemLayer->StartTimer(mPollFreq, PollTimerHandler, this);
     return CHIP_NO_ERROR;
+}
+
+void Responder::ResetTransfer()
+{
+    mTransfer.Reset();
+    ChipLogProgress(BDX, "Stop polling for messages");
+    mStopPolling = true;
 }
 
 CHIP_ERROR Initiator::InitiateTransfer(System::Layer * layer, TransferRole role, const TransferSession::TransferInitData & initData,
@@ -128,6 +130,13 @@ CHIP_ERROR Initiator::InitiateTransfer(System::Layer * layer, TransferRole role,
 
     mSystemLayer->StartTimer(mPollFreq, PollTimerHandler, this);
     return CHIP_NO_ERROR;
+}
+
+void Initiator::ResetTransfer()
+{
+    mTransfer.Reset();
+    ChipLogProgress(BDX, "Stop polling for messages");
+    mStopPolling = true;
 }
 
 } // namespace bdx

@@ -140,9 +140,6 @@ PICS:
     - label: "Does the commissioner support Discovery Capability over SoftAP?"
       id: MCORE.DD.DISCOVERY_SOFTAP
 
-    - label: "Does the commissioner support Discovery Capability over Wifi-PAF?"
-      id: MCORE.DD.DISCOVERY_PAF
-
     - label: "Does the DUT support Standard Commissioning Flow?"
       id: MCORE.DD.STANDARD_COMM_FLOW
 
@@ -2738,46 +2735,6 @@ PICS:
     - label: "Does the DUT(server) support the ExpiringUserTimeOut attribute?"
       id: DRLK.S.A0035
 
-    - label:
-          "Does the DUT(server) support the AliroReaderVerificationKey attribute"
-      id: DRLK.S.A0080
-
-    - label:
-          "Does the DUT(server) support the AliroReaderGroupIdentifier attribute"
-      id: DRLK.S.A0081
-
-    - label:
-          "Does the DUT(server) support the AliroReaderGroupSubIdentifier
-          attribute"
-      id: DRLK.S.A0082
-
-    - label:
-          "Does the DUT(server) support the
-          AliroExpeditedTransactionSupportedProtocolVersions attribute"
-      id: DRLK.S.A0083
-
-    - label: "Does the DUT(server) support the AliroGroupResolvingKey attribute"
-      id: DRLK.S.A0084
-
-    - label:
-          "Does the DUT(server) support the AliroSupportedBLEUWBProtocolVersions
-          attribute"
-      id: DRLK.S.A0085
-
-    - label:
-          "Does the DUT(server) support the AliroBLEAdvertisingVersion attribute"
-      id: DRLK.S.A0086
-
-    - label:
-          "Does the DUT(server) support the
-          NumberOfAliroCredentialIssuerKeysSupported attribute"
-      id: DRLK.S.A0087
-
-    - label:
-          "Does the DUT(server) support the NumberOfAliroEndpointKeysSupported
-          attribute"
-      id: DRLK.S.A0088
-
     #
     #Server ReadOnly attribute
     #
@@ -2909,12 +2866,6 @@ PICS:
     - label: "Does the DUT(server) support the Unbolt Door command?"
       id: DRLK.S.C27.Rsp
 
-    - label: "Does the DUT(server) support the SetAliroReaderConfig command?"
-      id: DRLK.S.C28.Rsp
-
-    - label: "Does the DUT(server) support the ClearAliroReaderConfig command?"
-      id: DRLK.S.C29.Rsp
-
     #
     # server / commandsGenerated
     #
@@ -3015,14 +2966,6 @@ PICS:
 
     - label: "Does the DUT(server) support the Lock supports unbolting feature?"
       id: DRLK.S.F0c
-
-    - label: "Does the DUT(server) support AliroProvisioning feature?"
-      id: DRLK.S.F0d
-
-    - label:
-          "Does the DUT(server) support Bluetooth LE + UWB Access Control Flow
-          feature?"
-      id: DRLK.S.F0e
 
     #
     # server / manually
@@ -6200,23 +6143,20 @@ PICS:
     #
     # server / features
     #
-    - label: "Does the device represent a Latching Switch (LS)?"
+    - label: "Does the device represent a Latching Switch?"
       id: SWTCH.S.F00
 
-    - label: "Does the device represent a Momentary Switch (MS)?"
+    - label: "Does the device represent a Momentary Switch?"
       id: SWTCH.S.F01
 
-    - label: "Does the MS device support Momentary Switch Release (MSR)?"
+    - label: "Does the MS device support Momentary Switch Release?"
       id: SWTCH.S.F02
 
-    - label: "Does the MS device support Momentary Switch LongPress (MSL)?"
+    - label: "Does the MS device support Momentary Switch LongPress?"
       id: SWTCH.S.F03
 
-    - label: "Does the MS device support Momentary Switch MultiPress (MSM)?"
+    - label: "Does the MS device support Momentary Switch MultiPress?"
       id: SWTCH.S.F04
-
-    - label: "Does the device support ActionSwitch feature (AS)?"
-      id: SWTCH.S.F05
 
     #
     # client / features
@@ -6479,28 +6419,6 @@ PICS:
     - label: "Does the device implement the ACCapacityFormat attribute?"
       id: TSTAT.S.A0047
 
-    - label: "Does the device implement the PresetTypes attribute?"
-      id: TSTAT.S.A0048
-
-    - label: "Does the device implement the NumberOfPresets attribute?"
-      id: TSTAT.S.A004a
-
-    - label: "Does the device implement the ActivePresetHandle attribute?"
-      id: TSTAT.S.A004e
-
-    - label: "Does the device implement the Presets attribute?"
-      id: TSTAT.S.A0050
-
-    - label: "Does the device implement the Schedules attribute?"
-      id: TSTAT.S.A0051
-
-    - label: "Does the device implement the Schedules attribute?"
-      id: TSTAT.S.A0051
-
-    - label:
-          "Does the device implement the SetpointHoldExpiryTimestamp attribute?"
-      id: TSTAT.S.A0052
-
     #
     # server / commandsReceived
     #
@@ -6524,21 +6442,6 @@ PICS:
           "Does the device implement receiving the GetRelayStatusLog command?"
       id: TSTAT.S.C04.Rsp
 
-    - label:
-          "Does the device implement receiving the SetActiveScheduleRequest
-          command?"
-      id: TSTAT.S.C05.Rsp
-
-    - label:
-          "Does the device implement receiving the SetActivePresetRequest
-          command?"
-      id: TSTAT.S.C06.Rsp
-
-    - label:
-          "Does the device implement receiving the AtomicRequest command for
-          Thermostat?"
-      id: TSTAT.S.Cfe.Rsp
-
     #
     # server / commandsGenerated
     #
@@ -6551,9 +6454,6 @@ PICS:
           "Does the device implement sending the GetRelayStatusLogResponse
           command?"
       id: TSTAT.S.C01.Tx
-
-    - label: "Does the device implement sending the AtomicResponse command?"
-      id: TSTAT.S.Cfd.Tx
 
     #
     # server / features
@@ -6578,12 +6478,6 @@ PICS:
 
     - label: "Supports a local temperature not exposed"
       id: TSTAT.S.F06
-
-    - label: "Supports enhanced schedules"
-      id: TSTAT.S.F07
-
-    - label: "Supports setpoint presets"
-      id: TSTAT.S.F08
 
     #
     # server / manually
@@ -6625,18 +6519,6 @@ PICS:
 
     - label: "Does the device implement sending the GetRelayStatusLog command?"
       id: TSTAT.C.C04.Tx
-
-    - label:
-          "Does the device implement sending the SetActiveScheduleRequest
-          command?"
-      id: TSTAT.C.C05.Tx
-
-    - label:
-          "Does the device implement sending the SetActivePresetRequest command?"
-      id: TSTAT.C.C06.Tx
-
-    - label: "Does the device implement sending the AtomicRequest command?"
-      id: TSTAT.C.Cfe.Tx
 
     #
     # client / manually
@@ -8810,13 +8692,10 @@ PICS:
           "Does the device implement the UserActiveModeTriggerHint attribute?"
       id: ICDM.S.A0006
 
-    - label: "Does the device implement the OperatingMode? attribute?"
-      id: ICDM.S.A0007
-
     - label:
           "Does the device implement the UserActiveModeTriggerInstruction
           attribute?"
-      id: ICDM.S.A0008
+      id: ICDM.S.A0007
 
     #
     # Client Attribute
@@ -9757,7 +9636,7 @@ PICS:
       id: RVCOPSTATE.S.C03.Rsp
 
     - label: "Does the device implement receiving the GoHome command?"
-      id: RVCOPSTATE.S.C80.Rsp
+      id: RVCOPSTATE.S.C128.Rsp
 
     #Commands generated
     - label:
@@ -10317,30 +10196,3 @@ PICS:
 
     - label: "Does the device implement the ActiveEndpoints attribute?"
       id: PWRTL.S.A0001
-
-    #
-    # Thread Border Router Management Cluster
-    #
-    - label:
-          "Does the device implement the Thread Border Router Management cluster
-          as a server?"
-      id: TBRM.S
-
-    - label: "Does the device support the PanChange feature?"
-      id: TBRM.S.F00
-
-    #
-    # Thread Network Directory Cluster
-    #
-    - label:
-          "Does the device implement the Thread Network Directory cluster as a
-          server"
-      id: THNETDIR.S
-
-    #
-    # Wi-Fi Network Management Cluster
-    #
-    - label:
-          "Does the device implement the Wi-Fi Network Management cluster as a
-          server"
-      id: WIFINM.S

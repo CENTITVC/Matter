@@ -19,6 +19,7 @@
 #pragma once
 
 #include <app/clusters/temperature-control-server/supported-temperature-levels-manager.h>
+#include <app/util/af.h>
 #include <app/util/config.h>
 
 namespace chip {

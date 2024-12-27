@@ -18,10 +18,8 @@
 
 #pragma once
 
-#include <app/AttributeValueEncoder.h>
+#include <app/AttributeAccessInterface.h>
 #include <app/clusters/media-input-server/media-input-server.h>
-
-#include <string>
 #include <vector>
 
 class MediaInputManager : public chip::app::Clusters::MediaInput::Delegate
@@ -29,7 +27,7 @@ class MediaInputManager : public chip::app::Clusters::MediaInput::Delegate
     using InputInfoType = chip::app::Clusters::MediaInput::Structs::InputInfoStruct::Type;
 
 public:
-    MediaInputManager(chip::EndpointId endpoint);
+    MediaInputManager();
 
     CHIP_ERROR HandleGetInputList(chip::app::AttributeValueEncoder & aEncoder) override;
     uint8_t HandleGetCurrentInput() override;
@@ -63,7 +61,7 @@ public:
     };
 
 protected:
-    chip::EndpointId mEndpoint;
+    uint8_t mCurrentInput;
     std::vector<InputData> mInputs;
 
 private:

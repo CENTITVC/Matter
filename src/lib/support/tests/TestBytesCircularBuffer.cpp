@@ -23,45 +23,35 @@
 #include <string.h>
 #include <vector>
 
-#include <pw_unit_test/framework.h>
-
-#include <lib/core/StringBuilderAdapters.h>
 #include <lib/support/BytesCircularBuffer.h>
+#include <lib/support/UnitTestRegistration.h>
+
+#include <nlunit-test.h>
 
 namespace {
 
 using namespace chip;
 
-class TestBytesCircularBuffer : public ::testing::Test
-{
-public:
-    static void SetUpTestSuite()
-    {
-        unsigned seed = static_cast<unsigned>(std::time(nullptr));
-        printf("Running " __FILE__ " using seed %d \n", seed);
-        std::srand(seed);
-    }
-};
-
-TEST_F(TestBytesCircularBuffer, TestPushInvalid)
+void TestPushInvalid(nlTestSuite * inSuite, void * inContext)
 {
     uint8_t storage[10];
     BytesCircularBuffer buffer(storage, sizeof(storage));
     const uint8_t s[] = { '1', '2', '3', '4', '5', '6', '7', '8', '9', '0' };
-    EXPECT_TRUE(buffer.IsEmpty());
+    NL_TEST_ASSERT(inSuite, buffer.IsEmpty());
 
-    EXPECT_EQ(buffer.Push(ByteSpan(s, static_cast<size_t>(-1))), CHIP_ERROR_INVALID_ARGUMENT);
-    EXPECT_TRUE(buffer.IsEmpty());
+    NL_TEST_ASSERT(inSuite, buffer.Push(ByteSpan(s, static_cast<size_t>(-1))) == CHIP_ERROR_INVALID_ARGUMENT);
+    NL_TEST_ASSERT(inSuite, buffer.IsEmpty());
 
-    EXPECT_EQ(buffer.Push(ByteSpan(s, 8)), CHIP_ERROR_INVALID_ARGUMENT);
-    EXPECT_TRUE(buffer.IsEmpty());
-    EXPECT_EQ(buffer.Push(ByteSpan(s, 9)), CHIP_ERROR_INVALID_ARGUMENT);
-    EXPECT_TRUE(buffer.IsEmpty());
-    EXPECT_EQ(buffer.Push(ByteSpan(s, 7)), CHIP_NO_ERROR);
-    EXPECT_FALSE(buffer.IsEmpty());
+    NL_TEST_ASSERT(inSuite, buffer.Push(ByteSpan(s, 8)) == CHIP_ERROR_INVALID_ARGUMENT);
+    NL_TEST_ASSERT(inSuite, buffer.IsEmpty());
+    NL_TEST_ASSERT(inSuite, buffer.Push(ByteSpan(s, 9)) == CHIP_ERROR_INVALID_ARGUMENT);
+    NL_TEST_ASSERT(inSuite, buffer.IsEmpty());
+    NL_TEST_ASSERT(inSuite, buffer.Push(ByteSpan(s, 7)) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, !buffer.IsEmpty());
 }
 
-void RandomPushPop(BytesCircularBuffer & buffer, std::list<std::vector<uint8_t>> & alreadyInBuffer)
+void RandomPushPop(nlTestSuite * inSuite, void * inContext, BytesCircularBuffer & buffer,
+                   std::list<std::vector<uint8_t>> & alreadyInBuffer)
 {
     auto randomString = [] {
         std::vector<uint8_t> str(static_cast<size_t>(std::rand()) % 8);
@@ -74,21 +64,21 @@ void RandomPushPop(BytesCircularBuffer & buffer, std::list<std::vector<uint8_t>>
                                [](auto s, auto str) { return s + str.size() + 2; });
     };
 
-    auto verify = [&alreadyInBuffer, &buffer] {
+    auto verify = [&inSuite, &alreadyInBuffer, &buffer] {
         if (alreadyInBuffer.empty())
         {
-            EXPECT_TRUE(buffer.IsEmpty());
+            NL_TEST_ASSERT(inSuite, buffer.IsEmpty());
         }
         else
         {
-            EXPECT_FALSE(buffer.IsEmpty());
+            NL_TEST_ASSERT(inSuite, !buffer.IsEmpty());
             auto length = alreadyInBuffer.front().size();
-            EXPECT_EQ(buffer.GetFrontSize(), length);
+            NL_TEST_ASSERT(inSuite, buffer.GetFrontSize() == length);
             std::vector<uint8_t> str(length);
             MutableByteSpan readSpan(str.data(), length);
-            EXPECT_EQ(buffer.ReadFront(readSpan), CHIP_NO_ERROR);
-            EXPECT_EQ(readSpan.size(), length);
-            EXPECT_EQ(alreadyInBuffer.front(), str);
+            NL_TEST_ASSERT(inSuite, buffer.ReadFront(readSpan) == CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, readSpan.size() == length);
+            NL_TEST_ASSERT(inSuite, alreadyInBuffer.front() == str);
         }
     };
 
@@ -100,7 +90,7 @@ void RandomPushPop(BytesCircularBuffer & buffer, std::list<std::vector<uint8_t>>
         if (!buffer.IsEmpty() && std::rand() % 3 == 0)
         {
             // pop
-            EXPECT_EQ(buffer.Pop(), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, buffer.Pop() == CHIP_NO_ERROR);
             alreadyInBuffer.pop_front();
 
             verify();
@@ -109,7 +99,7 @@ void RandomPushPop(BytesCircularBuffer & buffer, std::list<std::vector<uint8_t>>
         {
             // push random string
             auto str = randomString();
-            EXPECT_EQ(buffer.Push(ByteSpan(str.data(), str.size())), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, buffer.Push(ByteSpan(str.data(), str.size())) == CHIP_NO_ERROR);
             alreadyInBuffer.push_back(str);
 
             while (bufferSize() > 9)
@@ -122,144 +112,144 @@ void RandomPushPop(BytesCircularBuffer & buffer, std::list<std::vector<uint8_t>>
     }
 }
 
-TEST_F(TestBytesCircularBuffer, TestPushPopRandom)
+void TestPushPopRandom(nlTestSuite * inSuite, void * inContext)
 {
     uint8_t storage[10];
     BytesCircularBuffer buffer(storage, sizeof(storage));
-    EXPECT_TRUE(buffer.IsEmpty());
+    NL_TEST_ASSERT(inSuite, buffer.IsEmpty());
 
     std::list<std::vector<uint8_t>> alreadyInBuffer;
-    RandomPushPop(buffer, alreadyInBuffer);
+    RandomPushPop(inSuite, inContext, buffer, alreadyInBuffer);
 }
 
-TEST_F(TestBytesCircularBuffer, TestPushToJustFull)
+void TestPushToJustFull(nlTestSuite * inSuite, void * inContext)
 {
     uint8_t storage[10];
 
     // Total space = 9
     BytesCircularBuffer buffer(storage, sizeof(storage));
-    EXPECT_TRUE(buffer.IsEmpty());
+    NL_TEST_ASSERT(inSuite, buffer.IsEmpty());
 
     const uint8_t s1[] = { '1', '2', '3', '4', '5', '6', '7', '8', '9', '0' };
     const uint8_t s2[] = { 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j' };
     uint8_t o[sizeof(s1)];
     MutableByteSpan readSpan(o);
 
-    EXPECT_TRUE(buffer.IsEmpty());
+    NL_TEST_ASSERT(inSuite, buffer.IsEmpty());
 
     // Used = 6, Free = 3
-    EXPECT_EQ(buffer.Push(ByteSpan(s1, 4)), CHIP_NO_ERROR);
-    EXPECT_FALSE(buffer.IsEmpty());
-    EXPECT_EQ(buffer.GetFrontSize(), 4u);
+    NL_TEST_ASSERT(inSuite, buffer.Push(ByteSpan(s1, 4)) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, !buffer.IsEmpty());
+    NL_TEST_ASSERT(inSuite, buffer.GetFrontSize() == 4);
     readSpan = MutableByteSpan(o);
-    EXPECT_EQ(buffer.ReadFront(readSpan), CHIP_NO_ERROR);
-    EXPECT_FALSE(memcmp(s1, readSpan.data(), 4));
+    NL_TEST_ASSERT(inSuite, buffer.ReadFront(readSpan) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, memcmp(s1, readSpan.data(), 4) == 0);
 
     // Used = 9, Free = 0
-    EXPECT_EQ(buffer.Push(ByteSpan(s2, 1)), CHIP_NO_ERROR);
-    EXPECT_FALSE(buffer.IsEmpty());
-    EXPECT_EQ(buffer.GetFrontSize(), 4u);
+    NL_TEST_ASSERT(inSuite, buffer.Push(ByteSpan(s2, 1)) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, !buffer.IsEmpty());
+    NL_TEST_ASSERT(inSuite, buffer.GetFrontSize() == 4);
     readSpan = MutableByteSpan(o);
-    EXPECT_EQ(buffer.ReadFront(readSpan), CHIP_NO_ERROR);
-    EXPECT_FALSE(memcmp(s1, readSpan.data(), 4));
+    NL_TEST_ASSERT(inSuite, buffer.ReadFront(readSpan) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, memcmp(s1, readSpan.data(), 4) == 0);
 
     // Try normal push/pop again
     std::list<std::vector<uint8_t>> alreadyInBuffer;
     alreadyInBuffer.push_back(std::vector<uint8_t>{ s1[0], s1[1], s1[2], s1[3] });
     alreadyInBuffer.push_back(std::vector<uint8_t>{ s2[0] });
-    RandomPushPop(buffer, alreadyInBuffer);
+    RandomPushPop(inSuite, inContext, buffer, alreadyInBuffer);
 }
 
-TEST_F(TestBytesCircularBuffer, TestPushToJustFullOverOne)
+void TestPushToJustFullOverOne(nlTestSuite * inSuite, void * inContext)
 {
     uint8_t storage[10];
 
     // Total space = 9
     BytesCircularBuffer buffer(storage, sizeof(storage));
-    EXPECT_TRUE(buffer.IsEmpty());
+    NL_TEST_ASSERT(inSuite, buffer.IsEmpty());
 
     const uint8_t s1[] = { '1', '2', '3', '4', '5', '6', '7', '8', '9', '0' };
     const uint8_t s2[] = { 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j' };
     uint8_t o[sizeof(s1)];
     MutableByteSpan readSpan(o);
 
-    EXPECT_TRUE(buffer.IsEmpty());
+    NL_TEST_ASSERT(inSuite, buffer.IsEmpty());
 
     // Used = 6, Free = 3
-    EXPECT_EQ(buffer.Push(ByteSpan(s1, 4)), CHIP_NO_ERROR);
-    EXPECT_FALSE(buffer.IsEmpty());
-    EXPECT_EQ(buffer.GetFrontSize(), 4u);
+    NL_TEST_ASSERT(inSuite, buffer.Push(ByteSpan(s1, 4)) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, !buffer.IsEmpty());
+    NL_TEST_ASSERT(inSuite, buffer.GetFrontSize() == 4);
     readSpan = MutableByteSpan(o);
-    EXPECT_EQ(buffer.ReadFront(readSpan), CHIP_NO_ERROR);
-    EXPECT_EQ(memcmp(s1, readSpan.data(), 4), 0);
+    NL_TEST_ASSERT(inSuite, buffer.ReadFront(readSpan) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, memcmp(s1, readSpan.data(), 4) == 0);
 
     // Used = 4, Free = 5
-    EXPECT_EQ(buffer.Push(ByteSpan(s2, 2)), CHIP_NO_ERROR);
-    EXPECT_FALSE(buffer.IsEmpty());
-    EXPECT_EQ(buffer.GetFrontSize(), 2u);
+    NL_TEST_ASSERT(inSuite, buffer.Push(ByteSpan(s2, 2)) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, !buffer.IsEmpty());
+    NL_TEST_ASSERT(inSuite, buffer.GetFrontSize() == 2);
     readSpan = MutableByteSpan(o);
-    EXPECT_EQ(buffer.ReadFront(readSpan), CHIP_NO_ERROR);
-    EXPECT_EQ(memcmp(s2, readSpan.data(), 2), 0);
+    NL_TEST_ASSERT(inSuite, buffer.ReadFront(readSpan) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, memcmp(s2, readSpan.data(), 2) == 0);
 
     // Try normal push/pop again
     std::list<std::vector<uint8_t>> alreadyInBuffer;
     alreadyInBuffer.push_back(std::vector<uint8_t>{ s2[0], s2[1] });
-    RandomPushPop(buffer, alreadyInBuffer);
+    RandomPushPop(inSuite, inContext, buffer, alreadyInBuffer);
 }
 
-TEST_F(TestBytesCircularBuffer, TestPushWrap)
+void TestPushWrap(nlTestSuite * inSuite, void * inContext)
 {
     uint8_t storage[10];
 
     // Total space = 9
     BytesCircularBuffer buffer(storage, sizeof(storage));
-    EXPECT_TRUE(buffer.IsEmpty());
+    NL_TEST_ASSERT(inSuite, buffer.IsEmpty());
 
     const uint8_t s1[] = { '1', '2', '3', '4', '5', '6', '7', '8', '9', '0' };
     const uint8_t s2[] = { 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j' };
     uint8_t o[sizeof(s1)];
     MutableByteSpan readSpan(o);
 
-    EXPECT_TRUE(buffer.IsEmpty());
+    NL_TEST_ASSERT(inSuite, buffer.IsEmpty());
 
     // Used = 6, Free = 3
-    EXPECT_EQ(buffer.Push(ByteSpan(s1, 4)), CHIP_NO_ERROR);
-    EXPECT_FALSE(buffer.IsEmpty());
-    EXPECT_EQ(buffer.GetFrontSize(), 4u);
+    NL_TEST_ASSERT(inSuite, buffer.Push(ByteSpan(s1, 4)) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, !buffer.IsEmpty());
+    NL_TEST_ASSERT(inSuite, buffer.GetFrontSize() == 4);
     readSpan = MutableByteSpan(o);
-    EXPECT_EQ(buffer.ReadFront(readSpan), CHIP_NO_ERROR);
-    EXPECT_EQ(memcmp(s1, readSpan.data(), 4), 0);
+    NL_TEST_ASSERT(inSuite, buffer.ReadFront(readSpan) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, memcmp(s1, readSpan.data(), 4) == 0);
 
     // Used = 6, Free = 3, s1 was discarded due to lack of storage
-    EXPECT_EQ(buffer.Push(ByteSpan(s2, 4)), CHIP_NO_ERROR);
-    EXPECT_FALSE(buffer.IsEmpty());
-    EXPECT_EQ(buffer.GetFrontSize(), 4u);
+    NL_TEST_ASSERT(inSuite, buffer.Push(ByteSpan(s2, 4)) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, !buffer.IsEmpty());
+    NL_TEST_ASSERT(inSuite, buffer.GetFrontSize() == 4);
     readSpan = MutableByteSpan(o);
-    EXPECT_EQ(buffer.ReadFront(readSpan), CHIP_NO_ERROR);
-    EXPECT_EQ(memcmp(s2, readSpan.data(), 4), 0);
+    NL_TEST_ASSERT(inSuite, buffer.ReadFront(readSpan) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, memcmp(s2, readSpan.data(), 4) == 0);
 
     // Used = 9, Free = 0
-    EXPECT_EQ(buffer.Push(ByteSpan(s1, 1)), CHIP_NO_ERROR);
-    EXPECT_FALSE(buffer.IsEmpty());
-    EXPECT_EQ(buffer.GetFrontSize(), 4u);
+    NL_TEST_ASSERT(inSuite, buffer.Push(ByteSpan(s1, 1)) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, !buffer.IsEmpty());
+    NL_TEST_ASSERT(inSuite, buffer.GetFrontSize() == 4);
     readSpan = MutableByteSpan(o);
-    EXPECT_EQ(buffer.ReadFront(readSpan), CHIP_NO_ERROR);
-    EXPECT_EQ(memcmp(s2, readSpan.data(), 4), 0);
+    NL_TEST_ASSERT(inSuite, buffer.ReadFront(readSpan) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, memcmp(s2, readSpan.data(), 4) == 0);
 
     // Used = 3, Free = 6
-    EXPECT_EQ(buffer.Pop(), CHIP_NO_ERROR);
-    EXPECT_FALSE(buffer.IsEmpty());
-    EXPECT_TRUE(buffer.GetFrontSize());
+    NL_TEST_ASSERT(inSuite, buffer.Pop() == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, !buffer.IsEmpty());
+    NL_TEST_ASSERT(inSuite, buffer.GetFrontSize() == 1);
     readSpan = MutableByteSpan(o);
-    EXPECT_EQ(buffer.ReadFront(readSpan), CHIP_NO_ERROR);
-    EXPECT_EQ(memcmp(s1, readSpan.data(), 1), 0);
+    NL_TEST_ASSERT(inSuite, buffer.ReadFront(readSpan) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, memcmp(s1, readSpan.data(), 1) == 0);
 
     // All freed
-    EXPECT_EQ(buffer.Pop(), CHIP_NO_ERROR);
-    EXPECT_TRUE(buffer.IsEmpty());
+    NL_TEST_ASSERT(inSuite, buffer.Pop() == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, buffer.IsEmpty());
 }
 
-TEST_F(TestBytesCircularBuffer, TestPushWrapStartAtEdge)
+void TestPushWrapStartAtEdge(nlTestSuite * inSuite, void * inContext)
 {
     uint8_t storage[10];
     const uint8_t s1[] = { '1', '2', '3', '4', '5', '6', '7', '8', '9', '0' };
@@ -269,47 +259,47 @@ TEST_F(TestBytesCircularBuffer, TestPushWrapStartAtEdge)
 
     // Total space = 9
     BytesCircularBuffer buffer(storage, sizeof(storage));
-    EXPECT_TRUE(buffer.IsEmpty());
+    NL_TEST_ASSERT(inSuite, buffer.IsEmpty());
 
     // Used = 6, Free = 3, mDataStart = 0, mDataEnd = 6
-    EXPECT_EQ(buffer.Push(ByteSpan(s1, 4)), CHIP_NO_ERROR);
-    EXPECT_FALSE(buffer.IsEmpty());
-    EXPECT_EQ(buffer.GetFrontSize(), 4u);
+    NL_TEST_ASSERT(inSuite, buffer.Push(ByteSpan(s1, 4)) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, !buffer.IsEmpty());
+    NL_TEST_ASSERT(inSuite, buffer.GetFrontSize() == 4);
     readSpan = MutableByteSpan(o);
-    EXPECT_EQ(buffer.ReadFront(readSpan), CHIP_NO_ERROR);
-    EXPECT_EQ(memcmp(s1, readSpan.data(), 4), 0);
+    NL_TEST_ASSERT(inSuite, buffer.ReadFront(readSpan) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, memcmp(s1, readSpan.data(), 4) == 0);
 
     // Used = 4, Free = 5, mDataStart = 6, mDataEnd = 0 wrap mDataEnd
-    EXPECT_EQ(buffer.Push(ByteSpan(s2, 2)), CHIP_NO_ERROR);
-    EXPECT_FALSE(buffer.IsEmpty());
-    EXPECT_EQ(buffer.GetFrontSize(), 2u);
+    NL_TEST_ASSERT(inSuite, buffer.Push(ByteSpan(s2, 2)) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, !buffer.IsEmpty());
+    NL_TEST_ASSERT(inSuite, buffer.GetFrontSize() == 2);
     readSpan = MutableByteSpan(o);
-    EXPECT_EQ(buffer.ReadFront(readSpan), CHIP_NO_ERROR);
-    EXPECT_EQ(memcmp(s2, readSpan.data(), 2), 0);
+    NL_TEST_ASSERT(inSuite, buffer.ReadFront(readSpan) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, memcmp(s2, readSpan.data(), 2) == 0);
 
     // Used = 7, Free = 2, mDataStart = 6, mDataEnd = 3 wrap mDataEnd
-    EXPECT_EQ(buffer.Push(ByteSpan(s1, 1)), CHIP_NO_ERROR);
-    EXPECT_FALSE(buffer.IsEmpty());
-    EXPECT_EQ(buffer.GetFrontSize(), 2u);
+    NL_TEST_ASSERT(inSuite, buffer.Push(ByteSpan(s1, 1)) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, !buffer.IsEmpty());
+    NL_TEST_ASSERT(inSuite, buffer.GetFrontSize() == 2);
     readSpan = MutableByteSpan(o);
-    EXPECT_EQ(buffer.ReadFront(readSpan), CHIP_NO_ERROR);
-    EXPECT_EQ(memcmp(s2, readSpan.data(), 2), 0);
+    NL_TEST_ASSERT(inSuite, buffer.ReadFront(readSpan) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, memcmp(s2, readSpan.data(), 2) == 0);
 
     // Used = 3, Free = 6, mDataStart = 0, mDataEnd = 3
-    EXPECT_EQ(buffer.Pop(), CHIP_NO_ERROR);
-    EXPECT_FALSE(buffer.IsEmpty());
-    EXPECT_EQ(buffer.GetFrontSize(), 1u);
+    NL_TEST_ASSERT(inSuite, buffer.Pop() == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, !buffer.IsEmpty());
+    NL_TEST_ASSERT(inSuite, buffer.GetFrontSize() == 1);
     readSpan = MutableByteSpan(o);
-    EXPECT_EQ(buffer.ReadFront(readSpan), CHIP_NO_ERROR);
-    EXPECT_EQ(memcmp(s1, readSpan.data(), 1), 0);
+    NL_TEST_ASSERT(inSuite, buffer.ReadFront(readSpan) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, memcmp(s1, readSpan.data(), 1) == 0);
 
     // Try normal push/pop again
     std::list<std::vector<uint8_t>> alreadyInBuffer;
     alreadyInBuffer.push_back(std::vector<uint8_t>{ s1[0] });
-    RandomPushPop(buffer, alreadyInBuffer);
+    RandomPushPop(inSuite, inContext, buffer, alreadyInBuffer);
 }
 
-TEST_F(TestBytesCircularBuffer, TestPushWrapEndAtEdge)
+void TestPushWrapEndAtEdge(nlTestSuite * inSuite, void * inContext)
 {
     uint8_t storage[10];
     const uint8_t s1[] = { '1', '2', '3', '4', '5', '6', '7', '8', '9', '0' };
@@ -319,31 +309,31 @@ TEST_F(TestBytesCircularBuffer, TestPushWrapEndAtEdge)
 
     // Total space = 9
     BytesCircularBuffer buffer(storage, sizeof(storage));
-    EXPECT_TRUE(buffer.IsEmpty());
+    NL_TEST_ASSERT(inSuite, buffer.IsEmpty());
 
     // Used = 6, Free = 3, mDataStart = 0, mDataEnd = 6
-    EXPECT_EQ(buffer.Push(ByteSpan(s1, 4)), CHIP_NO_ERROR);
-    EXPECT_FALSE(buffer.IsEmpty());
-    EXPECT_EQ(buffer.GetFrontSize(), 4u);
+    NL_TEST_ASSERT(inSuite, buffer.Push(ByteSpan(s1, 4)) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, !buffer.IsEmpty());
+    NL_TEST_ASSERT(inSuite, buffer.GetFrontSize() == 4);
     readSpan = MutableByteSpan(o);
-    EXPECT_EQ(buffer.ReadFront(readSpan), CHIP_NO_ERROR);
-    EXPECT_EQ(memcmp(s1, readSpan.data(), 4), 0);
+    NL_TEST_ASSERT(inSuite, buffer.ReadFront(readSpan) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, memcmp(s1, readSpan.data(), 4) == 0);
 
     // Used = 4, Free = 5, mDataStart = 6, mDataEnd = 0 wrap mDataEnd
-    EXPECT_EQ(buffer.Push(ByteSpan(s2, 2)), CHIP_NO_ERROR);
-    EXPECT_FALSE(buffer.IsEmpty());
-    EXPECT_EQ(buffer.GetFrontSize(), 2u);
+    NL_TEST_ASSERT(inSuite, buffer.Push(ByteSpan(s2, 2)) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, !buffer.IsEmpty());
+    NL_TEST_ASSERT(inSuite, buffer.GetFrontSize() == 2);
     readSpan = MutableByteSpan(o);
-    EXPECT_EQ(buffer.ReadFront(readSpan), CHIP_NO_ERROR);
-    EXPECT_EQ(memcmp(s2, readSpan.data(), 2), 0);
+    NL_TEST_ASSERT(inSuite, buffer.ReadFront(readSpan) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, memcmp(s2, readSpan.data(), 2) == 0);
 
     // Try normal push/pop again
     std::list<std::vector<uint8_t>> alreadyInBuffer;
     alreadyInBuffer.push_back(std::vector<uint8_t>{ s2[0], s2[1] });
-    RandomPushPop(buffer, alreadyInBuffer);
+    RandomPushPop(inSuite, inContext, buffer, alreadyInBuffer);
 }
 
-TEST_F(TestBytesCircularBuffer, TestPushWhenFull)
+void TestPushWhenFull(nlTestSuite * inSuite, void * inContext)
 {
     uint8_t storage[10];
     const uint8_t s1[] = { '1', '2', '3', '4', '5', '6', '7', '8', '9', '0' };
@@ -353,31 +343,65 @@ TEST_F(TestBytesCircularBuffer, TestPushWhenFull)
 
     // Total space = 9
     BytesCircularBuffer buffer(storage, sizeof(storage));
-    EXPECT_TRUE(buffer.IsEmpty());
+    NL_TEST_ASSERT(inSuite, buffer.IsEmpty());
 
     // Used = 9, Free = 0
-    EXPECT_EQ(buffer.Push(ByteSpan(s1, 7)), CHIP_NO_ERROR);
-    EXPECT_FALSE(buffer.IsEmpty());
-    EXPECT_EQ(buffer.GetFrontSize(), 7u);
+    NL_TEST_ASSERT(inSuite, buffer.Push(ByteSpan(s1, 7)) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, !buffer.IsEmpty());
+    NL_TEST_ASSERT(inSuite, buffer.GetFrontSize() == 7);
     readSpan = MutableByteSpan(o);
-    EXPECT_EQ(buffer.ReadFront(readSpan), CHIP_NO_ERROR);
-    EXPECT_EQ(memcmp(s1, readSpan.data(), 7), 0);
+    NL_TEST_ASSERT(inSuite, buffer.ReadFront(readSpan) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, memcmp(s1, readSpan.data(), 7) == 0);
 
     // Used = 5, Free = 4
-    EXPECT_EQ(buffer.Push(ByteSpan(s2, 3)), CHIP_NO_ERROR);
-    EXPECT_FALSE(buffer.IsEmpty());
-    EXPECT_EQ(buffer.GetFrontSize(), 3u);
+    NL_TEST_ASSERT(inSuite, buffer.Push(ByteSpan(s2, 3)) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, !buffer.IsEmpty());
+    NL_TEST_ASSERT(inSuite, buffer.GetFrontSize() == 3);
     readSpan = MutableByteSpan(o);
-    EXPECT_EQ(buffer.ReadFront(readSpan), CHIP_NO_ERROR);
-    EXPECT_EQ(memcmp(s2, readSpan.data(), 3), 0);
+    NL_TEST_ASSERT(inSuite, buffer.ReadFront(readSpan) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, memcmp(s2, readSpan.data(), 3) == 0);
 
     // All freed
-    EXPECT_EQ(buffer.Pop(), CHIP_NO_ERROR);
-    EXPECT_TRUE(buffer.IsEmpty());
+    NL_TEST_ASSERT(inSuite, buffer.Pop() == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, buffer.IsEmpty());
 
     // Try normal push/pop again
     std::list<std::vector<uint8_t>> alreadyInBuffer;
-    RandomPushPop(buffer, alreadyInBuffer);
+    RandomPushPop(inSuite, inContext, buffer, alreadyInBuffer);
+}
+
+int Setup(void * inContext)
+{
+    return SUCCESS;
+}
+
+int Teardown(void * inContext)
+{
+    return SUCCESS;
 }
 
 } // namespace
+
+#define NL_TEST_DEF_FN(fn) NL_TEST_DEF("Test " #fn, fn)
+/**
+ *   Test Suite. It lists all the test functions.
+ */
+static const nlTest sTests[] = {
+    NL_TEST_DEF_FN(TestPushPopRandom),         NL_TEST_DEF_FN(TestPushInvalid),  NL_TEST_DEF_FN(TestPushToJustFull),
+    NL_TEST_DEF_FN(TestPushToJustFullOverOne), NL_TEST_DEF_FN(TestPushWrap),     NL_TEST_DEF_FN(TestPushWrapStartAtEdge),
+    NL_TEST_DEF_FN(TestPushWrapEndAtEdge),     NL_TEST_DEF_FN(TestPushWhenFull), NL_TEST_SENTINEL()
+};
+
+int TestBytesCircularBuffer()
+{
+    nlTestSuite theSuite = { "CHIP BytesCircularBuffer tests", &sTests[0], Setup, Teardown };
+
+    unsigned seed = static_cast<unsigned>(std::time(nullptr));
+    printf("Running " __FILE__ " using seed %d", seed);
+    std::srand(seed);
+    // Run test suite against one context.
+    nlTestRunner(&theSuite, nullptr);
+    return nlTestRunnerStats(&theSuite);
+}
+
+CHIP_REGISTER_TEST_SUITE(TestBytesCircularBuffer);

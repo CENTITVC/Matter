@@ -45,8 +45,6 @@
 #include <app/server/Server.h>
 #include <lib/core/DataModelTypes.h>
 
-#include <string>
-
 #define MAX_LENGTH_SMALL_FONT 30
 
 using namespace chip;

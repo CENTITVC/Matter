@@ -53,8 +53,6 @@ enum class Type : uint8_t
     kUdp,
     kBle,
     kTcp,
-    kWiFiPAF,
-    kLast = kWiFiPAF, // This is not an actual transport type, it just refers to the last transport type
 };
 
 /**
@@ -66,7 +64,6 @@ public:
     PeerAddress() : mIPAddress(Inet::IPAddress::Any), mTransportType(Type::kUndefined) {}
     PeerAddress(const Inet::IPAddress & addr, Type type) : mIPAddress(addr), mTransportType(type) {}
     PeerAddress(Type type) : mTransportType(type) {}
-    PeerAddress(Type type, NodeId remoteId) : mTransportType(type), mRemoteId(remoteId) {}
 
     PeerAddress(PeerAddress &&)                  = default;
     PeerAddress(const PeerAddress &)             = default;
@@ -79,8 +76,6 @@ public:
         mIPAddress = addr;
         return *this;
     }
-
-    NodeId GetRemoteId() const { return mRemoteId; }
 
     Type GetTransportType() const { return mTransportType; }
     PeerAddress & SetTransportType(Type type)
@@ -172,9 +167,6 @@ public:
 #endif
                 snprintf(buf, bufSize, "TCP:[%s%s]:%d", ip_addr, interface, mPort);
             break;
-        case Type::kWiFiPAF:
-            snprintf(buf, bufSize, "Wi-Fi PAF");
-            break;
         case Type::kBle:
             // Note that BLE does not currently use any specific address.
             snprintf(buf, bufSize, "BLE");
@@ -217,8 +209,6 @@ public:
         return TCP(addr).SetPort(port).SetInterface(interface);
     }
 
-    static PeerAddress WiFiPAF(NodeId remoteId) { return PeerAddress(Type::kWiFiPAF); }
-
     static PeerAddress Multicast(chip::FabricId fabric, chip::GroupId group)
     {
         constexpr uint8_t scope        = 0x05; // Site-Local
@@ -247,7 +237,6 @@ private:
     Type mTransportType          = Type::kUndefined;
     uint16_t mPort               = CHIP_PORT; ///< Relevant for UDP data sending.
     Inet::InterfaceId mInterface = Inet::InterfaceId::Null();
-    NodeId mRemoteId             = 0;
 };
 
 } // namespace Transport

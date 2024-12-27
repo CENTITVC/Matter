@@ -17,7 +17,6 @@
  */
 #pragma once
 
-#include <controller/java/ControllerConfig.h>
 #include <lib/support/JniReferences.h>
 
 #include <memory>
@@ -87,8 +86,7 @@ public:
     }
 #endif // JAVA_MATTER_CONTROLLER_TEST
 
-    void CallJavaIntMethod(const char * methodName, jint argument);
-    void CallJavaLongMethod(const char * methodName, jlong argument);
+    void CallJavaMethod(const char * methodName, jint argument);
     CHIP_ERROR InitializeOperationalCredentialsIssuer();
 
     /**
@@ -118,7 +116,7 @@ public:
         const chip::app::Clusters::NetworkCommissioning::Commands::ScanNetworksResponse::DecodableType & dataResponse) override;
     void OnScanNetworksFailure(CHIP_ERROR error) override;
     void OnICDRegistrationInfoRequired() override;
-    void OnICDRegistrationComplete(chip::ScopedNodeId icdNodeId, uint32_t icdCounter) override;
+    void OnICDRegistrationComplete(chip::NodeId icdNodeId, uint32_t icdCounter) override;
 
     // PersistentStorageDelegate implementation
     CHIP_ERROR SyncSetKeyValue(const char * key, const void * value, uint16_t size) override;
@@ -212,11 +210,9 @@ public:
 
     CHIP_ERROR FinishOTAProvider();
 
+    chip::app::DefaultICDClientStorage * getICDClientStorage() { return &mICDClientStorage; }
+
     CHIP_ERROR SetICDCheckInDelegate(jobject checkInDelegate);
-
-    void StartDnssd();
-
-    void StopDnssd();
 
 private:
     using ChipDeviceControllerPtr = std::unique_ptr<chip::Controller::DeviceCommissioner>;
@@ -230,6 +226,7 @@ private:
     // TODO: This may need to be injected as a SessionKeystore*
     chip::Crypto::RawKeySessionKeystore mSessionKeystore;
 
+    chip::app::DefaultICDClientStorage mICDClientStorage;
     chip::app::AndroidCheckInDelegate mCheckInDelegate;
     chip::app::CheckInHandler mCheckInHandler;
 
@@ -273,9 +270,6 @@ private:
     chip::MutableCharSpan mUserActiveModeTriggerInstruction = chip::MutableCharSpan(mUserActiveModeTriggerInstructionBuffer);
     chip::BitMask<chip::app::Clusters::IcdManagement::UserActiveModeTriggerBitmap> mUserActiveModeTriggerHint;
 
-    uint32_t mIdleModeDuration    = 0;
-    uint32_t mActiveModeDuration  = 0;
-    uint16_t mActiveModeThreshold = 0;
     chip::Controller::CommissioningParameters mCommissioningParameter;
 
     AndroidDeviceControllerWrapper(ChipDeviceControllerPtr controller,

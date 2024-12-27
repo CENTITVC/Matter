@@ -26,10 +26,11 @@
 
 #ifdef P6_OTA
 extern "C" {
-#include "cy_ota_flash.h"
+#include "bootutil/bootutil.h"
+#include "cy_flash_psoc6.h"
 #include "flash_map_backend.h"
 #include "flash_qspi.h"
-#include "sysflash.h"
+#include "sysflash/sysflash.h"
 }
 
 namespace chip {

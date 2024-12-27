@@ -24,6 +24,7 @@
 #include "ManualSetupPayloadGenerator.h"
 
 #include <inttypes.h>
+#include <limits>
 
 #include <lib/support/logging/CHIPLogging.h>
 #include <lib/support/verhoeff/Verhoeff.h>

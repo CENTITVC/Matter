@@ -50,12 +50,12 @@ RecordWriter & RecordWriter::WriteQName(const FullQName & qname)
         remaining.nameCount = qname.nameCount - i;
 
         // Try to find a valid offset
-        std::optional<uint16_t> offset = FindPreviousName(remaining);
+        chip::Optional<uint16_t> offset = FindPreviousName(remaining);
 
-        if (offset.has_value())
+        if (offset.HasValue())
         {
             // Pointer to offset: set the highest 2 bits
-            mOutput->Put16(*offset | 0xC000);
+            mOutput->Put16(offset.Value() | 0xC000);
 
             if (mOutput->Fit() && !isFullyCompressed)
             {
@@ -85,13 +85,13 @@ RecordWriter & RecordWriter::WriteQName(const SerializedQNameIterator & qname)
     SerializedQNameIterator copy = qname;
     while (true)
     {
-        std::optional<uint16_t> offset = FindPreviousName(copy);
+        chip::Optional<uint16_t> offset = FindPreviousName(copy);
 
-        if (offset.has_value())
+        if (offset.HasValue())
         {
             // Pointer to offset: set the highest 2 bits
             // We guarantee that offsets saved are <= kMaxReuseOffset
-            mOutput->Put16(*offset | 0xC000);
+            mOutput->Put16(offset.Value() | 0xC000);
 
             if (mOutput->Fit() && !isFullyCompressed)
             {

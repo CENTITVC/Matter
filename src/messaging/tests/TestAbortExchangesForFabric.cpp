@@ -21,10 +21,10 @@
  *      one) for a fabric.
  */
 
-#include <pw_unit_test/framework.h>
-
 #include <app/icd/server/ICDServerConfig.h>
-#include <lib/core/StringBuilderAdapters.h>
+#include <lib/support/UnitTestContext.h>
+#include <lib/support/UnitTestRegistration.h>
+#include <lib/support/UnitTestUtils.h>
 #include <messaging/ExchangeContext.h>
 #include <messaging/ExchangeMgr.h>
 #include <messaging/ReliableMessageProtocolConfig.h>
@@ -37,10 +37,6 @@
 #include <app/icd/server/ICDConfigurationData.h> // nogncheck
 #endif
 
-#if CHIP_CRYPTO_PSA
-#include "psa/crypto.h"
-#endif
-
 namespace {
 
 using namespace chip;
@@ -49,18 +45,7 @@ using namespace chip::System;
 using namespace chip::System::Clock::Literals;
 using namespace chip::Protocols;
 
-struct TestAbortExchangesForFabric : public chip::Test::LoopbackMessagingContext
-{
-    void SetUp() override
-    {
-#if CHIP_CRYPTO_PSA
-        ASSERT_EQ(psa_crypto_init(), PSA_SUCCESS);
-#endif
-        chip::Test::LoopbackMessagingContext::SetUp();
-    }
-
-    void CommonCheckAbortAllButOneExchange(bool dropResponseMessages);
-};
+using TestContext = Test::LoopbackMessagingContext;
 
 class MockAppDelegate : public ExchangeDelegate
 {
@@ -77,57 +62,57 @@ public:
     bool mOnMessageReceivedCalled = false;
 };
 
-void TestAbortExchangesForFabric::CommonCheckAbortAllButOneExchange(bool dropResponseMessages)
+void CommonCheckAbortAllButOneExchange(nlTestSuite * inSuite, TestContext & ctx, bool dropResponseMessages)
 {
     // We want to have two sessions using the same fabric id that we use for
     // creating our exchange contexts.  That lets us test exchanges on the same
     // session as the "special exchange" as well as on other sessions.
-    auto & sessionManager = GetSecureSessionManager();
+    auto & sessionManager = ctx.GetSecureSessionManager();
 
     // Use key ids that are not going to collide with anything else that ctx is
     // doing.
     // TODO: These should really be CASE sessions...
     SessionHolder session1;
-    CHIP_ERROR err = sessionManager.InjectCaseSessionWithTestKey(session1, 100, 101, GetAliceFabric()->GetNodeId(),
-                                                                 GetBobFabric()->GetNodeId(), GetAliceFabricIndex(),
-                                                                 GetBobAddress(), CryptoContext::SessionRole::kInitiator, {});
+    CHIP_ERROR err = sessionManager.InjectCaseSessionWithTestKey(session1, 100, 101, ctx.GetAliceFabric()->GetNodeId(),
+                                                                 ctx.GetBobFabric()->GetNodeId(), ctx.GetAliceFabricIndex(),
+                                                                 ctx.GetBobAddress(), CryptoContext::SessionRole::kInitiator, {});
 
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
     SessionHolder session1Reply;
-    err = sessionManager.InjectCaseSessionWithTestKey(session1Reply, 101, 100, GetBobFabric()->GetNodeId(),
-                                                      GetAliceFabric()->GetNodeId(), GetBobFabricIndex(), GetAliceAddress(),
-                                                      CryptoContext::SessionRole::kResponder, {});
+    err = sessionManager.InjectCaseSessionWithTestKey(session1Reply, 101, 100, ctx.GetBobFabric()->GetNodeId(),
+                                                      ctx.GetAliceFabric()->GetNodeId(), ctx.GetBobFabricIndex(),
+                                                      ctx.GetAliceAddress(), CryptoContext::SessionRole::kResponder, {});
 
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
     // TODO: Ideally this would go to a different peer, but we don't have that
     // set up right now: only Alice and Bob have useful node ids and whatnot.
     SessionHolder session2;
-    err = sessionManager.InjectCaseSessionWithTestKey(session2, 200, 201, GetAliceFabric()->GetNodeId(),
-                                                      GetBobFabric()->GetNodeId(), GetAliceFabricIndex(), GetBobAddress(),
-                                                      CryptoContext::SessionRole::kInitiator, {});
+    err = sessionManager.InjectCaseSessionWithTestKey(session2, 200, 201, ctx.GetAliceFabric()->GetNodeId(),
+                                                      ctx.GetBobFabric()->GetNodeId(), ctx.GetAliceFabricIndex(),
+                                                      ctx.GetBobAddress(), CryptoContext::SessionRole::kInitiator, {});
 
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
     SessionHolder session2Reply;
-    err = sessionManager.InjectCaseSessionWithTestKey(session2Reply, 101, 100, GetBobFabric()->GetNodeId(),
-                                                      GetAliceFabric()->GetNodeId(), GetBobFabricIndex(), GetAliceAddress(),
-                                                      CryptoContext::SessionRole::kResponder, {});
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    err = sessionManager.InjectCaseSessionWithTestKey(session2Reply, 101, 100, ctx.GetBobFabric()->GetNodeId(),
+                                                      ctx.GetAliceFabric()->GetNodeId(), ctx.GetBobFabricIndex(),
+                                                      ctx.GetAliceAddress(), CryptoContext::SessionRole::kResponder, {});
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
-    auto & exchangeMgr = GetExchangeManager();
+    auto & exchangeMgr = ctx.GetExchangeManager();
 
     MockAppDelegate delegate;
     Echo::EchoServer server;
     err = server.Init(&exchangeMgr);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
-    auto & loopback = GetLoopback();
+    auto & loopback = ctx.GetLoopback();
 
     auto trySendMessage = [&](ExchangeContext * exchange, SendMessageFlags flags) {
         PacketBufferHandle buffer = MessagePacketBuffer::New(0);
-        EXPECT_FALSE(buffer.IsNull());
+        NL_TEST_ASSERT(inSuite, !buffer.IsNull());
         return exchange->SendMessage(Echo::MsgType::EchoRequest, std::move(buffer), flags);
     };
 
@@ -138,81 +123,79 @@ void TestAbortExchangesForFabric::CommonCheckAbortAllButOneExchange(bool dropRes
         loopback.mDroppedMessageCount = 0;
 
         err = trySendMessage(exchange, flags);
-        EXPECT_EQ(err, CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
-        DrainAndServiceIO();
-        EXPECT_FALSE(delegate.mOnMessageReceivedCalled);
-        EXPECT_EQ(loopback.mDroppedMessageCount, 1u);
+        ctx.DrainAndServiceIO();
+        NL_TEST_ASSERT(inSuite, !delegate.mOnMessageReceivedCalled);
+        NL_TEST_ASSERT(inSuite, loopback.mDroppedMessageCount == 1);
     };
 
-    ReliableMessageMgr * rm = GetExchangeManager().GetReliableMessageMgr();
+    ReliableMessageMgr * rm = ctx.GetExchangeManager().GetReliableMessageMgr();
 
     // We want to test three possible exchange states:
     // 1) Closed but waiting for ack.
     // 2) Waiting for a response.
     // 3) Waiting for a send.
     auto * waitingForAck1 = exchangeMgr.NewContext(session1.Get().Value(), &delegate);
-    ASSERT_NE(waitingForAck1, nullptr);
+    NL_TEST_ASSERT(inSuite, waitingForAck1 != nullptr);
     sendAndDropMessage(waitingForAck1, SendMessageFlags::kNone);
-    EXPECT_EQ(rm->TestGetCountRetransTable(), 1);
+    NL_TEST_ASSERT(inSuite, rm->TestGetCountRetransTable() == 1);
 
     auto * waitingForAck2 = exchangeMgr.NewContext(session2.Get().Value(), &delegate);
-    ASSERT_NE(waitingForAck2, nullptr);
+    NL_TEST_ASSERT(inSuite, waitingForAck2 != nullptr);
     sendAndDropMessage(waitingForAck2, SendMessageFlags::kNone);
-    EXPECT_EQ(rm->TestGetCountRetransTable(), 2);
+    NL_TEST_ASSERT(inSuite, rm->TestGetCountRetransTable() == 2);
 
     auto * waitingForIncomingMessage1 = exchangeMgr.NewContext(session1.Get().Value(), &delegate);
-    ASSERT_NE(waitingForIncomingMessage1, nullptr);
+    NL_TEST_ASSERT(inSuite, waitingForIncomingMessage1 != nullptr);
     sendAndDropMessage(waitingForIncomingMessage1, SendMessageFlags::kExpectResponse);
-    EXPECT_EQ(rm->TestGetCountRetransTable(), 3);
+    NL_TEST_ASSERT(inSuite, rm->TestGetCountRetransTable() == 3);
 
     auto * waitingForIncomingMessage2 = exchangeMgr.NewContext(session2.Get().Value(), &delegate);
-    ASSERT_NE(waitingForIncomingMessage2, nullptr);
+    NL_TEST_ASSERT(inSuite, waitingForIncomingMessage2 != nullptr);
     sendAndDropMessage(waitingForIncomingMessage2, SendMessageFlags::kExpectResponse);
-    EXPECT_EQ(rm->TestGetCountRetransTable(), 4);
+    NL_TEST_ASSERT(inSuite, rm->TestGetCountRetransTable() == 4);
 
     auto * waitingForSend1 = exchangeMgr.NewContext(session1.Get().Value(), &delegate);
-    ASSERT_NE(waitingForSend1, nullptr);
+    NL_TEST_ASSERT(inSuite, waitingForSend1 != nullptr);
     waitingForSend1->WillSendMessage();
 
     auto * waitingForSend2 = exchangeMgr.NewContext(session2.Get().Value(), &delegate);
-    ASSERT_NE(waitingForSend2, nullptr);
+    NL_TEST_ASSERT(inSuite, waitingForSend2 != nullptr);
     waitingForSend2->WillSendMessage();
 
     // Grab handles to our sessions now, before we evict things.
     const auto & sessionHandle1 = session1.Get();
     const auto & sessionHandle2 = session2.Get();
 
-    session1->AsSecureSession()->SetRemoteSessionParameters(
-        ReliableMessageProtocolConfig(chip::Test::MessagingContext::kResponsiveIdleRetransTimeout,
-                                      chip::Test::MessagingContext::kResponsiveActiveRetransTimeout));
+    session1->AsSecureSession()->SetRemoteSessionParameters(ReliableMessageProtocolConfig(
+        Test::MessagingContext::kResponsiveIdleRetransTimeout, Test::MessagingContext::kResponsiveActiveRetransTimeout));
 
-    session1Reply->AsSecureSession()->SetRemoteSessionParameters(
-        ReliableMessageProtocolConfig(chip::Test::MessagingContext::kResponsiveIdleRetransTimeout,
-                                      chip::Test::MessagingContext::kResponsiveActiveRetransTimeout));
+    session1Reply->AsSecureSession()->SetRemoteSessionParameters(ReliableMessageProtocolConfig(
+        Test::MessagingContext::kResponsiveIdleRetransTimeout, Test::MessagingContext::kResponsiveActiveRetransTimeout));
 
-    EXPECT_TRUE(session1);
-    EXPECT_TRUE(session2);
+    NL_TEST_ASSERT(inSuite, session1);
+    NL_TEST_ASSERT(inSuite, session2);
     auto * specialExhange = exchangeMgr.NewContext(session1.Get().Value(), &delegate);
     specialExhange->AbortAllOtherCommunicationOnFabric();
 
-    EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
-    EXPECT_FALSE(session1);
-    EXPECT_FALSE(session2);
+    NL_TEST_ASSERT(inSuite, rm->TestGetCountRetransTable() == 0);
+    NL_TEST_ASSERT(inSuite, !session1);
+    NL_TEST_ASSERT(inSuite, !session2);
 
-    EXPECT_EQ(exchangeMgr.NewContext(sessionHandle1.Value(), &delegate), nullptr);
-    EXPECT_EQ(exchangeMgr.NewContext(sessionHandle2.Value(), &delegate), nullptr);
+    NL_TEST_ASSERT(inSuite, exchangeMgr.NewContext(sessionHandle1.Value(), &delegate) == nullptr);
+    NL_TEST_ASSERT(inSuite, exchangeMgr.NewContext(sessionHandle2.Value(), &delegate) == nullptr);
 
     // Make sure we can't send messages on any of the other exchanges.
-    EXPECT_NE(trySendMessage(waitingForSend1, SendMessageFlags::kExpectResponse), CHIP_NO_ERROR);
-    EXPECT_NE(trySendMessage(waitingForSend2, SendMessageFlags::kExpectResponse), CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, trySendMessage(waitingForSend1, SendMessageFlags::kExpectResponse) != CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, trySendMessage(waitingForSend2, SendMessageFlags::kExpectResponse) != CHIP_NO_ERROR);
 
     // Make sure we can send a message on the special exchange.
-    EXPECT_FALSE(delegate.mOnMessageReceivedCalled);
+    NL_TEST_ASSERT(inSuite, !delegate.mOnMessageReceivedCalled);
     err = trySendMessage(specialExhange, SendMessageFlags::kNone);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
     // Should be waiting for an ack now.
-    EXPECT_EQ(rm->TestGetCountRetransTable(), 1);
+    NL_TEST_ASSERT(inSuite, rm->TestGetCountRetransTable() == 1);
 
     if (dropResponseMessages)
     {
@@ -220,7 +203,7 @@ void TestAbortExchangesForFabric::CommonCheckAbortAllButOneExchange(bool dropRes
         // This version of the test allows us to validate logic that marks expired sessions as defunct
         // on encountering an MRP failure.
         //
-        loopback.mNumMessagesToDrop   = chip::Test::LoopbackTransport::kUnlimitedMessageCount;
+        loopback.mNumMessagesToDrop   = Test::LoopbackTransport::kUnlimitedMessageCount;
         loopback.mDroppedMessageCount = 0;
 
         //
@@ -229,23 +212,27 @@ void TestAbortExchangesForFabric::CommonCheckAbortAllButOneExchange(bool dropRes
         //
         auto waitTimeout = System::Clock::Milliseconds32(1000);
 
-#if CHIP_CONFIG_ENABLE_ICD_SERVER
+#if CHIP_CONFIG_ENABLE_ICD_SERVER == 1
         // If running as an ICD, increase waitTimeout to account for the polling interval
-        waitTimeout += ICDConfigurationData::GetInstance().GetFastPollingInterval();
+        waitTimeout += ICDConfigurationData::GetInstance().GetSlowPollingInterval();
 #endif
 
-        GetIOContext().DriveIOUntil(waitTimeout, [&]() { return false; });
+        // Account for the retry delay booster, so that we do not timeout our IO processing before the
+        // retransmission failure is triggered.
+        waitTimeout += CHIP_CONFIG_RMP_DEFAULT_MAX_RETRANS * CHIP_CONFIG_MRP_RETRY_INTERVAL_SENDER_BOOST;
+
+        ctx.GetIOContext().DriveIOUntil(waitTimeout, [&]() { return false; });
     }
     else
     {
-        DrainAndServiceIO();
+        ctx.DrainAndServiceIO();
     }
 
     // Should not get an app-level response, since we are not expecting one.
-    EXPECT_FALSE(delegate.mOnMessageReceivedCalled);
+    NL_TEST_ASSERT(inSuite, !delegate.mOnMessageReceivedCalled);
 
     // We should have gotten our ack.
-    EXPECT_EQ(rm->TestGetCountRetransTable(), 0);
+    NL_TEST_ASSERT(inSuite, rm->TestGetCountRetransTable() == 0);
 
     waitingForSend1->Close();
     waitingForSend2->Close();
@@ -254,14 +241,43 @@ void TestAbortExchangesForFabric::CommonCheckAbortAllButOneExchange(bool dropRes
     loopback.mDroppedMessageCount = 0;
 }
 
-TEST_F(TestAbortExchangesForFabric, CheckAbortAllButOneExchange)
+void CheckAbortAllButOneExchange(nlTestSuite * inSuite, void * inContext)
 {
-    CommonCheckAbortAllButOneExchange(false);
+    TestContext & ctx = *reinterpret_cast<TestContext *>(inContext);
+    CommonCheckAbortAllButOneExchange(inSuite, ctx, false);
 }
 
-TEST_F(TestAbortExchangesForFabric, CheckAbortAllButOneExchangeResponseTimeout)
+void CheckAbortAllButOneExchangeResponseTimeout(nlTestSuite * inSuite, void * inContext)
 {
-    CommonCheckAbortAllButOneExchange(true);
+    TestContext & ctx = *reinterpret_cast<TestContext *>(inContext);
+    CommonCheckAbortAllButOneExchange(inSuite, ctx, true);
 }
+
+const nlTest sTests[] = {
+    NL_TEST_DEF("Test aborting all but one exchange", CheckAbortAllButOneExchange),
+    NL_TEST_DEF("Test aborting all but one exchange + response timeout", CheckAbortAllButOneExchangeResponseTimeout),
+    NL_TEST_SENTINEL(),
+};
+
+// clang-format off
+nlTestSuite sSuite = {
+    "Test-AbortExchangesForFabric",
+    &sTests[0],
+    TestContext::nlTestSetUpTestSuite,
+    TestContext::nlTestTearDownTestSuite,
+    TestContext::nlTestSetUp,
+    TestContext::nlTestTearDown,
+};
+// clang-format on
 
 } // namespace
+
+/**
+ *  Main
+ */
+int TestAbortExchangesForFabric()
+{
+    return chip::ExecuteTestsWithContext<TestContext>(&sSuite);
+}
+
+CHIP_REGISTER_TEST_SUITE(TestAbortExchangesForFabric);

@@ -19,7 +19,6 @@
 #include <lib/support/Span.h>
 #include <transport/Session.h>
 #include <transport/raw/MessageHeader.h>
-#include <transport/raw/PeerAddress.h>
 
 namespace chip {
 namespace Tracing {

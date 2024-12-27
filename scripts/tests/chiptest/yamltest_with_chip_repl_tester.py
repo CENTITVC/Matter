@@ -16,7 +16,6 @@
 
 import asyncio
 import atexit
-import functools
 import logging
 import os
 import tempfile
@@ -85,13 +84,6 @@ async def execute_test(yaml, runner):
             raise Exception(f'Test step failed {test_step.label}')
 
 
-def asyncio_executor(f):
-    @functools.wraps(f)
-    def wrapper(*args, **kwargs):
-        return asyncio.run(f(*args, **kwargs))
-    return wrapper
-
-
 @click.command()
 @click.option(
     '--setup-code',
@@ -109,8 +101,7 @@ def asyncio_executor(f):
     '--pics-file',
     default=None,
     help='Optional PICS file')
-@asyncio_executor
-async def main(setup_code, yaml_path, node_id, pics_file):
+def main(setup_code, yaml_path, node_id, pics_file):
     # Setting up python environment for running YAML CI tests using python parser.
     with tempfile.NamedTemporaryFile() as chip_stack_storage:
         chip.native.Init()
@@ -131,7 +122,7 @@ async def main(setup_code, yaml_path, node_id, pics_file):
         # Creating and commissioning to a single controller to match what is currently done when
         # running.
         dev_ctrl = ca_list[0].adminList[0].NewController()
-        await dev_ctrl.CommissionWithCode(setup_code, node_id)
+        dev_ctrl.CommissionWithCode(setup_code, node_id)
 
         def _StackShutDown():
             # Tearing down chip stack. If not done in the correct order test will fail.
@@ -152,7 +143,7 @@ async def main(setup_code, yaml_path, node_id, pics_file):
             runner = ReplTestRunner(
                 clusters_definitions, certificate_authority_manager, dev_ctrl)
 
-            await execute_test(yaml, runner)
+            asyncio.run(execute_test(yaml, runner))
 
         except Exception:
             print(traceback.format_exc())

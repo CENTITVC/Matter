@@ -16,6 +16,7 @@
  */
 
 #include "DeviceCallbacks.h"
+#include "app/util/af.h"
 #include "esp_heap_caps_init.h"
 #include "esp_log.h"
 #include "esp_netif.h"
@@ -25,7 +26,6 @@
 #include "freertos/task.h"
 #include "nvs_flash.h"
 #include <app/server/OnboardingCodesUtil.h>
-#include <app/util/endpoint-config-api.h>
 #include <common/CHIPDeviceManager.h>
 #include <common/Esp32AppServer.h>
 #include <credentials/DeviceAttestationCredsProvider.h>

@@ -35,17 +35,15 @@
 
 #include <lib/support/CodeUtils.h>
 #include <lib/support/logging/CHIPLogging.h>
-#include <platform/Infineon/PSOC6/PSOC6Utils.h>
+#include <platform/Infineon/PSOC6/P6Utils.h>
 #include <platform/internal/BLEManager.h>
-
-#include "cy_network_mw_core.h"
-#include "cy_nw_helper.h"
 
 #include <lwip/dns.h>
 #include <lwip/ip_addr.h>
 #include <lwip/nd6.h>
 #include <lwip/netif.h>
 
+#include "cy_network_mw_core.h"
 #include "lwip/opt.h"
 #include <platform/Infineon/PSOC6/NetworkCommissioningDriver.h>
 #include <type_traits>
@@ -67,7 +65,7 @@ ConnectivityManagerImpl ConnectivityManagerImpl::sInstance;
 ConnectivityManager::WiFiStationMode ConnectivityManagerImpl::_GetWiFiStationMode(void)
 {
     uint32_t curWiFiMode;
-    mWiFiStationMode = (Internal::PSOC6Utils::wifi_get_mode(curWiFiMode) == CHIP_NO_ERROR &&
+    mWiFiStationMode = (Internal::P6Utils::wifi_get_mode(curWiFiMode) == CHIP_NO_ERROR &&
                         (curWiFiMode == WIFI_MODE_APSTA || curWiFiMode == WIFI_MODE_STA))
         ? kWiFiStationMode_Enabled
         : kWiFiStationMode_Disabled;
@@ -106,7 +104,7 @@ bool ConnectivityManagerImpl::_IsWiFiStationEnabled(void)
 
 bool ConnectivityManagerImpl::_IsWiFiStationProvisioned(void)
 {
-    return Internal::PSOC6Utils::IsStationProvisioned();
+    return Internal::P6Utils::IsStationProvisioned();
 }
 
 void ConnectivityManagerImpl::_ClearWiFiStationProvision(void)
@@ -116,7 +114,7 @@ void ConnectivityManagerImpl::_ClearWiFiStationProvision(void)
         wifi_config_t stationConfig;
 
         memset(&stationConfig, 0, sizeof(stationConfig));
-        Internal::PSOC6Utils::p6_wifi_set_config(WIFI_IF_STA, &stationConfig);
+        Internal::P6Utils::p6_wifi_set_config(WIFI_IF_STA, &stationConfig);
 
         DeviceLayer::SystemLayer().ScheduleWork(DriveStationState, NULL);
         DeviceLayer::SystemLayer().ScheduleWork(DriveAPState, NULL);
@@ -213,8 +211,8 @@ CHIP_ERROR ConnectivityManagerImpl::_Init()
     mWiFiAPIdleTimeout            = System::Clock::Milliseconds32(CHIP_DEVICE_CONFIG_WIFI_AP_IDLE_TIMEOUT);
     mFlags.SetRaw(0);
 
-    // Ensure that PSOC6 station mode is enabled.
-    err = Internal::PSOC6Utils::EnableStationMode();
+    // Ensure that P6 station mode is enabled.
+    err = Internal::P6Utils::EnableStationMode();
     SuccessOrExit(err);
     // If there is no persistent station provision...
     if (!IsWiFiStationProvisioned())
@@ -233,7 +231,7 @@ CHIP_ERROR ConnectivityManagerImpl::_Init()
             memcpy(wifiConfig.sta.password, CHIP_DEVICE_CONFIG_DEFAULT_STA_PASSWORD,
                    min(strlen(CHIP_DEVICE_CONFIG_DEFAULT_STA_PASSWORD), sizeof(wifiConfig.sta.password)));
             wifiConfig.sta.security = CHIP_DEVICE_CONFIG_DEFAULT_STA_SECURITY;
-            err                     = Internal::PSOC6Utils::p6_wifi_set_config(WIFI_IF_STA, &wifiConfig);
+            err                     = Internal::P6Utils::p6_wifi_set_config(WIFI_IF_STA, &wifiConfig);
             SuccessOrExit(err);
 
             // Enable WiFi station mode.
@@ -250,7 +248,7 @@ CHIP_ERROR ConnectivityManagerImpl::_Init()
         ReturnErrorOnFailure(SetWiFiStationMode(kWiFiStationMode_Enabled));
     }
     // Force AP mode off for now.
-    err = Internal::PSOC6Utils::SetAPMode(false);
+    err = Internal::P6Utils::SetAPMode(false);
     SuccessOrExit(err);
 
     // Queue work items to bootstrap the station state machines once the Chip event loop is running.
@@ -378,10 +376,10 @@ CHIP_ERROR ConnectivityManagerImpl::ConfigureWiFiAP()
     wifiConfig.ap.ip_settings.gateway    = ap_mode_ip_settings.gateway;
 
     ChipLogProgress(DeviceLayer, "Configuring WiFi AP: SSID %s, channel %u", wifiConfig.ap.ssid, wifiConfig.ap.channel);
-    err = Internal::PSOC6Utils::p6_wifi_set_config(WIFI_IF_AP, &wifiConfig);
+    err = Internal::P6Utils::p6_wifi_set_config(WIFI_IF_AP, &wifiConfig);
     SuccessOrExit(err);
 
-    err = Internal::PSOC6Utils::p6_start_ap();
+    err = Internal::P6Utils::p6_start_ap();
     if (err != CHIP_NO_ERROR)
     {
         ChipLogError(DeviceLayer, "p6_start_ap failed: %s", chip::ErrorStr(err));
@@ -397,8 +395,8 @@ void ConnectivityManagerImpl::DriveAPState()
     WiFiAPState targetState;
     bool APModeEnabled;
 
-    // Determine if AP mode is currently enabled in the PSOC6 WiFi layer.
-    err = Internal::PSOC6Utils::IsAPEnabled(APModeEnabled);
+    // Determine if AP mode is currently enabled in the P6 WiFi layer.
+    err = Internal::P6Utils::IsAPEnabled(APModeEnabled);
     SuccessOrExit(err);
 
     // Adjust the Connectivity Manager's AP state to match the state in the WiFi layer.
@@ -473,13 +471,13 @@ void ConnectivityManagerImpl::DriveAPState()
         {
             // If the target state is 'Active' and the current state is NOT 'Activating', enable
             // and configure the AP interface, and then enter the 'Activating' state.  Eventually
-            // a SYSTEM_EVENT_AP_START event will be received from the PSOC6 WiFi layer which will
+            // a SYSTEM_EVENT_AP_START event will be received from the P6 WiFi layer which will
             // cause the state to transition to 'Active'.
             if (targetState == kWiFiAPState_Active)
             {
                 if (mWiFiAPState != kWiFiAPState_Active)
                 {
-                    err = Internal::PSOC6Utils::SetAPMode(true);
+                    err = Internal::P6Utils::SetAPMode(true);
                     SuccessOrExit(err);
                     err = ConfigureWiFiAP();
                     SuccessOrExit(err);
@@ -494,9 +492,9 @@ void ConnectivityManagerImpl::DriveAPState()
             {
                 if (mWiFiAPState != kWiFiAPState_Deactivating)
                 {
-                    err = Internal::PSOC6Utils::SetAPMode(false);
+                    err = Internal::P6Utils::SetAPMode(false);
                     SuccessOrExit(err);
-                    err = Internal::PSOC6Utils::p6_stop_ap();
+                    err = Internal::P6Utils::p6_stop_ap();
                     SuccessOrExit(err);
                     ChangeWiFiAPState(kWiFiAPState_Deactivating);
                 }
@@ -508,8 +506,8 @@ exit:
     if (err != CHIP_NO_ERROR && mWiFiAPMode != kWiFiAPMode_ApplicationControlled)
     {
         SetWiFiAPMode(kWiFiAPMode_Disabled);
-        Internal::PSOC6Utils::SetAPMode(false);
-        Internal::PSOC6Utils::p6_stop_ap();
+        Internal::P6Utils::SetAPMode(false);
+        Internal::P6Utils::p6_stop_ap();
     }
 }
 
@@ -521,17 +519,17 @@ void ConnectivityManagerImpl::DriveStationState()
     // If the station interface is NOT under application control...
     if (mWiFiStationMode != kWiFiStationMode_ApplicationControlled)
     {
-        // Ensure that the PSOC6 WiFi layer is started.
+        // Ensure that the P6 WiFi layer is started.
         err = WiFi_init();
         SuccessOrExit(err);
 
-        // Ensure that station mode is enabled in the PSOC6 WiFi layer.
-        err = Internal::PSOC6Utils::EnableStationMode();
+        // Ensure that station mode is enabled in the P6 WiFi layer.
+        err = Internal::P6Utils::EnableStationMode();
         SuccessOrExit(err);
     }
 
-    // Determine if the PSOC6 WiFi layer thinks the station interface is currently connected.
-    err = Internal::PSOC6Utils::IsStationConnected(stationConnected);
+    // Determine if the P6 WiFi layer thinks the station interface is currently connected.
+    err = Internal::P6Utils::IsStationConnected(stationConnected);
     SuccessOrExit(err);
     // If the station interface is currently connected ...
     if (stationConnected)
@@ -552,7 +550,7 @@ void ConnectivityManagerImpl::DriveStationState()
             (mWiFiStationMode != kWiFiStationMode_Enabled || !IsWiFiStationProvisioned()))
         {
             ChipLogProgress(DeviceLayer, "Disconnecting WiFi station interface");
-            err = Internal::PSOC6Utils::p6_wifi_disconnect();
+            err = Internal::P6Utils::p6_wifi_disconnect();
             if (err != CHIP_NO_ERROR)
             {
                 ChipLogError(DeviceLayer, "p6_wifi_disconnect() failed: %s", chip::ErrorStr(err));
@@ -596,7 +594,7 @@ void ConnectivityManagerImpl::DriveStationState()
             {
                 ChangeWiFiStationState(kWiFiStationState_Connecting);
                 ChipLogProgress(DeviceLayer, "Attempting to connect WiFi station interface");
-                err = Internal::PSOC6Utils::p6_wifi_connect();
+                err = Internal::P6Utils::p6_wifi_connect();
                 if (err != CHIP_NO_ERROR)
                 {
                     ChipLogError(DeviceLayer, "p6_wifi_connect() failed: %s", chip::ErrorStr(err));
@@ -635,7 +633,7 @@ void ConnectivityManagerImpl::UpdateInternetConnectivityState(void)
     struct netif * net_interface = NULL;
     IPAddress addr;
     bool stationConnected;
-    Internal::PSOC6Utils::IsStationConnected(stationConnected);
+    Internal::P6Utils::IsStationConnected(stationConnected);
 
     ChipLogProgress(DeviceLayer, "UpdateInternetConnectivityState");
     // If the WiFi station is currently in the connected state...
@@ -708,7 +706,7 @@ CHIP_ERROR ConnectivityManagerImpl::WiFi_init(void)
 {
     CHIP_ERROR err   = CHIP_NO_ERROR;
     cy_rslt_t result = CY_RSLT_SUCCESS;
-    err              = Internal::PSOC6Utils::StartWiFiLayer();
+    err              = Internal::P6Utils::StartWiFiLayer();
     SuccessOrExit(err);
     /* Register event callback */
     if (eventcallback == false)
@@ -729,7 +727,7 @@ exit:
 CHIP_ERROR ConnectivityManagerImpl::ping_thread()
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
-    err            = Internal::PSOC6Utils::ping_init();
+    err            = Internal::P6Utils::ping_init();
     return err;
 }
 

@@ -1,6 +1,6 @@
 /*
  *
- *    Copyright (c) 2023-2024 Project CHIP Authors
+ *    Copyright (c) 2023 Project CHIP Authors
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -29,6 +29,9 @@
 #include <zephyr/net/openthread.h>
 
 #include <openthread/thread.h>
+#if !CONFIG_SOC_SERIES_RISCV_TELINK_B9X
+#include <platform/Zephyr/BLEManagerImpl.h>
+#endif // !CONFIG_SOC_SERIES_RISCV_TELINK_B9X
 
 #include <lib/support/logging/CHIPLogging.h>
 
@@ -39,7 +42,7 @@ class ThreadStackManager;
 class ThreadStackManagerImpl;
 
 /**
- * Concrete implementation of the ThreadStackManager singleton object for Telink platforms.
+ * Concrete implementation of the ThreadStackManager singleton object for nRF Connect platforms.
  */
 class ThreadStackManagerImpl final : public ThreadStackManager,
                                      public Internal::GenericThreadStackManagerImpl_OpenThread<ThreadStackManagerImpl>
@@ -118,7 +121,7 @@ inline ThreadStackManager & ThreadStackMgr(void)
  * Returns the platform-specific implementation of the ThreadStackManager singleton object.
  *
  * chip applications can use this to gain access to features of the ThreadStackManager
- * that are specific to Telink platforms.
+ * that are specific to nRF Connect platforms.
  */
 inline ThreadStackManagerImpl & ThreadStackMgrImpl(void)
 {

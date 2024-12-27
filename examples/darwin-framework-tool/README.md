@@ -83,6 +83,7 @@ Usage:
   | * colorcontrol                                                                      |
   | * doorlock                                                                          |
   | * groups                                                                            |
+  | * iaszone                                                                           |
   | * identify                                                                          |
   | * levelcontrol                                                                      |
   | * onoff                                                                             |

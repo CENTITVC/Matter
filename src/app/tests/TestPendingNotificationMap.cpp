@@ -18,9 +18,9 @@
 #include <app/clusters/bindings/PendingNotificationMap.h>
 #include <app/util/binding-table.h>
 #include <app/util/config.h>
-#include <lib/core/StringBuilderAdapters.h>
 #include <lib/support/TestPersistentStorageDelegate.h>
-#include <pw_unit_test/framework.h>
+#include <lib/support/UnitTestRegistration.h>
+#include <nlunit-test.h>
 
 using chip::BindingTable;
 using chip::ClusterId;
@@ -32,16 +32,6 @@ using chip::PendingNotificationEntry;
 using chip::PendingNotificationMap;
 
 namespace {
-
-class TestPendingNotificationMap : public ::testing::Test
-{
-public:
-    static void SetUpTestSuite()
-    {
-        static chip::TestPersistentStorageDelegate storage;
-        BindingTable::GetInstance().SetPersistentStorage(&storage);
-    }
-};
 
 void ClearBindingTable(BindingTable & table)
 {
@@ -56,87 +46,107 @@ void CreateDefaultFullBindingTable(BindingTable & table)
 {
     for (uint8_t i = 0; i < MATTER_BINDING_TABLE_SIZE; i++)
     {
-        table.Add(EmberBindingTableEntry::ForNode(i / 10, i % 5, 0, 0, std::make_optional<ClusterId>(i)));
+        table.Add(EmberBindingTableEntry::ForNode(i / 10, i % 5, 0, 0, MakeOptional<ClusterId>(i)));
     }
 }
 
-TEST_F(TestPendingNotificationMap, TestEmptyMap)
+void TestEmptyMap(nlTestSuite * aSuite, void * aContext)
 {
     PendingNotificationMap pendingMap;
-    EXPECT_EQ(pendingMap.begin(), pendingMap.end());
+    NL_TEST_ASSERT(aSuite, pendingMap.begin() == pendingMap.end());
     chip::ScopedNodeId peer;
-    EXPECT_EQ(pendingMap.FindLRUConnectPeer(peer), CHIP_ERROR_NOT_FOUND);
+    NL_TEST_ASSERT(aSuite, pendingMap.FindLRUConnectPeer(peer) == CHIP_ERROR_NOT_FOUND);
 }
 
-TEST_F(TestPendingNotificationMap, TestAddRemove)
+void TestAddRemove(nlTestSuite * aSuite, void * aContext)
 {
     PendingNotificationMap pendingMap;
     ClearBindingTable(BindingTable::GetInstance());
     CreateDefaultFullBindingTable(BindingTable::GetInstance());
     for (uint8_t i = 0; i < MATTER_BINDING_TABLE_SIZE; i++)
     {
-        EXPECT_EQ(pendingMap.AddPendingNotification(i, nullptr), CHIP_NO_ERROR);
+        NL_TEST_ASSERT(aSuite, pendingMap.AddPendingNotification(i, nullptr) == CHIP_NO_ERROR);
     }
     // Confirm adding in one more element fails
-    EXPECT_EQ(pendingMap.AddPendingNotification(MATTER_BINDING_TABLE_SIZE, nullptr), CHIP_ERROR_NO_MEMORY);
+    NL_TEST_ASSERT(aSuite, pendingMap.AddPendingNotification(MATTER_BINDING_TABLE_SIZE, nullptr) == CHIP_ERROR_NO_MEMORY);
 
     auto iter = pendingMap.begin();
     for (uint8_t i = 0; i < MATTER_BINDING_TABLE_SIZE; i++)
     {
         PendingNotificationEntry entry = *iter;
-        EXPECT_EQ(entry.mBindingEntryId, i);
+        NL_TEST_ASSERT(aSuite, entry.mBindingEntryId == i);
         ++iter;
     }
-    EXPECT_EQ(iter, pendingMap.end());
+    NL_TEST_ASSERT(aSuite, iter == pendingMap.end());
     pendingMap.RemoveAllEntriesForNode(chip::ScopedNodeId());
     uint8_t expectedEntryIndecies[] = { 1, 2, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 };
     iter                            = pendingMap.begin();
     for (uint8_t ch : expectedEntryIndecies)
     {
         PendingNotificationEntry entry = *iter;
-        EXPECT_EQ(entry.mBindingEntryId, ch);
+        NL_TEST_ASSERT(aSuite, entry.mBindingEntryId == ch);
         ++iter;
     }
-    EXPECT_EQ(iter, pendingMap.end());
+    NL_TEST_ASSERT(aSuite, iter == pendingMap.end());
     pendingMap.RemoveAllEntriesForFabric(0);
     iter = pendingMap.begin();
     for (uint8_t i = 0; i < 10; i++)
     {
         PendingNotificationEntry entry = *iter;
-        EXPECT_EQ(entry.mBindingEntryId, 10u + i);
+        NL_TEST_ASSERT(aSuite, entry.mBindingEntryId == 10 + i);
         ++iter;
     }
-    EXPECT_EQ(iter, pendingMap.end());
+    NL_TEST_ASSERT(aSuite, iter == pendingMap.end());
     pendingMap.RemoveAllEntriesForFabric(1);
-    EXPECT_EQ(pendingMap.begin(), pendingMap.end());
+    NL_TEST_ASSERT(aSuite, pendingMap.begin() == pendingMap.end());
 }
 
-TEST_F(TestPendingNotificationMap, TestLRUEntry)
+void TestLRUEntry(nlTestSuite * aSuite, void * aContext)
 {
     PendingNotificationMap pendingMap;
     ClearBindingTable(BindingTable::GetInstance());
     CreateDefaultFullBindingTable(BindingTable::GetInstance());
-    EXPECT_EQ(pendingMap.AddPendingNotification(0, nullptr), CHIP_NO_ERROR);
-    EXPECT_EQ(pendingMap.AddPendingNotification(1, nullptr), CHIP_NO_ERROR);
-    EXPECT_EQ(pendingMap.AddPendingNotification(5, nullptr), CHIP_NO_ERROR);
-    EXPECT_EQ(pendingMap.AddPendingNotification(7, nullptr), CHIP_NO_ERROR);
-    EXPECT_EQ(pendingMap.AddPendingNotification(11, nullptr), CHIP_NO_ERROR);
+    NL_TEST_ASSERT(aSuite, pendingMap.AddPendingNotification(0, nullptr) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(aSuite, pendingMap.AddPendingNotification(1, nullptr) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(aSuite, pendingMap.AddPendingNotification(5, nullptr) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(aSuite, pendingMap.AddPendingNotification(7, nullptr) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(aSuite, pendingMap.AddPendingNotification(11, nullptr) == CHIP_NO_ERROR);
 
     chip::ScopedNodeId node;
 
-    EXPECT_EQ(pendingMap.FindLRUConnectPeer(node), CHIP_NO_ERROR);
-    EXPECT_EQ(node.GetFabricIndex(), 0u);
-    EXPECT_EQ(node.GetNodeId(), 1u);
+    NL_TEST_ASSERT(aSuite, pendingMap.FindLRUConnectPeer(node) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(aSuite, node.GetFabricIndex() == 0 && node.GetNodeId() == 1);
 
     pendingMap.RemoveEntry(1);
-    EXPECT_EQ(pendingMap.FindLRUConnectPeer(node), CHIP_NO_ERROR);
-    EXPECT_EQ(node.GetFabricIndex(), 0u);
-    EXPECT_EQ(node.GetNodeId(), 0u);
+    NL_TEST_ASSERT(aSuite, pendingMap.FindLRUConnectPeer(node) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(aSuite, node.GetFabricIndex() == 0 && node.GetNodeId() == 0);
 
     pendingMap.RemoveAllEntriesForFabric(0);
-    EXPECT_EQ(pendingMap.FindLRUConnectPeer(node), CHIP_NO_ERROR);
-    EXPECT_EQ(node.GetFabricIndex(), 1u);
-    EXPECT_EQ(node.GetNodeId(), 1u);
+    NL_TEST_ASSERT(aSuite, pendingMap.FindLRUConnectPeer(node) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(aSuite, node.GetFabricIndex() == 1 && node.GetNodeId() == 1);
 }
 
 } // namespace
+
+int TestPeindingNotificationMap()
+{
+    static nlTest sTests[] = {
+        NL_TEST_DEF("TestEmptyMap", TestEmptyMap),
+        NL_TEST_DEF("TestAddRemove", TestAddRemove),
+        NL_TEST_DEF("TestLRUEntry", TestLRUEntry),
+        NL_TEST_SENTINEL(),
+    };
+
+    nlTestSuite theSuite = {
+        "PendingNotificationMap",
+        &sTests[0],
+        nullptr,
+        nullptr,
+    };
+    chip::TestPersistentStorageDelegate storage;
+    BindingTable::GetInstance().SetPersistentStorage(&storage);
+    nlTestRunner(&theSuite, nullptr);
+    return (nlTestRunnerStats(&theSuite));
+}
+
+CHIP_REGISTER_TEST_SUITE(TestPeindingNotificationMap)

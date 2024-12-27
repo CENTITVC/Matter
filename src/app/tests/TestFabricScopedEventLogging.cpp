@@ -16,6 +16,12 @@
  *    limitations under the License.
  */
 
+/**
+ *    @file
+ *      This file implements a test for CHIP Interaction Model Fabric-scoped Event logging
+ *
+ */
+
 #include <access/SubjectDescriptor.h>
 #include <app/EventLoggingDelegate.h>
 #include <app/EventLoggingTypes.h>
@@ -31,14 +37,15 @@
 #include <lib/support/CodeUtils.h>
 #include <lib/support/EnforceFormat.h>
 #include <lib/support/LinkedList.h>
+#include <lib/support/UnitTestContext.h>
+#include <lib/support/UnitTestRegistration.h>
 #include <lib/support/logging/Constants.h>
 #include <messaging/ExchangeContext.h>
 #include <messaging/Flags.h>
 #include <platform/CHIPDeviceLayer.h>
 #include <system/TLVPacketBufferBackingStore.h>
 
-#include <lib/core/StringBuilderAdapters.h>
-#include <pw_unit_test/framework.h>
+#include <nlunit-test.h>
 
 namespace {
 
@@ -53,11 +60,11 @@ static uint8_t gInfoEventBuffer[128];
 static uint8_t gCritEventBuffer[128];
 static chip::app::CircularEventBuffer gCircularEventBuffer[3];
 
-class TestFabricScopedEventLogging : public chip::Test::AppContext
+class TestContext : public chip::Test::AppContext
 {
 public:
     // Performs setup for each individual test in the test suite
-    void SetUp() override
+    CHIP_ERROR SetUp() override
     {
         const chip::app::LogStorageResources logStorageResources[] = {
             { &gDebugEventBuffer[0], sizeof(gDebugEventBuffer), chip::app::PriorityLevel::Debug },
@@ -65,18 +72,23 @@ public:
             { &gCritEventBuffer[0], sizeof(gCritEventBuffer), chip::app::PriorityLevel::Critical },
         };
 
-        AppContext::SetUp();
+        ReturnErrorOnFailure(chip::Test::AppContext::SetUp());
 
-        ASSERT_EQ(mEventCounter.Init(0), CHIP_NO_ERROR);
+        CHIP_ERROR err = CHIP_NO_ERROR;
+        VerifyOrExit((err = mEventCounter.Init(0)) == CHIP_NO_ERROR,
+                     ChipLogError(AppServer, "Init EventCounter failed: %" CHIP_ERROR_FORMAT, err.Format()));
         chip::app::EventManagement::CreateEventManagement(&GetExchangeManager(), ArraySize(logStorageResources),
                                                           gCircularEventBuffer, logStorageResources, &mEventCounter);
+
+    exit:
+        return err;
     }
 
     // Performs teardown for each individual test in the test suite
     void TearDown() override
     {
         chip::app::EventManagement::DestroyEventManagement();
-        AppContext::TearDown();
+        chip::Test::AppContext::TearDown();
     }
 
 private:
@@ -106,22 +118,26 @@ void PrintEventLog(chip::app::PriorityLevel aPriorityLevel)
     chip::TLV::Debug::Dump(reader, SimpleDumpWriter);
 }
 
-static void CheckLogState(chip::app::EventManagement & aLogMgmt, size_t expectedNumEvents, chip::app::PriorityLevel aPriority)
+static void CheckLogState(nlTestSuite * apSuite, chip::app::EventManagement & aLogMgmt, size_t expectedNumEvents,
+                          chip::app::PriorityLevel aPriority)
 {
+    CHIP_ERROR err;
     chip::TLV::TLVReader reader;
     size_t elementCount;
     chip::app::CircularEventBufferWrapper bufWrapper;
-    EXPECT_EQ(aLogMgmt.GetEventReader(reader, aPriority, &bufWrapper), CHIP_NO_ERROR);
+    err = aLogMgmt.GetEventReader(reader, aPriority, &bufWrapper);
+    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
 
-    EXPECT_EQ(chip::TLV::Utilities::Count(reader, elementCount, false), CHIP_NO_ERROR);
+    err = chip::TLV::Utilities::Count(reader, elementCount, false);
+    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
 
-    EXPECT_EQ(elementCount, expectedNumEvents);
+    NL_TEST_ASSERT(apSuite, elementCount == expectedNumEvents);
     printf("elementCount vs expectedNumEvents : %u vs %u \n", static_cast<unsigned int>(elementCount),
            static_cast<unsigned int>(expectedNumEvents));
 }
 
-static void CheckLogReadOut(chip::app::EventManagement & alogMgmt, chip::EventNumber startingEventNumber, size_t expectedNumEvents,
-                            chip::SingleLinkedListNode<chip::app::EventPathParams> * clusterInfo,
+static void CheckLogReadOut(nlTestSuite * apSuite, chip::app::EventManagement & alogMgmt, chip::EventNumber startingEventNumber,
+                            size_t expectedNumEvents, chip::SingleLinkedListNode<chip::app::EventPathParams> * clusterInfo,
                             const chip::Access::SubjectDescriptor & aSubjectDescriptor)
 {
     CHIP_ERROR err;
@@ -132,17 +148,16 @@ static void CheckLogReadOut(chip::app::EventManagement & alogMgmt, chip::EventNu
     size_t totalNumElements;
     writer.Init(backingStore, 1024);
     err = alogMgmt.FetchEventsSince(writer, clusterInfo, startingEventNumber, eventCount, aSubjectDescriptor);
-    EXPECT_TRUE(err == CHIP_NO_ERROR || err == CHIP_END_OF_TLV);
+    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR || err == CHIP_END_OF_TLV);
 
     reader.Init(backingStore, writer.GetLengthWritten());
 
-    EXPECT_EQ(chip::TLV::Utilities::Count(reader, totalNumElements, false), CHIP_NO_ERROR);
+    err = chip::TLV::Utilities::Count(reader, totalNumElements, false);
+    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
 
     printf("totalNumElements vs expectedNumEvents vs eventCount : %u vs %u vs %u \n", static_cast<unsigned int>(totalNumElements),
            static_cast<unsigned int>(expectedNumEvents), static_cast<unsigned int>(eventCount));
-    EXPECT_EQ(totalNumElements, expectedNumEvents);
-    EXPECT_EQ(totalNumElements, eventCount);
-
+    NL_TEST_ASSERT(apSuite, totalNumElements == expectedNumEvents && totalNumElements == eventCount);
     reader.Init(backingStore, writer.GetLengthWritten());
     chip::TLV::Debug::Dump(reader, SimpleDumpWriter);
 }
@@ -165,8 +180,9 @@ private:
     int32_t mStatus;
 };
 
-TEST_F(TestFabricScopedEventLogging, TestCheckLogEventWithEvictToNextBuffer)
+static void CheckLogEventWithEvictToNextBuffer(nlTestSuite * apSuite, void * apContext)
 {
+    CHIP_ERROR err = CHIP_NO_ERROR;
     chip::EventNumber eid1, eid2, eid3, eid4;
     chip::app::EventOptions options1;
     chip::app::EventOptions options2;
@@ -180,25 +196,29 @@ TEST_F(TestFabricScopedEventLogging, TestCheckLogEventWithEvictToNextBuffer)
     options2.mFabricIndex                = 2;
     chip::app::EventManagement & logMgmt = chip::app::EventManagement::GetInstance();
     testEventGenerator.SetStatus(0);
-    EXPECT_EQ(logMgmt.LogEvent(&testEventGenerator, options1, eid1), CHIP_NO_ERROR);
-    CheckLogState(logMgmt, 1, chip::app::PriorityLevel::Debug);
+    err = logMgmt.LogEvent(&testEventGenerator, options1, eid1);
+    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
+    CheckLogState(apSuite, logMgmt, 1, chip::app::PriorityLevel::Debug);
     testEventGenerator.SetStatus(1);
-    EXPECT_EQ(logMgmt.LogEvent(&testEventGenerator, options1, eid2), CHIP_NO_ERROR);
-    CheckLogState(logMgmt, 2, chip::app::PriorityLevel::Debug);
+    err = logMgmt.LogEvent(&testEventGenerator, options1, eid2);
+    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
+    CheckLogState(apSuite, logMgmt, 2, chip::app::PriorityLevel::Debug);
     testEventGenerator.SetStatus(0);
-    EXPECT_EQ(logMgmt.LogEvent(&testEventGenerator, options1, eid3), CHIP_NO_ERROR);
-    CheckLogState(logMgmt, 3, chip::app::PriorityLevel::Info);
+    err = logMgmt.LogEvent(&testEventGenerator, options1, eid3);
+    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
+    CheckLogState(apSuite, logMgmt, 3, chip::app::PriorityLevel::Info);
     // Start to copy info event to next buffer since current debug buffer is full and info event is higher priority
     testEventGenerator.SetStatus(1);
-    EXPECT_EQ(logMgmt.LogEvent(&testEventGenerator, options2, eid4), CHIP_NO_ERROR);
-    CheckLogState(logMgmt, 4, chip::app::PriorityLevel::Info);
+    err = logMgmt.LogEvent(&testEventGenerator, options2, eid4);
+    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
+    CheckLogState(apSuite, logMgmt, 4, chip::app::PriorityLevel::Info);
 
     PrintEventLog(chip::app::PriorityLevel::Debug);
     PrintEventLog(chip::app::PriorityLevel::Info);
 
-    EXPECT_EQ((eid1 + 1), eid2);
-    EXPECT_EQ((eid2 + 1), eid3);
-    EXPECT_EQ((eid3 + 1), eid4);
+    NL_TEST_ASSERT(apSuite, (eid1 + 1) == eid2);
+    NL_TEST_ASSERT(apSuite, (eid2 + 1) == eid3);
+    NL_TEST_ASSERT(apSuite, (eid3 + 1) == eid4);
 
     chip::SingleLinkedListNode<chip::app::EventPathParams> paths[2];
 
@@ -212,41 +232,66 @@ TEST_F(TestFabricScopedEventLogging, TestCheckLogEventWithEvictToNextBuffer)
     chip::Access::SubjectDescriptor descriptor;
     descriptor.fabricIndex = 1;
 
-    CheckLogReadOut(logMgmt, 0, 3, &paths[0], descriptor);
-    CheckLogReadOut(logMgmt, 1, 2, &paths[0], descriptor);
-    CheckLogReadOut(logMgmt, 2, 1, &paths[0], descriptor);
-    CheckLogReadOut(logMgmt, 3, 0, &paths[1], descriptor);
+    CheckLogReadOut(apSuite, logMgmt, 0, 3, &paths[0], descriptor);
+    CheckLogReadOut(apSuite, logMgmt, 1, 2, &paths[0], descriptor);
+    CheckLogReadOut(apSuite, logMgmt, 2, 1, &paths[0], descriptor);
+    CheckLogReadOut(apSuite, logMgmt, 3, 0, &paths[1], descriptor);
     descriptor.fabricIndex = 2;
-    CheckLogReadOut(logMgmt, 3, 1, &paths[1], descriptor);
+    CheckLogReadOut(apSuite, logMgmt, 3, 1, &paths[1], descriptor);
 
     paths[0].mpNext        = &paths[1];
     descriptor.fabricIndex = 1;
 
-    CheckLogReadOut(logMgmt, 0, 3, paths, descriptor);
+    CheckLogReadOut(apSuite, logMgmt, 0, 3, paths, descriptor);
     descriptor.fabricIndex = 2;
-    CheckLogReadOut(logMgmt, 0, 1, paths, descriptor);
+    CheckLogReadOut(apSuite, logMgmt, 0, 1, paths, descriptor);
 
     // Fabric event + wildcard test, only have one fabric-scoped event with fabric 2
     chip::SingleLinkedListNode<chip::app::EventPathParams> pathsWithWildcard[2];
     paths[0].mValue.mEndpointId = kTestEndpointId1;
     paths[0].mValue.mClusterId  = kLivenessClusterId;
 
-    CheckLogReadOut(logMgmt, 0, 1, &pathsWithWildcard[1], descriptor);
+    CheckLogReadOut(apSuite, logMgmt, 0, 1, &pathsWithWildcard[1], descriptor);
 
     paths[0].mpNext = &paths[1];
-    CheckLogReadOut(logMgmt, 0, 1, pathsWithWildcard, descriptor);
+    CheckLogReadOut(apSuite, logMgmt, 0, 1, pathsWithWildcard, descriptor);
 
     // Invalidate obsolete fabric-scope event
 
     // Invalidate 3 event with fabric 1
     descriptor.fabricIndex = 1;
     logMgmt.FabricRemoved(descriptor.fabricIndex);
-    CheckLogReadOut(logMgmt, 0, 0, &pathsWithWildcard[1], descriptor);
+    CheckLogReadOut(apSuite, logMgmt, 0, 0, &pathsWithWildcard[1], descriptor);
 
     // Invalidate 1 event with fabric 2
     descriptor.fabricIndex = 2;
     logMgmt.FabricRemoved(descriptor.fabricIndex);
-    CheckLogReadOut(logMgmt, 0, 0, &pathsWithWildcard[1], descriptor);
+    CheckLogReadOut(apSuite, logMgmt, 0, 0, &pathsWithWildcard[1], descriptor);
 }
+/**
+ *   Test Suite. It lists all the test functions.
+ */
+
+const nlTest sTests[] = { NL_TEST_DEF("CheckLogEventWithEvictToNextBuffer", CheckLogEventWithEvictToNextBuffer),
+                          NL_TEST_SENTINEL() };
+
+// clang-format off
+nlTestSuite sSuite =
+{
+    "TestFabricScopedEventLogging",
+    &sTests[0],
+    TestContext::nlTestSetUpTestSuite,
+    TestContext::nlTestTearDownTestSuite,
+    TestContext::nlTestSetUp,
+    TestContext::nlTestTearDown,
+};
+// clang-format on
 
 } // namespace
+
+int TestFabricScopedEventLogging()
+{
+    return chip::ExecuteTestsWithContext<TestContext>(&sSuite);
+}
+
+CHIP_REGISTER_TEST_SUITE(TestFabricScopedEventLogging)

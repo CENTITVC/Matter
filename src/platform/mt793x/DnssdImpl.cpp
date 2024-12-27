@@ -33,7 +33,6 @@
 #include <cstdio>
 #include <sstream>
 #include <string.h>
-#include <string>
 
 #include "mDNSDebug.h"
 #include "task.h"

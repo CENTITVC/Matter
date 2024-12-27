@@ -15,75 +15,75 @@
  *    limitations under the License.
  */
 
-#include <algorithm>
-#include <vector>
-
 #include <app/PendingResponseTrackerImpl.h>
-#include <lib/core/StringBuilderAdapters.h>
-#include <pw_unit_test/framework.h>
+#include <lib/support/UnitTestRegistration.h>
+
+#include <algorithm>
+#include <nlunit-test.h>
+#include <vector>
 
 namespace {
 
 using namespace chip;
 
-TEST(TestPendingResponseTrackerImpl, TestPendingResponseTracker_FillEntireTracker)
+void TestPendingResponseTracker_FillEntireTracker(nlTestSuite * inSuite, void * inContext)
 {
     chip::app::PendingResponseTrackerImpl pendingResponseTracker;
     for (uint16_t commandRef = 0; commandRef < std::numeric_limits<uint16_t>::max(); commandRef++)
     {
-        EXPECT_FALSE(pendingResponseTracker.IsTracked(commandRef));
-        EXPECT_EQ(CHIP_NO_ERROR, pendingResponseTracker.Add(commandRef));
-        EXPECT_TRUE(pendingResponseTracker.IsTracked(commandRef));
+        NL_TEST_ASSERT(inSuite, false == pendingResponseTracker.IsTracked(commandRef));
+        NL_TEST_ASSERT(inSuite, CHIP_NO_ERROR == pendingResponseTracker.Add(commandRef));
+        NL_TEST_ASSERT(inSuite, true == pendingResponseTracker.IsTracked(commandRef));
     }
 
-    EXPECT_EQ(std::numeric_limits<uint16_t>::max(), pendingResponseTracker.Count());
+    NL_TEST_ASSERT(inSuite, std::numeric_limits<uint16_t>::max() == pendingResponseTracker.Count());
 
     for (uint16_t commandRef = 0; commandRef < std::numeric_limits<uint16_t>::max(); commandRef++)
     {
-        EXPECT_EQ(CHIP_NO_ERROR, pendingResponseTracker.Remove(commandRef));
-        EXPECT_FALSE(pendingResponseTracker.IsTracked(commandRef));
+        NL_TEST_ASSERT(inSuite, CHIP_NO_ERROR == pendingResponseTracker.Remove(commandRef));
+        NL_TEST_ASSERT(inSuite, false == pendingResponseTracker.IsTracked(commandRef));
     }
-    EXPECT_EQ(0u, pendingResponseTracker.Count());
+    NL_TEST_ASSERT(inSuite, 0 == pendingResponseTracker.Count());
 }
 
-TEST(TestPendingResponseTrackerImpl, TestPendingResponseTracker_FillSingleEntryInTracker)
+void TestPendingResponseTracker_FillSingleEntryInTracker(nlTestSuite * inSuite, void * inContext)
 {
     chip::app::PendingResponseTrackerImpl pendingResponseTracker;
 
     // The value 40 is arbitrary; any value would work for this purpose.
     uint16_t commandRefToSet = 40;
-    EXPECT_EQ(CHIP_NO_ERROR, pendingResponseTracker.Add(commandRefToSet));
+    NL_TEST_ASSERT(inSuite, CHIP_NO_ERROR == pendingResponseTracker.Add(commandRefToSet));
 
     for (uint16_t commandRef = 0; commandRef < std::numeric_limits<uint16_t>::max(); commandRef++)
     {
         bool expectedIsSetResult = (commandRef == commandRefToSet);
-        EXPECT_EQ(expectedIsSetResult, pendingResponseTracker.IsTracked(commandRef));
+        NL_TEST_ASSERT(inSuite, expectedIsSetResult == pendingResponseTracker.IsTracked(commandRef));
     }
 }
 
-TEST(TestPendingResponseTrackerImpl, TestPendingResponseTracker_RemoveNonExistentEntryInTrackerFails)
+void TestPendingResponseTracker_RemoveNonExistentEntryInTrackerFails(nlTestSuite * inSuite, void * inContext)
 {
     chip::app::PendingResponseTrackerImpl pendingResponseTracker;
 
     // The value 40 is arbitrary; any value would work for this purpose.
     uint16_t commandRef = 40;
-    EXPECT_FALSE(pendingResponseTracker.IsTracked(commandRef));
-    EXPECT_EQ(CHIP_ERROR_KEY_NOT_FOUND, pendingResponseTracker.Remove(commandRef));
+    NL_TEST_ASSERT(inSuite, false == pendingResponseTracker.IsTracked(commandRef));
+    NL_TEST_ASSERT(inSuite, CHIP_ERROR_KEY_NOT_FOUND == pendingResponseTracker.Remove(commandRef));
 }
 
-TEST(TestPendingResponseTrackerImpl, TestPendingResponseTracker_AddingSecondEntryFails)
+void TestPendingResponseTracker_AddingSecondEntryFails(nlTestSuite * inSuite, void * inContext)
 {
     chip::app::PendingResponseTrackerImpl pendingResponseTracker;
 
     // The value 40 is arbitrary; any value would work for this purpose.
     uint16_t commandRef = 40;
-    EXPECT_FALSE(pendingResponseTracker.IsTracked(commandRef));
-    EXPECT_EQ(CHIP_NO_ERROR, pendingResponseTracker.Add(commandRef));
-    EXPECT_TRUE(pendingResponseTracker.IsTracked(commandRef));
-    EXPECT_EQ(CHIP_ERROR_INVALID_ARGUMENT, pendingResponseTracker.Add(commandRef));
+    NL_TEST_ASSERT(inSuite, false == pendingResponseTracker.IsTracked(commandRef));
+    NL_TEST_ASSERT(inSuite, CHIP_NO_ERROR == pendingResponseTracker.Add(commandRef));
+    NL_TEST_ASSERT(inSuite, true == pendingResponseTracker.IsTracked(commandRef));
+    NL_TEST_ASSERT(inSuite, CHIP_ERROR_INVALID_ARGUMENT == pendingResponseTracker.Add(commandRef));
 }
 
-TEST(TestPendingResponseTrackerImpl, TestPendingResponseTracker_PopFindsAllPendingRequests)
+void TestPendingResponseTracker_PopFindsAllPendingRequests(nlTestSuite * inSuite, void * inContext)
 {
     chip::app::PendingResponseTrackerImpl pendingResponseTracker;
 
@@ -91,23 +91,45 @@ TEST(TestPendingResponseTrackerImpl, TestPendingResponseTracker_PopFindsAllPendi
     std::vector<uint16_t> requestsToAdd = { 0, 50, 2, 2000 };
     for (const uint16_t & commandRef : requestsToAdd)
     {
-        EXPECT_FALSE(pendingResponseTracker.IsTracked(commandRef));
-        EXPECT_EQ(CHIP_NO_ERROR, pendingResponseTracker.Add(commandRef));
-        EXPECT_TRUE(pendingResponseTracker.IsTracked(commandRef));
+        NL_TEST_ASSERT(inSuite, false == pendingResponseTracker.IsTracked(commandRef));
+        NL_TEST_ASSERT(inSuite, CHIP_NO_ERROR == pendingResponseTracker.Add(commandRef));
+        NL_TEST_ASSERT(inSuite, true == pendingResponseTracker.IsTracked(commandRef));
     }
 
-    EXPECT_EQ(requestsToAdd.size(), pendingResponseTracker.Count());
+    NL_TEST_ASSERT(inSuite, requestsToAdd.size() == pendingResponseTracker.Count());
 
     for (size_t i = 0; i < requestsToAdd.size(); i++)
     {
         auto commandRef = pendingResponseTracker.PopPendingResponse();
-        EXPECT_TRUE(commandRef.HasValue());
+        NL_TEST_ASSERT(inSuite, true == commandRef.HasValue());
         bool expectedCommandRef = std::find(requestsToAdd.begin(), requestsToAdd.end(), commandRef.Value()) != requestsToAdd.end();
-        EXPECT_TRUE(expectedCommandRef);
+        NL_TEST_ASSERT(inSuite, true == expectedCommandRef);
     }
-    EXPECT_EQ(0u, pendingResponseTracker.Count());
+    NL_TEST_ASSERT(inSuite, 0 == pendingResponseTracker.Count());
     auto commandRef = pendingResponseTracker.PopPendingResponse();
-    EXPECT_FALSE(commandRef.HasValue());
+    NL_TEST_ASSERT(inSuite, false == commandRef.HasValue());
 }
 
 } // namespace
+
+#define NL_TEST_DEF_FN(fn) NL_TEST_DEF("Test " #fn, fn)
+/**
+ *   Test Suite. It lists all the test functions.
+ */
+static const nlTest sTests[] = { NL_TEST_DEF_FN(TestPendingResponseTracker_FillEntireTracker),
+                                 NL_TEST_DEF_FN(TestPendingResponseTracker_FillSingleEntryInTracker),
+                                 NL_TEST_DEF_FN(TestPendingResponseTracker_RemoveNonExistentEntryInTrackerFails),
+                                 NL_TEST_DEF_FN(TestPendingResponseTracker_AddingSecondEntryFails),
+                                 NL_TEST_DEF_FN(TestPendingResponseTracker_PopFindsAllPendingRequests),
+                                 NL_TEST_SENTINEL() };
+
+int TestPendingResponseTracker()
+{
+    nlTestSuite theSuite = { "CHIP PendingResponseTrackerImpl tests", &sTests[0], nullptr, nullptr };
+
+    // Run test suite against one context.
+    nlTestRunner(&theSuite, nullptr);
+    return nlTestRunnerStats(&theSuite);
+}
+
+CHIP_REGISTER_TEST_SUITE(TestPendingResponseTracker)

@@ -28,7 +28,6 @@
 #include <system/SystemLayer.h>
 #include <system/SystemLayerImplSelect.h>
 
-#include <algorithm>
 #include <errno.h>
 
 // Choose an approximation of PTHREAD_NULL if pthread.h doesn't define one.
@@ -371,9 +370,8 @@ CHIP_ERROR LayerImplSelect::StartWatchingSocket(int fd, SocketWatchToken * token
     {
         if (w.mFD == fd)
         {
-            // Already registered, return the existing token
-            *tokenOut = reinterpret_cast<SocketWatchToken>(&w);
-            return CHIP_NO_ERROR;
+            // Duplicate registration is an error.
+            return CHIP_ERROR_INVALID_ARGUMENT;
         }
         if ((w.mFD == kInvalidFd) && (watch == nullptr))
         {
@@ -610,32 +608,6 @@ SocketEvents LayerImplSelect::SocketEventsFromFDs(int socket, const fd_set & rea
     return res;
 }
 
-#if !CHIP_SYSTEM_CONFIG_USE_DISPATCH
-enum : intptr_t
-{
-    kLoopHandlerInactive = 0, // default value for EventLoopHandler::mState
-    kLoopHandlerPending,
-    kLoopHandlerActive,
-};
-
-void LayerImplSelect::AddLoopHandler(EventLoopHandler & handler)
-{
-    // Add the handler as pending because this method can be called at any point
-    // in a PrepareEvents() / WaitForEvents() / HandleEvents() sequence.
-    // It will be marked active when we call PrepareEvents() on it for the first time.
-    auto & state = LoopHandlerState(handler);
-    VerifyOrDie(state == kLoopHandlerInactive);
-    state = kLoopHandlerPending;
-    mLoopHandlers.PushBack(&handler);
-}
-
-void LayerImplSelect::RemoveLoopHandler(EventLoopHandler & handler)
-{
-    mLoopHandlers.Remove(&handler);
-    LoopHandlerState(handler) = kLoopHandlerInactive;
-}
-#endif // !CHIP_SYSTEM_CONFIG_USE_DISPATCH
-
 void LayerImplSelect::PrepareEvents()
 {
     assertChipStackLockedByCurrentThread();
@@ -644,28 +616,10 @@ void LayerImplSelect::PrepareEvents()
     Clock::Timestamp awakenTime        = currentTime + kDefaultMinSleepPeriod;
 
     TimerList::Node * timer = mTimerList.Earliest();
-    if (timer)
+    if (timer && timer->AwakenTime() < awakenTime)
     {
-        awakenTime = std::min(awakenTime, timer->AwakenTime());
+        awakenTime = timer->AwakenTime();
     }
-
-#if !CHIP_SYSTEM_CONFIG_USE_DISPATCH
-    // Activate added EventLoopHandlers and call PrepareEvents on active handlers.
-    auto loopIter = mLoopHandlers.begin();
-    while (loopIter != mLoopHandlers.end())
-    {
-        auto & loop = *loopIter++; // advance before calling out, in case a list modification clobbers the `next` pointer
-        switch (auto & state = LoopHandlerState(loop))
-        {
-        case kLoopHandlerPending:
-            state = kLoopHandlerActive;
-            [[fallthrough]];
-        case kLoopHandlerActive:
-            awakenTime = std::min(awakenTime, loop.PrepareEvents(currentTime));
-            break;
-        }
-    }
-#endif // !CHIP_SYSTEM_CONFIG_USE_DISPATCH
 
     const Clock::Timestamp sleepTime = (awakenTime > currentTime) ? (awakenTime - currentTime) : Clock::kZero;
     Clock::ToTimeval(sleepTime, mNextTimeout);
@@ -729,34 +683,17 @@ void LayerImplSelect::HandleEvents()
         mTimerPool.Invoke(timer);
     }
 
-    // Process socket events, if any
-    if (mSelectResult > 0)
+    for (auto & w : mSocketWatchPool)
     {
-        for (auto & w : mSocketWatchPool)
+        if (w.mFD != kInvalidFd)
         {
-            if (w.mFD != kInvalidFd && w.mCallback != nullptr)
+            SocketEvents events = SocketEventsFromFDs(w.mFD, mSelected.mReadSet, mSelected.mWriteSet, mSelected.mErrorSet);
+            if (events.HasAny() && w.mCallback != nullptr)
             {
-                SocketEvents events = SocketEventsFromFDs(w.mFD, mSelected.mReadSet, mSelected.mWriteSet, mSelected.mErrorSet);
-                if (events.HasAny())
-                {
-                    w.mCallback(events, w.mCallbackData);
-                }
+                w.mCallback(events, w.mCallbackData);
             }
         }
     }
-
-#if !CHIP_SYSTEM_CONFIG_USE_DISPATCH
-    // Call HandleEvents for active loop handlers
-    auto loopIter = mLoopHandlers.begin();
-    while (loopIter != mLoopHandlers.end())
-    {
-        auto & loop = *loopIter++; // advance before calling out, in case a list modification clobbers the `next` pointer
-        if (LoopHandlerState(loop) == kLoopHandlerActive)
-        {
-            loop.HandleEvents();
-        }
-    }
-#endif // !CHIP_SYSTEM_CONFIG_USE_DISPATCH
 
 #if CHIP_SYSTEM_CONFIG_POSIX_LOCKING
     mHandleSelectThread = PTHREAD_NULL;

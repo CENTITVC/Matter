@@ -20,9 +20,6 @@
 #include "../../java/ContentAppAttributeDelegate.h"
 #include <app/clusters/target-navigator-server/target-navigator-server.h>
 
-#include <list>
-#include <string>
-
 using chip::CharSpan;
 using chip::EndpointId;
 using chip::app::AttributeValueEncoder;

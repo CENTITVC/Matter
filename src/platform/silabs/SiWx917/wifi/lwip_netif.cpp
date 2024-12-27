@@ -22,6 +22,7 @@
 #include "wfx_host_events.h"
 #include "wifi_config.h"
 
+#include "AppConfig.h"
 #include "dhcp_client.h"
 #include "ethernetif.h"
 

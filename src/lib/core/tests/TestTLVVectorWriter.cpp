@@ -16,20 +16,21 @@
  *    limitations under the License.
  */
 
+#include <lib/core/TLVVectorWriter.h>
+
 #include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>
 
-#include <pw_unit_test/framework.h>
-
 #include <lib/core/CHIPError.h>
 #include <lib/core/ErrorStr.h>
-#include <lib/core/StringBuilderAdapters.h>
 #include <lib/core/TLVCommon.h>
 #include <lib/core/TLVTags.h>
-#include <lib/core/TLVVectorWriter.h>
 #include <lib/support/Span.h>
+#include <lib/support/UnitTestContext.h>
+#include <lib/support/UnitTestExtendedAssertions.h>
+#include <lib/support/UnitTestRegistration.h>
 #include <lib/support/UnitTestUtils.h>
 
 using namespace chip;
@@ -41,46 +42,42 @@ using namespace chip::TLV;
 
 struct TestTLVContext
 {
+    nlTestSuite * mSuite   = nullptr;
     int mEvictionCount     = 0;
     uint32_t mEvictedBytes = 0;
+
+    TestTLVContext(nlTestSuite * suite) : mSuite(suite) {}
 };
 
-class TestTLVVectorWriter : public ::testing::Test
-{
-public:
-    static void SetUpTestSuite() { ASSERT_EQ(chip::Platform::MemoryInit(), CHIP_NO_ERROR); }
-    static void TearDownTestSuite() { chip::Platform::MemoryShutdown(); }
-};
-
-TEST_F(TestTLVVectorWriter, InitAndFinalizeWithNoData)
+void InitAndFinalizeWithNoData(nlTestSuite * inSuite, void * inContext)
 {
     std::vector<uint8_t> buffer;
     TlvVectorWriter writer(buffer);
 
     // Init and finalize but write not data.
-    EXPECT_EQ(writer.Finalize(), CHIP_NO_ERROR);
-    EXPECT_TRUE(buffer.empty());
+    NL_TEST_ASSERT(inSuite, writer.Finalize() == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, buffer.empty());
 }
 
-TEST_F(TestTLVVectorWriter, SingleSmallDataFitsInOriginalBuffer)
+void SingleSmallDataFitsInOriginalBuffer(nlTestSuite * inSuite, void * inContext)
 {
     std::vector<uint8_t> buffer;
     TlvVectorWriter writer(buffer);
     TLVReader reader;
 
-    EXPECT_EQ(writer.Put(AnonymousTag(), true), CHIP_NO_ERROR);
-    EXPECT_EQ(writer.Finalize(), CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, writer.Put(AnonymousTag(), true) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, writer.Finalize() == CHIP_NO_ERROR);
 
     reader.Init(buffer.data(), buffer.size());
-    EXPECT_EQ(reader.Next(), CHIP_NO_ERROR);
-    EXPECT_EQ(reader.GetTag(), AnonymousTag());
+    NL_TEST_ASSERT(inSuite, reader.Next() == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, reader.GetTag() == AnonymousTag());
 
     bool value = false;
-    EXPECT_EQ(reader.Get(value), CHIP_NO_ERROR);
-    EXPECT_EQ(value, true);
+    NL_TEST_ASSERT(inSuite, reader.Get(value) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, value == true);
 }
 
-TEST_F(TestTLVVectorWriter, SingleLargeDataRequiresNewBufferAllocation)
+void SingleLargeDataRequiresNewBufferAllocation(nlTestSuite * inSuite, void * inContext)
 {
     std::vector<uint8_t> buffer;
     TlvVectorWriter writer(buffer);
@@ -89,20 +86,20 @@ TEST_F(TestTLVVectorWriter, SingleLargeDataRequiresNewBufferAllocation)
 
     const std::string bytes(kStringSize, 'a');
     CHIP_ERROR error = writer.PutString(AnonymousTag(), bytes.data());
-    EXPECT_EQ(error, CHIP_NO_ERROR);
-    EXPECT_EQ(writer.Finalize(), CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, error == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, writer.Finalize() == CHIP_NO_ERROR);
 
     reader.Init(buffer.data(), buffer.size());
-    EXPECT_EQ(reader.Next(), CHIP_NO_ERROR);
-    EXPECT_EQ(reader.GetTag(), AnonymousTag());
+    NL_TEST_ASSERT(inSuite, reader.Next() == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, reader.GetTag() == AnonymousTag());
 
     CharSpan span;
     error = reader.Get(span);
-    EXPECT_EQ(error, CHIP_NO_ERROR);
-    EXPECT_EQ(std::string(span.data(), span.size()), bytes);
+    NL_TEST_ASSERT(inSuite, error == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, std::string(span.data(), span.size()) == bytes);
 }
 
-TEST_F(TestTLVVectorWriter, ManySmallDataRequiresNewBufferAllocation)
+void ManySmallDataRequiresNewBufferAllocation(nlTestSuite * inSuite, void * inContext)
 {
     std::vector<uint8_t> buffer;
     TlvVectorWriter writer(buffer);
@@ -110,21 +107,74 @@ TEST_F(TestTLVVectorWriter, ManySmallDataRequiresNewBufferAllocation)
 
     for (int i = 0; i < 10000; i++)
     {
-        EXPECT_EQ(writer.Put(AnonymousTag(), true), CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, writer.Put(AnonymousTag(), true) == CHIP_NO_ERROR);
     }
-    EXPECT_EQ(writer.Finalize(), CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, writer.Finalize() == CHIP_NO_ERROR);
 
     reader.Init(buffer.data(), buffer.size());
     for (int i = 0; i < 10000; i++)
     {
-        EXPECT_EQ(reader.Next(), CHIP_NO_ERROR);
-        EXPECT_EQ(reader.GetTag(), AnonymousTag());
+        NL_TEST_ASSERT(inSuite, reader.Next() == CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, reader.GetTag() == AnonymousTag());
 
         bool value       = false;
         CHIP_ERROR error = reader.Get(value);
 
-        EXPECT_EQ(error, CHIP_NO_ERROR);
-        EXPECT_EQ(value, true);
+        NL_TEST_ASSERT(inSuite, error == CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, value == true);
     }
-    EXPECT_EQ(reader.Next(), CHIP_END_OF_TLV);
+    NL_TEST_ASSERT(inSuite, reader.Next() == CHIP_END_OF_TLV);
 }
+
+// Test Suite
+
+/**
+ *  Test Suite that lists all the test functions.
+ */
+// clang-format off
+static const nlTest sTests[] =
+{
+    NL_TEST_DEF("Verify behavior on init and finalize without data manipulation", InitAndFinalizeWithNoData),
+    NL_TEST_DEF("Ensure correct write/read operations within Inet buffer constraints", SingleSmallDataFitsInOriginalBuffer),
+    NL_TEST_DEF("Handle cases where a single large data input exceeds buffer capacity", SingleLargeDataRequiresNewBufferAllocation),
+    NL_TEST_DEF("Validate output formatting for multiple small data inputs requiring additional buffer space", ManySmallDataRequiresNewBufferAllocation),
+    NL_TEST_SENTINEL()
+};
+// clang-format on
+
+/**
+ *  Set up the test suite.
+ */
+int TestTLVVectorWriter_Setup(void * inContext)
+{
+    CHIP_ERROR error = chip::Platform::MemoryInit();
+    if (error != CHIP_NO_ERROR)
+        return FAILURE;
+    return SUCCESS;
+}
+
+/**
+ *  Tear down the test suite.
+ */
+int TestTLVVectorWriter_Teardown(void * inContext)
+{
+    chip::Platform::MemoryShutdown();
+    return SUCCESS;
+}
+
+int TestTLVVectorWriter()
+{
+    // clang-format off
+    nlTestSuite theSuite =
+    {
+        "chip-tlv",
+        &sTests[0],
+        TestTLVVectorWriter_Setup,
+        TestTLVVectorWriter_Teardown
+    };
+    // clang-format on
+
+    return chip::ExecuteTestsWithContext<TestTLVContext>(&theSuite, &theSuite);
+}
+
+CHIP_REGISTER_TEST_SUITE(TestTLVVectorWriter)

@@ -86,27 +86,27 @@ const char * GetMessageTypeName(Id protocolId, uint8_t msgType)
     switch (protocolId.GetProtocolId())
     {
     case InteractionModel::Id.GetProtocolId():
-        lookupTable     = MessageTypeTraits<InteractionModel::MsgType>::GetTypeToNameTable()->data();
+        lookupTable     = MessageTypeTraits<InteractionModel::MsgType>::GetTypeToNameTable()->begin();
         lookupTableSize = MessageTypeTraits<InteractionModel::MsgType>::GetTypeToNameTable()->size();
         break;
 
     case SecureChannel::Id.GetProtocolId():
-        lookupTable     = MessageTypeTraits<SecureChannel::MsgType>::GetTypeToNameTable()->data();
+        lookupTable     = MessageTypeTraits<SecureChannel::MsgType>::GetTypeToNameTable()->begin();
         lookupTableSize = MessageTypeTraits<SecureChannel::MsgType>::GetTypeToNameTable()->size();
         break;
 
     case BDX::Id.GetProtocolId():
-        lookupTable     = MessageTypeTraits<bdx::MessageType>::GetTypeToNameTable()->data();
+        lookupTable     = MessageTypeTraits<bdx::MessageType>::GetTypeToNameTable()->begin();
         lookupTableSize = MessageTypeTraits<bdx::MessageType>::GetTypeToNameTable()->size();
         break;
 
     case Echo::Id.GetProtocolId():
-        lookupTable     = MessageTypeTraits<Echo::MsgType>::GetTypeToNameTable()->data();
+        lookupTable     = MessageTypeTraits<Echo::MsgType>::GetTypeToNameTable()->begin();
         lookupTableSize = MessageTypeTraits<Echo::MsgType>::GetTypeToNameTable()->size();
         break;
 
     case UserDirectedCommissioning::Id.GetProtocolId():
-        lookupTable     = MessageTypeTraits<UserDirectedCommissioning::MsgType>::GetTypeToNameTable()->data();
+        lookupTable     = MessageTypeTraits<UserDirectedCommissioning::MsgType>::GetTypeToNameTable()->begin();
         lookupTableSize = MessageTypeTraits<UserDirectedCommissioning::MsgType>::GetTypeToNameTable()->size();
         break;
 

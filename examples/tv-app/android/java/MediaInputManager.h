@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include <app/AttributeValueEncoder.h>
+#include <app/AttributeAccessInterface.h>
 #include <app/clusters/media-input-server/media-input-server.h>
 #include <jni.h>
 #include <lib/support/JniReferences.h>

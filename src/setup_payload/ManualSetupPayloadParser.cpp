@@ -27,6 +27,9 @@
 #include <lib/support/logging/CHIPLogging.h>
 #include <lib/support/verhoeff/Verhoeff.h>
 
+#include <string>
+#include <vector>
+
 namespace chip {
 
 CHIP_ERROR ManualSetupPayloadParser::CheckDecimalStringValidity(std::string decimalString,

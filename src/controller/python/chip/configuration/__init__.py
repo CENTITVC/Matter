@@ -14,7 +14,7 @@
 #    limitations under the License.
 #
 
-from typing import Optional, cast
+from typing import Optional
 
 # Represents the node ID that is to be used when creating device
 # controllers/commissioning devices
@@ -45,8 +45,7 @@ def GetLocalNodeId() -> int:
     if _local_node_id is None:
         SetLocalNodeId(DEFAULT_LOCAL_NODE_ID)
 
-    # cast is used to tell mypy typechecker that _local_node_id will always be an int from this point onwards
-    return cast(int, _local_node_id)
+    return _local_node_id
 
 
 def SetCommissionerCAT(cat: int):
@@ -69,4 +68,4 @@ def GetCommissionerCAT() -> int:
     if _local_cat is None:
         SetCommissionerCAT(DEFAULT_COMMISSIONER_CAT)
 
-    return cast(int, _local_cat)
+    return _local_cat

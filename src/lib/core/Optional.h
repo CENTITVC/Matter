@@ -24,7 +24,6 @@
 #pragma once
 
 #include <new>
-#include <optional>
 #include <type_traits>
 #include <utility>
 
@@ -162,18 +161,6 @@ public:
         new (&mValue.mData) T(value);
     }
 
-    constexpr void SetValue(std::optional<T> & value)
-    {
-        if (value.has_value())
-        {
-            SetValue(*value);
-        }
-        else
-        {
-            ClearValue();
-        }
-    }
-
     /** Make the optional contain a specific value */
     constexpr void SetValue(T && value)
     {
@@ -224,12 +211,6 @@ public:
     bool operator==(const T & other) const { return HasValue() && Value() == other; }
     bool operator!=(const T & other) const { return !(*this == other); }
 
-    std::optional<T> std_optional() const
-    {
-        VerifyOrReturnValue(HasValue(), std::nullopt);
-        return std::make_optional(Value());
-    }
-
     /** Convenience method to create an optional without a valid value. */
     static Optional<T> Missing() { return Optional<T>(); }
 
@@ -254,13 +235,6 @@ template <class T>
 constexpr Optional<std::decay_t<T>> MakeOptional(T && value)
 {
     return Optional<std::decay_t<T>>(InPlace, std::forward<T>(value));
-}
-
-template <class T>
-constexpr Optional<T> FromStdOptional(const std::optional<T> & value)
-{
-    VerifyOrReturnValue(value.has_value(), NullOptional);
-    return MakeOptional(*value);
 }
 
 template <class T, class... Args>

@@ -13,13 +13,11 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-
-#include <pw_unit_test/framework.h>
-
-#include <lib/core/StringBuilderAdapters.h>
+#include <lib/support/UnitTestRegistration.h>
 #include <tracing/backend.h>
 #include <tracing/macros.h>
-#include <tracing/registry.h>
+
+#include <nlunit-test.h>
 
 #include <algorithm>
 #include <string>
@@ -54,7 +52,7 @@ private:
     std::vector<std::string> mTraces;
 };
 
-TEST(TestTracing, TestBasicTracing)
+void TestBasicTracing(nlTestSuite * inSuite, void * inContext)
 {
     LoggingTraceBackend backend;
 
@@ -82,11 +80,11 @@ TEST(TestTracing, TestBasicTracing)
         "END:Group:C",   "END:Group:B",   "BEGIN:Group:E", "END:Group:E",   "END:Group:A",
     };
 
-    EXPECT_EQ(backend.traces().size(), expected.size());
-    EXPECT_TRUE(std::equal(backend.traces().begin(), backend.traces().end(), expected.begin(), expected.end()));
+    NL_TEST_ASSERT(inSuite, backend.traces().size() == expected.size());
+    NL_TEST_ASSERT(inSuite, std::equal(backend.traces().begin(), backend.traces().end(), expected.begin(), expected.end()));
 }
 
-TEST(TestTracing, TestMultipleBackends)
+void TestMultipleBackends(nlTestSuite * inSuite, void * inContext)
 {
     LoggingTraceBackend b1;
     LoggingTraceBackend b2;
@@ -114,23 +112,40 @@ TEST(TestTracing, TestMultipleBackends)
         "BEGIN:G:1", "BEGIN:G:2", "BEGIN:G:3", "END:G:3", "BEGIN:G:4", "END:G:4", "END:G:2", "END:G:1",
     };
 
-    EXPECT_EQ(b1.traces().size(), expected1.size());
-    EXPECT_TRUE(std::equal(b1.traces().begin(), b1.traces().end(), expected1.begin(), expected1.end()));
+    NL_TEST_ASSERT(inSuite, b1.traces().size() == expected1.size());
+    NL_TEST_ASSERT(inSuite, std::equal(b1.traces().begin(), b1.traces().end(), expected1.begin(), expected1.end()));
 
     std::vector<std::string> expected2 = {
         "BEGIN:G:2", "BEGIN:G:3", "END:G:3", "BEGIN:G:4", "END:G:4", "END:G:2",
     };
 
-    EXPECT_EQ(b2.traces().size(), expected2.size());
-    EXPECT_TRUE(std::equal(b2.traces().begin(), b2.traces().end(), expected2.begin(), expected2.end()));
+    NL_TEST_ASSERT(inSuite, b2.traces().size() == expected2.size());
+    NL_TEST_ASSERT(inSuite, std::equal(b2.traces().begin(), b2.traces().end(), expected2.begin(), expected2.end()));
 
     std::vector<std::string> expected3 = {
         "BEGIN:G:3",
         "END:G:3",
     };
 
-    EXPECT_EQ(b3.traces().size(), expected3.size());
-    EXPECT_TRUE(std::equal(b3.traces().begin(), b3.traces().end(), expected3.begin(), expected3.end()));
+    NL_TEST_ASSERT(inSuite, b3.traces().size() == expected3.size());
+    NL_TEST_ASSERT(inSuite, std::equal(b3.traces().begin(), b3.traces().end(), expected3.begin(), expected3.end()));
 }
 
+const nlTest sTests[] = {
+    NL_TEST_DEF("BasicTracing", TestBasicTracing),              //
+    NL_TEST_DEF("BasicMultipleBackends", TestMultipleBackends), //
+    NL_TEST_SENTINEL()                                          //
+};
+
 } // namespace
+
+int TestTracing()
+{
+    nlTestSuite theSuite = { "Tracing tests", &sTests[0], nullptr, nullptr };
+
+    // Run test suite against one context.
+    nlTestRunner(&theSuite, nullptr);
+    return nlTestRunnerStats(&theSuite);
+}
+
+CHIP_REGISTER_TEST_SUITE(TestTracing)

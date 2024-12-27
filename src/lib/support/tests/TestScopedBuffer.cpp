@@ -16,19 +16,12 @@
  *    limitations under the License.
  */
 
-#include <pw_unit_test/framework.h>
-
-#include <lib/core/StringBuilderAdapters.h>
 #include <lib/support/ScopedBuffer.h>
+#include <lib/support/UnitTestRegistration.h>
+
+#include <nlunit-test.h>
 
 namespace {
-
-class TestScopedBuffer : public ::testing::Test
-{
-public:
-    static void SetUpTestSuite() { ASSERT_EQ(chip::Platform::MemoryInit(), CHIP_NO_ERROR); }
-    static void TearDownTestSuite() { chip::Platform::MemoryShutdown(); }
-};
 
 class TestCounterMemoryManagement
 {
@@ -59,66 +52,102 @@ int TestCounterMemoryManagement::mAllocCount = 0;
 
 using TestCounterScopedBuffer = chip::Platform::ScopedMemoryBuffer<char, TestCounterMemoryManagement>;
 
-TEST_F(TestScopedBuffer, TestAutoFree)
+void TestAutoFree(nlTestSuite * inSuite, void * inContext)
 {
-    EXPECT_EQ(TestCounterMemoryManagement::Counter(), 0);
+    NL_TEST_ASSERT(inSuite, TestCounterMemoryManagement::Counter() == 0);
 
     {
         TestCounterScopedBuffer buffer;
 
-        EXPECT_EQ(TestCounterMemoryManagement::Counter(), 0);
-        EXPECT_TRUE(buffer.Alloc(128));
-        EXPECT_EQ(TestCounterMemoryManagement::Counter(), 1);
+        NL_TEST_ASSERT(inSuite, TestCounterMemoryManagement::Counter() == 0);
+        NL_TEST_ASSERT(inSuite, buffer.Alloc(128));
+        NL_TEST_ASSERT(inSuite, TestCounterMemoryManagement::Counter() == 1);
     }
-    EXPECT_EQ(TestCounterMemoryManagement::Counter(), 0);
+    NL_TEST_ASSERT(inSuite, TestCounterMemoryManagement::Counter() == 0);
 }
 
-TEST_F(TestScopedBuffer, TestFreeDuringAllocs)
+void TestFreeDuringAllocs(nlTestSuite * inSuite, void * inContext)
 {
-    EXPECT_EQ(TestCounterMemoryManagement::Counter(), 0);
+    NL_TEST_ASSERT(inSuite, TestCounterMemoryManagement::Counter() == 0);
 
     {
         TestCounterScopedBuffer buffer;
 
-        EXPECT_EQ(TestCounterMemoryManagement::Counter(), 0);
-        EXPECT_TRUE(buffer.Alloc(128));
-        EXPECT_EQ(TestCounterMemoryManagement::Counter(), 1);
-        EXPECT_TRUE(buffer.Alloc(64));
-        EXPECT_EQ(TestCounterMemoryManagement::Counter(), 1);
-        EXPECT_TRUE(buffer.Calloc(10));
-        EXPECT_EQ(TestCounterMemoryManagement::Counter(), 1);
+        NL_TEST_ASSERT(inSuite, TestCounterMemoryManagement::Counter() == 0);
+        NL_TEST_ASSERT(inSuite, buffer.Alloc(128));
+        NL_TEST_ASSERT(inSuite, TestCounterMemoryManagement::Counter() == 1);
+        NL_TEST_ASSERT(inSuite, buffer.Alloc(64));
+        NL_TEST_ASSERT(inSuite, TestCounterMemoryManagement::Counter() == 1);
+        NL_TEST_ASSERT(inSuite, buffer.Calloc(10));
+        NL_TEST_ASSERT(inSuite, TestCounterMemoryManagement::Counter() == 1);
     }
-    EXPECT_EQ(TestCounterMemoryManagement::Counter(), 0);
+    NL_TEST_ASSERT(inSuite, TestCounterMemoryManagement::Counter() == 0);
 }
 
-TEST_F(TestScopedBuffer, TestRelease)
+void TestRelease(nlTestSuite * inSuite, void * inContext)
 {
-    EXPECT_EQ(TestCounterMemoryManagement::Counter(), 0);
+    NL_TEST_ASSERT(inSuite, TestCounterMemoryManagement::Counter() == 0);
     void * ptr = nullptr;
 
     {
         TestCounterScopedBuffer buffer;
 
-        EXPECT_EQ(TestCounterMemoryManagement::Counter(), 0);
-        EXPECT_TRUE(buffer.Alloc(128));
-        EXPECT_NE(buffer.Get(), nullptr);
+        NL_TEST_ASSERT(inSuite, TestCounterMemoryManagement::Counter() == 0);
+        NL_TEST_ASSERT(inSuite, buffer.Alloc(128));
+        NL_TEST_ASSERT(inSuite, buffer.Get() != nullptr);
 
         ptr = buffer.Release();
-        EXPECT_NE(ptr, nullptr);
-        EXPECT_EQ(buffer.Get(), nullptr);
+        NL_TEST_ASSERT(inSuite, ptr != nullptr);
+        NL_TEST_ASSERT(inSuite, buffer.Get() == nullptr);
     }
 
-    EXPECT_EQ(TestCounterMemoryManagement::Counter(), 1);
+    NL_TEST_ASSERT(inSuite, TestCounterMemoryManagement::Counter() == 1);
 
     {
         TestCounterScopedBuffer buffer;
-        EXPECT_TRUE(buffer.Alloc(128));
-        EXPECT_EQ(TestCounterMemoryManagement::Counter(), 2);
+        NL_TEST_ASSERT(inSuite, buffer.Alloc(128));
+        NL_TEST_ASSERT(inSuite, TestCounterMemoryManagement::Counter() == 2);
         TestCounterMemoryManagement::MemoryFree(ptr);
-        EXPECT_EQ(TestCounterMemoryManagement::Counter(), 1);
+        NL_TEST_ASSERT(inSuite, TestCounterMemoryManagement::Counter() == 1);
     }
 
-    EXPECT_EQ(TestCounterMemoryManagement::Counter(), 0);
+    NL_TEST_ASSERT(inSuite, TestCounterMemoryManagement::Counter() == 0);
+}
+
+int Setup(void * inContext)
+{
+    CHIP_ERROR error = chip::Platform::MemoryInit();
+    if (error != CHIP_NO_ERROR)
+        return FAILURE;
+    return SUCCESS;
+}
+
+int Teardown(void * inContext)
+{
+    chip::Platform::MemoryShutdown();
+    return SUCCESS;
 }
 
 } // namespace
+
+#define NL_TEST_DEF_FN(fn) NL_TEST_DEF("Test " #fn, fn)
+/**
+ *   Test Suite. It lists all the test functions.
+ */
+static const nlTest sTests[] = {
+    NL_TEST_DEF_FN(TestAutoFree),         //
+    NL_TEST_DEF_FN(TestFreeDuringAllocs), //
+    NL_TEST_DEF_FN(TestRelease),          //
+    NL_TEST_SENTINEL()                    //
+};
+
+int TestScopedBuffer()
+{
+    nlTestSuite theSuite = { "CHIP ScopedBuffer tests", &sTests[0], Setup, Teardown };
+
+    // Run test suite against one context.
+    nlTestRunner(&theSuite, nullptr);
+    return nlTestRunnerStats(&theSuite);
+}
+
+CHIP_REGISTER_TEST_SUITE(TestScopedBuffer)

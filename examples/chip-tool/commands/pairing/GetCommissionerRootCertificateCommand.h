@@ -19,11 +19,8 @@
 #pragma once
 
 #include "../common/CHIPCommand.h"
-#include "../common/RemoteDataModelLogger.h"
 
 #include "ToTLVCert.h"
-
-#include <string>
 
 class GetCommissionerRootCertificateCommand : public CHIPCommand
 {

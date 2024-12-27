@@ -26,8 +26,6 @@
 #include <setup_payload/ManualSetupPayloadGenerator.h>
 #include <setup_payload/QRCodeSetupPayloadGenerator.h>
 
-#include <string>
-
 using namespace chip::app::Clusters;
 using namespace chip::System::Clock;
 

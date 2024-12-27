@@ -134,11 +134,6 @@ void TransferSession::PollOutput(OutputEvent & event, System::Clock::Timestamp c
     mPendingOutput = OutputEventType::kNone;
 }
 
-void TransferSession::GetNextAction(OutputEvent & event)
-{
-    PollOutput(event, System::SystemClock().GetMonotonicTimestamp());
-}
-
 CHIP_ERROR TransferSession::StartTransfer(TransferRole role, const TransferInitData & initData, System::Clock::Timeout timeout)
 {
     VerifyOrReturnError(mState == TransferState::kUnitialized, CHIP_ERROR_INCORRECT_STATE);
@@ -262,17 +257,6 @@ CHIP_ERROR TransferSession::AcceptTransfer(const TransferAcceptData & acceptData
     }
 
     PrepareOutgoingMessageEvent(msgType, mPendingOutput, mMsgTypeData);
-
-    return CHIP_NO_ERROR;
-}
-
-CHIP_ERROR TransferSession::RejectTransfer(StatusCode reason)
-{
-    VerifyOrReturnError(mState == TransferState::kNegotiateTransferParams, CHIP_ERROR_INCORRECT_STATE);
-    VerifyOrReturnError(mPendingOutput == OutputEventType::kNone, CHIP_ERROR_INCORRECT_STATE);
-
-    PrepareStatusReport(reason);
-    mState = TransferState::kTransferDone;
 
     return CHIP_NO_ERROR;
 }

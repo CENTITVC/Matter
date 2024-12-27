@@ -17,10 +17,6 @@
 
 #pragma once
 
-#include "app_conf.h"
-#if (CONFIG_STM32_FACTORY_DATA_ENABLE == 1)
-#include "stm32_factorydata.h"
-#endif
 #include <credentials/DeviceAttestationCredsProvider.h>
 #include <platform/CommissionableDataProvider.h>
 #include <platform/DeviceInstanceInfoProvider.h>
@@ -67,11 +63,6 @@ public:
 
     // ===== Members functions that are platform-specific
     CHIP_ERROR GetEnableKey(MutableByteSpan & enableKey);
-
-protected:
-#if (CONFIG_STM32_FACTORY_DATA_ENABLE == 1)
-    static CHIP_ERROR MapSTM32WBError(FACTORYDATA_StatusTypeDef err);
-#endif
 };
 
 } // namespace DeviceLayer

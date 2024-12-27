@@ -18,7 +18,6 @@
 
 #include "app-common/zap-generated/ids/Clusters.h"
 #include <app-common/zap-generated/attributes/Accessors.h>
-#include <app/AttributeAccessInterfaceRegistry.h>
 #include <app/clusters/air-quality-server/air-quality-server.h>
 #include <app/reporting/reporting.h>
 #include <app/util/attribute-storage.h>
@@ -39,7 +38,7 @@ Instance::Instance(EndpointId aEndpointId, BitMask<Feature> aFeature) :
 
 Instance::~Instance()
 {
-    AttributeAccessInterfaceRegistry::Instance().Unregister(this);
+    unregisterAttributeAccessOverride(this);
 }
 
 CHIP_ERROR Instance::Init()
@@ -47,7 +46,7 @@ CHIP_ERROR Instance::Init()
     // Check if the cluster has been selected in zap
     VerifyOrDie(emberAfContainsServer(mEndpointId, Id) == true);
 
-    VerifyOrReturnError(AttributeAccessInterfaceRegistry::Instance().Register(this), CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrReturnError(registerAttributeAccessOverride(this), CHIP_ERROR_INCORRECT_STATE);
 
     return CHIP_NO_ERROR;
 }

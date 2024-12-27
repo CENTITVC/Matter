@@ -31,7 +31,6 @@
 #include "platform/ConfigurationManager.h"
 #include "platform/DiagnosticDataProvider.h"
 #include "platform/PlatformManager.h"
-#include <crypto/CHIPCryptoPAL.h>
 #include <platform/DeviceInstanceInfoProvider.h>
 #include <setup_payload/QRCodeSetupPayloadGenerator.h>
 
@@ -189,9 +188,9 @@ public:
 private:
     std::optional<uint16_t> mDiscriminatorOverride;
     std::optional<uint32_t> mPasscodeOverride;
-    Crypto::Spake2pVerifierSerialized mVerifierBuf;
+    Spake2pVerifierSerialized mVerifierBuf;
     std::optional<ByteSpan> mVerifierOverride;
-    uint8_t mSaltBuf[Crypto::kSpake2p_Max_PBKDF_Salt_Length];
+    uint8_t mSaltBuf[kSpake2p_Max_PBKDF_Salt_Length];
     std::optional<ByteSpan> mSaltOverride;
     std::optional<uint32_t> mIterationCountOverride;
     DeviceLayer::CommissionableDataProvider * mCommissionableDataProvider = nullptr;

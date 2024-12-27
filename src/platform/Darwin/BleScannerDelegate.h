@@ -18,21 +18,11 @@
 
 #pragma once
 
-#include <ble/Ble.h>
+#include <ble/CHIPBleServiceData.h>
 #include <lib/support/DLLUtil.h>
 
 namespace chip {
 namespace DeviceLayer {
-
-enum class BleScanMode
-{
-    /// Scan continues until stopped.
-    /// Replaces existing BLE operation.
-    kDefault = 0,
-    /// Scan stops automatically after some time.
-    /// Does not replace an existing BLE operation.
-    kPreWarm,
-};
 
 class DLL_EXPORT BleScannerDelegate
 {
@@ -40,13 +30,10 @@ public:
     virtual ~BleScannerDelegate() {}
 
     // Called when a scan result is available.
-    virtual void OnBleScanAdd(BLE_CONNECTION_OBJECT connObj, const Ble::ChipBLEDeviceIdentificationInfo & info) {}
+    virtual void OnBleScanAdd(BLE_CONNECTION_OBJECT connObj, const Ble::ChipBLEDeviceIdentificationInfo & info) = 0;
 
     // Called when a scan result is not available anymore.
-    virtual void OnBleScanRemove(BLE_CONNECTION_OBJECT connObj) {}
-
-    // Called when the scan has been stopped
-    virtual void OnBleScanStopped() {}
+    virtual void OnBleScanRemove(BLE_CONNECTION_OBJECT connObj) = 0;
 };
 
 } // namespace DeviceLayer

@@ -26,6 +26,8 @@
 
 #include "ErrorUtils.h"
 
+using namespace std;
+
 namespace chip {
 namespace DeviceLayer {
 namespace Internal {

@@ -28,11 +28,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <pw_unit_test/framework.h>
-
-#include <lib/core/StringBuilderAdapters.h>
 #include <lib/support/CodeUtils.h>
+#include <lib/support/UnitTestRegistration.h>
 #include <lib/support/UnitTestUtils.h>
+#include <nlunit-test.h>
 #include <system/SystemClock.h>
 
 #include <platform/internal/CHIPDeviceLayerInternal.h>
@@ -49,7 +48,7 @@ constexpr Clock::Microseconds64 kTestTimeMarginUs = 500_us64;
 //      Unit tests
 // =================================
 
-TEST(TestDevice, GetMonotonicMicroseconds)
+static void TestDevice_GetMonotonicMicroseconds(nlTestSuite * inSuite, void * inContext)
 {
     static const Clock::Microseconds64 kTestVectorSystemTimeUs[] = {
         600_us64,
@@ -75,15 +74,15 @@ TEST(TestDevice, GetMonotonicMicroseconds)
                         ChipLogValueX64(Tdelay.count()));
 
         // verify that timers don't fire early
-        EXPECT_GT(Tdelta, (Tdelay - margin));
+        NL_TEST_ASSERT(inSuite, Tdelta > (Tdelay - margin));
         // verify they're not too late
-        //        EXPECT_LT(Tdelta, (Tdelay + margin));
+        //        NL_TEST_ASSERT(inSuite, Tdelta < (Tdelay + margin));
         numOfTestsRan++;
     }
-    EXPECT_GT(numOfTestsRan, 0);
+    NL_TEST_ASSERT(inSuite, numOfTestsRan > 0);
 }
 
-TEST(TestDevice, GetMonotonicMilliseconds)
+static void TestDevice_GetMonotonicMilliseconds(nlTestSuite * inSuite, void * inContext)
 {
     static const System::Clock::Milliseconds64 kTestVectorSystemTimeMs[] = {
         10_ms64,
@@ -109,10 +108,32 @@ TEST(TestDevice, GetMonotonicMilliseconds)
                         ChipLogValueX64(Tdelay.count()));
 
         // verify that timers don't fire early
-        EXPECT_GT(Tdelta, (Tdelay - margin));
+        NL_TEST_ASSERT(inSuite, Tdelta > (Tdelay - margin));
         // verify they're not too late
-        //        EXPECT_LT(Tdelta, (Tdelay + margin));
+        //        NL_TEST_ASSERT(inSuite, Tdelta < (Tdelay + margin));
         numOfTestsRan++;
     }
-    EXPECT_GT(numOfTestsRan, 0);
+    NL_TEST_ASSERT(inSuite, numOfTestsRan > 0);
 }
+
+/**
+ *   Test Suite. It lists all the test functions.
+ */
+static const nlTest sTests[] = {
+
+    NL_TEST_DEF("Test DeviceLayer::GetMonotonicMicroseconds", TestDevice_GetMonotonicMicroseconds),
+    NL_TEST_DEF("Test DeviceLayer::GetMonotonicMilliseconds", TestDevice_GetMonotonicMilliseconds),
+
+    NL_TEST_SENTINEL()
+};
+
+int TestPlatformTime()
+{
+    nlTestSuite theSuite = { "PlatformTime tests", &sTests[0], nullptr, nullptr };
+
+    // Run test suite against one context.
+    nlTestRunner(&theSuite, nullptr);
+    return nlTestRunnerStats(&theSuite);
+}
+
+CHIP_REGISTER_TEST_SUITE(TestPlatformTime)

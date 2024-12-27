@@ -23,12 +23,10 @@
 #pragma once
 
 #include <app-common/zap-generated/ids/Clusters.h>
-#include <app/ConcreteAttributePath.h>
+#include <app/AttributeAccessInterface.h>
 #include <jni.h>
 #include <lib/core/DataModelTypes.h>
 #include <lib/support/JniReferences.h>
-
-#include <string>
 
 namespace chip {
 namespace AppPlatform {

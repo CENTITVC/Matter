@@ -23,15 +23,11 @@
 
 #pragma once
 
-#ifndef _CHIP_BLE_BLE_H
-#error "Please include <ble/Ble.h> instead!"
-#endif
+#include <ble/BleConfig.h>
+#include <ble/BleError.h>
 
 #include <lib/support/DLLUtil.h>
 #include <lib/support/SetupDiscriminator.h>
-
-#include "BleConfig.h"
-#include "BleError.h"
 
 namespace chip {
 namespace Ble {

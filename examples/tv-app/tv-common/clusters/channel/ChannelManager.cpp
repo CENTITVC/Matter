@@ -19,7 +19,6 @@
 #include <app-common/zap-generated/attributes/Accessors.h>
 #include <app/util/config.h>
 
-#include <string>
 #include <vector>
 
 using namespace chip;

@@ -42,8 +42,6 @@
 #include <platform/NetworkCommissioning.h>
 #include <platform/nxp/mw320/NetworkCommissioningDriver.h>
 
-#include <string>
-
 namespace chip {
 namespace DeviceLayer {
 

@@ -26,7 +26,7 @@ The POSIX CLI chip-tool is located in
 
 ### Python
 
-The Python CHIP Controller library is located in
+The Python chip-device-ctrl is located in
 [../controller/python/](../controller/python).
 
 ## Feature Overview

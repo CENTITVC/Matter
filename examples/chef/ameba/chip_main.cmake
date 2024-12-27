@@ -51,6 +51,7 @@ add_library(
 )
 
 chip_configure_data_model(chip_main
+    INCLUDE_SERVER
     ZAP_FILE ${matter_example_path}/../devices/${SAMPLE_NAME}.zap
 )
 
@@ -77,6 +78,7 @@ target_include_directories(
     ${chip_dir}/src/app/server/
     ${chip_dir}/src/controller/data_model
     ${chip_dir}/third_party/nlio/repo/include/
+    ${chip_dir}/third_party/nlunit-test/repo/src
 )
 
 list(

@@ -15,18 +15,6 @@
 #    limitations under the License.
 #
 
-# See https://github.com/project-chip/connectedhomeip/blob/master/docs/testing/python.md#defining-the-ci-test-arguments
-# for details about the block below.
-#
-# === BEGIN CI TEST ARGUMENTS ===
-# test-runner-runs: run1
-# test-runner-run/run1/app: ${ALL_CLUSTERS_APP}
-# test-runner-run/run1/factoryreset: True
-# test-runner-run/run1/quiet: True
-# test-runner-run/run1/app-args: --discriminator 1234 --KVS kvs1 --trace-to json:${TRACE_APP}.json
-# test-runner-run/run1/script-args: --storage-path admin_storage.json --commissioning-method on-network --discriminator 1234 --passcode 20202021 --trace-to json:${TRACE_TEST_JSON}.json --trace-to perfetto:${TRACE_TEST_PERFETTO}.perfetto
-# === END CI TEST ARGUMENTS ===
-
 import logging
 import random
 import time
@@ -37,8 +25,6 @@ import chip.clusters.enum
 import chip.FabricAdmin
 from chip import ChipDeviceCtrl
 from chip.ChipDeviceCtrl import CommissioningParameters
-from chip.exceptions import ChipStackError
-from chip.native import PyChipError
 from matter_testing_support import MatterBaseTest, async_test_body, default_matter_test_main
 from mobly import asserts
 
@@ -48,16 +34,16 @@ kConfigRegulatory = 5
 kSendPAICertificateRequest = 10
 kSendDACCertificateRequest = 11
 kSendAttestationRequest = 12
-kSendOpCertSigningRequest = 15
-kSendTrustedRootCert = 18
-kSendNOC = 19
+kSendOpCertSigningRequest = 14
+kSendTrustedRootCert = 17
+kSendNOC = 18
 
 
 class TC_CGEN_2_4(MatterBaseTest):
 
-    async def OpenCommissioningWindow(self) -> CommissioningParameters:
+    def OpenCommissioningWindow(self) -> CommissioningParameters:
         try:
-            params = await self.th1.OpenCommissioningWindow(
+            params = self.th1.OpenCommissioningWindow(
                 nodeid=self.dut_node_id, timeout=600, iteration=10000, discriminator=self.discriminator, option=1)
             return params
 
@@ -69,17 +55,16 @@ class TC_CGEN_2_4(MatterBaseTest):
             self, stage: int, expectedErrorPart: chip.native.ErrorSDKPart, expectedErrCode: int):
 
         logging.info("-----------------Fail on step {}-------------------------".format(stage))
-        params = await self.OpenCommissioningWindow()
+        params = self.OpenCommissioningWindow()
         self.th2.ResetTestCommissioner()
         # This will run the commissioning up to the point where stage x is run and the
         # response is sent before the test commissioner simulates a failure
         self.th2.SetTestCommissionerPrematureCompleteAfter(stage)
-        ctx = asserts.assert_raises(ChipStackError)
-        with ctx:
-            await self.th2.CommissionOnNetwork(
-                nodeId=self.dut_node_id, setupPinCode=params.setupPinCode,
-                filterType=ChipDeviceCtrl.DiscoveryFilterType.LONG_DISCRIMINATOR, filter=self.discriminator)
-        errcode = PyChipError.from_code(ctx.exception.err)
+        errcode = self.th2.CommissionOnNetwork(
+            nodeId=self.dut_node_id, setupPinCode=params.setupPinCode,
+            filterType=ChipDeviceCtrl.DiscoveryFilterType.LONG_DISCRIMINATOR, filter=self.discriminator)
+        logging.info('Commissioning complete done. Successful? {}, errorcode = {}'.format(errcode.is_success, errcode))
+        asserts.assert_false(errcode.is_success, 'Commissioning complete did not error as expected')
         asserts.assert_true(errcode.sdk_part == expectedErrorPart, 'Unexpected error type returned from CommissioningComplete')
         asserts.assert_true(errcode.sdk_code == expectedErrCode, 'Unexpected error code returned from CommissioningComplete')
         revokeCmd = Clusters.AdministratorCommissioning.Commands.RevokeCommissioning()
@@ -112,15 +97,14 @@ class TC_CGEN_2_4(MatterBaseTest):
         await self.CommissionToStageSendCompleteAndCleanup(kSendNOC, chip.native.ErrorSDKPart.IM_CLUSTER_STATUS, 0x02)
 
         logging.info('Step 15 - TH1 opens a commissioning window')
-        params = await self.OpenCommissioningWindow()
+        params = self.OpenCommissioningWindow()
 
         logging.info('Step 16 - TH2 fully commissions the DUT')
         self.th2.ResetTestCommissioner()
-
-        await self.th2.CommissionOnNetwork(
+        errcode = self.th2.CommissionOnNetwork(
             nodeId=self.dut_node_id, setupPinCode=params.setupPinCode,
             filterType=ChipDeviceCtrl.DiscoveryFilterType.LONG_DISCRIMINATOR, filter=self.discriminator)
-        logging.info('Commissioning complete done.')
+        logging.info('Commissioning complete done. Successful? {}, errorcode = {}'.format(errcode.is_success, errcode))
 
         logging.info('Step 17 - TH1 sends an arm failsafe')
         cmd = Clusters.GeneralCommissioning.Commands.ArmFailSafe(expiryLengthSeconds=900, breadcrumb=0)

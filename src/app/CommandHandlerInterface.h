@@ -224,8 +224,6 @@ protected:
         }
     }
 
-    Optional<EndpointId> GetEndpointId() { return mEndpointId; }
-
 private:
     Optional<EndpointId> mEndpointId;
     ClusterId mClusterId;

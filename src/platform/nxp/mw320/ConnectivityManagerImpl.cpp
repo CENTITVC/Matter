@@ -20,7 +20,6 @@
 #include <iomanip>
 #include <platform/internal/CHIPDeviceLayerInternal.h>
 #include <sstream>
-#include <string>
 
 #include <lib/support/CodeUtils.h>
 #include <lib/support/logging/CHIPLogging.h>
@@ -57,6 +56,7 @@ static struct wlan_network sta_network;
 using namespace ::chip;
 using namespace ::chip::Inet;
 using namespace ::chip::System;
+using namespace ::chip::TLV;
 using namespace ::chip::DeviceLayer::Internal;
 using namespace ::chip::app::Clusters::GeneralDiagnostics;
 using namespace ::chip::app::Clusters::WiFiNetworkDiagnostics;

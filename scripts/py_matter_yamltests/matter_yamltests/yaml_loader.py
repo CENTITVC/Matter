@@ -106,8 +106,7 @@ _TEST_STEP_RESPONSE_CONSTRAINTS_SCHEMA = {
     'hasMasksSet': list,
     'hasMasksClear': list,
     'notValue': (type(None), bool, str, int, float, list, dict),
-    'anyOf': list,
-    'python': str,
+    'anyOf': list
 }
 
 # Note: this is not used in the loader, just provided for information in the schema tree

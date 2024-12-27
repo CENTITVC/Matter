@@ -72,6 +72,10 @@ public:
     Status ReorderNetwork(ByteSpan networkId, uint8_t index, MutableCharSpan & outDebugText) override;
     void ConnectNetwork(ByteSpan networkId, ConnectCallback * callback) override;
 
+    /* Can be used to disconnect from WiFi network.
+     */
+    int DisconnectNetwork();
+
     /* Returns the network SSID. User needs to allocate a buffer of size >= DeviceLayer::Internal::kMaxWiFiSSIDLength.
      * ssid - pointer to the returned SSID
      */
@@ -92,8 +96,7 @@ public:
 
     CHIP_ERROR ConnectWiFiNetwork(const char * ssid, uint8_t ssidLen, const char * key, uint8_t keyLen);
     void OnConnectWiFiNetwork(Status commissioningError, CharSpan debugText, int32_t connectStatus);
-    int ScanWiFINetworkDoneFromMatterTaskContext(unsigned int count);
-    static int _OnScanWiFiNetworkDoneCallBack(unsigned int count);
+    static int OnScanWiFiNetworkDone(unsigned int count);
     static NXPWiFiDriver & GetInstance()
     {
         static NXPWiFiDriver instance;

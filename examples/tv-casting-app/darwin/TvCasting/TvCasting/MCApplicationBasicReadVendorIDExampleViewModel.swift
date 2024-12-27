@@ -30,68 +30,66 @@ class MCApplicationBasicReadVendorIDExampleViewModel: ObservableObject {
 
     func read(castingPlayer: MCCastingPlayer)
     {
-        self.Log.info("MCApplicationBasicReadVendorIDExampleViewModel.read()")
-        castingPlayer.logAllEndpoints()
-
-        // Use MCEndpointSelector to select the endpoint
-        guard let endpoint = MCEndpointSelector.selectEndpoint(from: castingPlayer, sampleEndpointVid: sampleEndpointVid) else {
-            self.Log.error("MCApplicationBasicReadVendorIDExampleViewModel.read() No endpoint matching the example VID or identifier 1 found")
-            DispatchQueue.main.async {
-                self.status = "No endpoint matching the example VID or identifier 1 found"
-            }
-            return
-        }
-
-        self.Log.info("MCApplicationBasicReadVendorIDExampleViewModel.read() selected endpoint: \(endpoint.description)")
-
-        // validate that the selected endpoint supports the ApplicationBasic cluster
-        if(!endpoint.hasCluster(MCEndpointClusterTypeApplicationBasic))
+        // select the MCEndpoint on the MCCastingPlayer to invoke the command on
+        if let endpoint: MCEndpoint = castingPlayer.endpoints().filter({ $0.vendorId().intValue == sampleEndpointVid}).first
         {
-            self.Log.error("MCApplicationBasicReadVendorIDExampleViewModel.read() No ApplicationBasic cluster supporting endpoint found")
-            DispatchQueue.main.async
+            // validate that the selected endpoint supports the ApplicationBasic cluster
+            if(!endpoint.hasCluster(MCEndpointClusterTypeApplicationBasic))
             {
-                self.status = "No ApplicationBasic cluster supporting endpoint found"
+                self.Log.error("No ApplicationBasic cluster supporting endpoint found")
+                DispatchQueue.main.async
+                {
+                    self.status = "No ApplicationBasic cluster supporting endpoint found"
+                }
+                return
             }
-            return
-        }
-        
-        // get ApplicationBasic cluster from the endpoint
-        let applicationBasiccluster: MCApplicationBasicCluster = endpoint.cluster(for: MCEndpointClusterTypeApplicationBasic) as! MCApplicationBasicCluster
-
-        // get the vendorIDAttribute from the applicationBasiccluster
-        let vendorIDAttribute: MCApplicationBasicClusterVendorIDAttribute? = applicationBasiccluster.vendorIDAttribute()
-        if(vendorIDAttribute == nil)
-        {
-            self.Log.error("VendorID attribute not supported on cluster")
-            DispatchQueue.main.async
-            {
-                self.status = "VendorID attribute not supported on cluster"
-            }
-            return
-        }
             
+            // get ApplicationBasic cluster from the endpoint
+            let applicationBasiccluster: MCApplicationBasicCluster = endpoint.cluster(for: MCEndpointClusterTypeApplicationBasic) as! MCApplicationBasicCluster
+
+            // get the vendorIDAttribute from the applicationBasiccluster
+            let vendorIDAttribute: MCApplicationBasicClusterVendorIDAttribute? = applicationBasiccluster.vendorIDAttribute()
+            if(vendorIDAttribute == nil)
+            {
+                self.Log.error("VendorID attribute not supported on cluster")
+                DispatchQueue.main.async
+                {
+                    self.status = "VendorID attribute not supported on cluster"
+                }
+                return
+            }
                 
-        // call read on vendorIDAttribute and pass in a completion block
-        vendorIDAttribute!.read(nil) { context, before, after, err in
+                    
+            // call read on vendorIDAttribute and pass in a completion block
+            vendorIDAttribute!.read(nil) { context, before, after, err in
+                DispatchQueue.main.async
+                {
+                    if(err != nil)
+                    {
+                        self.Log.error("Error when reading VendorID value \(String(describing: err))")
+                        self.status = "Error when reading VendorID value \(String(describing: err))"
+                        return
+                    }
+                
+                    if(before != nil)
+                    {
+                        self.Log.info("Read VendorID value: \(String(describing: after)) Before: \(String(describing: before))")
+                        self.status = "Read VendorID value: \(String(describing: after)) Before: \(String(describing: before))"
+                    }
+                    else
+                    {
+                        self.Log.info("Read VendorID value: \(String(describing: after))")
+                        self.status = "Read VendorID value: \(String(describing: after))"
+                    }
+                }
+            }
+        }
+        else
+        {
+            self.Log.error("No endpoint matching the example VID found")
             DispatchQueue.main.async
             {
-                if(err != nil)
-                {
-                    self.Log.error("Error when reading VendorID value \(String(describing: err))")
-                    self.status = "Error when reading VendorID value \(String(describing: err))"
-                    return
-                }
-            
-                if(before != nil)
-                {
-                    self.Log.info("Read VendorID value: \(String(describing: after)) Before: \(String(describing: before))")
-                    self.status = "Read VendorID value: \(String(describing: after)) Before: \(String(describing: before))"
-                }
-                else
-                {
-                    self.Log.info("Read VendorID value: \(String(describing: after))")
-                    self.status = "Read VendorID value: \(String(describing: after))"
-                }
+                self.status = "No endpoint matching the example VID found"
             }
         }
     }

@@ -37,7 +37,6 @@ AdvSendAdvert
 AE
 aef
 AES
-AFL
 AIDL
 algs
 alloc
@@ -341,7 +340,6 @@ datamodel
 DataModelRevision
 dataset
 datasets
-datastore
 DataVersion
 dbf
 DBG
@@ -371,7 +369,6 @@ DelayedActionTime
 delayedApplyActionTimeSec
 delayedQueryActionTimeSec
 delayQuery
-deliverables
 demangle
 deployable
 depottools
@@ -404,7 +401,6 @@ DevKitM
 devtype
 df
 dfe
-DFILE
 dfu
 DgDxsfHx
 dhclient
@@ -453,16 +449,13 @@ dpkg
 dropdown
 dryrun
 DS
-DSLS
 duplicative
 DUT
 DUTS
-DUT's
 DV
 DVK
 dynload
 eabi
-EAF
 EB
 ECC
 ECD
@@ -553,7 +546,6 @@ feff
 ffaa
 ffeebaefa
 FFF
-FFFFFFFFFFFF0102
 fffe
 fffff
 Fi
@@ -568,15 +560,12 @@ forkpty
 FOTA
 FreeRTOS
 FreeRTOSConfig
-FS
 fsl
 fstab
 fsync
 ftd
 fullclean
 fuzzer
-fuzzers
-fuzztest
 FW
 gbl
 gcloud
@@ -596,8 +585,6 @@ GenericWiFiConfigurationManagerImpl
 GetDeviceId
 GetDeviceInfo
 GetDns
-getter
-getters
 GetInDevelopmentTests
 GetIP
 getManualTests
@@ -656,10 +643,7 @@ HomePods
 hostapd
 hostname
 href
-HSM
-hsm
 HTTPS
-Humidistat
 HW
 hwadr
 HydrogenConcentrationMeasurement
@@ -684,7 +668,6 @@ ifdef
 ifdefs
 IGMP
 ihex
-Illuminance
 IlluminanceMeasurement
 IM
 imager
@@ -741,7 +724,6 @@ JLink
 JLinkExe
 JLinkRTTClient
 JN
-jni
 jpg
 jre
 js
@@ -863,7 +845,6 @@ MbedNewTarget
 mbedos
 mbedTarget
 mbedTLS
-MCORE
 mcu
 MCUboot
 mcumgr
@@ -917,14 +898,12 @@ MoveWithOnOff
 MPSL
 MRP
 MTD
-MTR
 MTU
 Multiband
 Multicast
 multilib
 Multiprotocol
 multithreaded
-mutex
 mutexes
 mv
 MX
@@ -954,7 +933,8 @@ nfds
 NitricOxideConcentrationMeasurement
 NitrogenDioxideConcentrationMeasurement
 nl
-nltest
+NLUnitTest
+NLUnitTests
 nmcli
 nmtui
 noc
@@ -975,7 +955,6 @@ NTP
 nullable
 nullptr
 NUM
-NuttX
 NVM
 NVS
 nwdiag
@@ -985,7 +964,6 @@ objcopy
 OccupancySensing
 OctetString
 OECORE
-OID
 ol
 Onboarding
 onboardingcodes
@@ -1007,13 +985,11 @@ openweave
 OperationalCredentials
 operationalDataset
 opkg
-OPTIGA
 optionMask
 optionOverride
 optionsMask
 optionsOverride
 orgs
-OSS
 OTA
 OTADownloader
 otaDownloadPath
@@ -1365,7 +1341,6 @@ SVR
 SWD
 SWU
 symlinks
-sysbuild
 sysconfdir
 SysConfig
 sysctl
@@ -1453,7 +1428,6 @@ transitionTime
 TransportMgrBase
 TriggerEffect
 TRNG
-trustm
 TrustedRootCertificates
 tsan
 TSG
@@ -1519,7 +1493,6 @@ utils
 UUID
 ux
 validator
-valgrind
 vcom
 VCP
 Vectorcall
@@ -1536,7 +1509,6 @@ virtualenv
 visualstudio
 vlatest
 VLEDs
-vm
 vn
 vnc
 vous
@@ -1603,7 +1575,6 @@ xFFF
 xFFFF
 xfffff
 xFFFFFFEFFFFFFFFF
-XMLPICSValidator
 xtensa
 xvzf
 xwayland
@@ -1630,5 +1601,3 @@ zhengyaohan
 Zigbee
 zigbeealliance
 zigbeethread
-zsdk
-TBR

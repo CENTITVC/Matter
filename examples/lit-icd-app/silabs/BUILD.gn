@@ -125,7 +125,6 @@ silabs_executable("lit_icd_app") {
 
   deps = [
     ":sdk",
-    "${chip_root}/src/platform/logging:default",
     app_data_model,
   ]
 

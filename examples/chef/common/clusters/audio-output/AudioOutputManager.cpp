@@ -20,6 +20,7 @@
 #ifdef MATTER_DM_PLUGIN_AUDIO_OUTPUT_SERVER
 #include "AudioOutputManager.h"
 
+using namespace std;
 using namespace chip::app;
 using namespace chip::app::Clusters::AudioOutput;
 using chip::app::AttributeValueEncoder;

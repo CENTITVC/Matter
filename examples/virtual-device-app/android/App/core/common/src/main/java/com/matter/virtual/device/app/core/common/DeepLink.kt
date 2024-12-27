@@ -35,9 +35,6 @@ object DeepLink {
         Device.OnOffSwitch ->
           "android-app://com.matter.virtual.device.app.feature.control/onOffSwitchFragment/${setting}"
             .toUri()
-        Device.DoorLock ->
-          "android-app://com.matter.virtual.device.app.feature.closure/doorLockFragment/${setting}"
-            .toUri()
         Device.Unknown -> throw UnsupportedOperationException("Unsupported device")
       }
 

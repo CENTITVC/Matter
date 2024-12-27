@@ -19,12 +19,11 @@ import logging
 from chip.logging.library_handle import _GetLoggingLibraryHandle
 from chip.logging.types import LogRedirectCallback_t
 
-# Defines match src/lib/support/logging/Constants.h (LogCategory enum)
-LOG_CATEGORY_NONE = 0
-LOG_CATEGORY_ERROR = 1
-LOG_CATEGORY_PROGRESS = 2
-LOG_CATEGORY_DETAIL = 3
-LOG_CATEGORY_AUTOMATION = 4
+# Defines match support/logging/Constants.h (LogCategory enum)
+ERROR_CATEGORY_NONE = 0
+ERROR_CATEGORY_ERROR = 1
+ERROR_CATEGORY_PROGRESS = 2
+ERROR_CATEGORY_DETAIL = 3
 
 
 @LogRedirectCallback_t
@@ -35,11 +34,11 @@ def _RedirectToPythonLogging(category, module, message):
 
     logger = logging.getLogger('chip.native.%s' % module)
 
-    if category == LOG_CATEGORY_ERROR:
+    if category == ERROR_CATEGORY_ERROR:
         logger.error("%s", message)
-    elif category == LOG_CATEGORY_PROGRESS:
+    elif category == ERROR_CATEGORY_PROGRESS:
         logger.info("%s", message)
-    elif category in (LOG_CATEGORY_DETAIL, LOG_CATEGORY_AUTOMATION):
+    elif category == ERROR_CATEGORY_DETAIL:
         logger.debug("%s", message)
     else:
         # All logs are expected to have some reasonable category. This treats

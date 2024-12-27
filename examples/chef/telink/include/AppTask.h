@@ -20,8 +20,6 @@
 
 #include "AppTaskCommon.h"
 
-class ButtonManager;
-
 class AppTask : public AppTaskCommon
 {
 public:
@@ -30,7 +28,6 @@ private:
     friend class AppTaskCommon;
 
     CHIP_ERROR Init(void);
-    void LinkButtons(ButtonManager & buttonManager);
 
     static AppTask sAppTask;
 };

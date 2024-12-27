@@ -20,7 +20,6 @@
 #include <protocols/interaction_model/StatusCode.h>
 
 #include <app/AttributeAccessInterface.h>
-#include <app/AttributeAccessInterfaceRegistry.h>
 #include <app/EventLogging.h>
 #include <app/reporting/reporting.h>
 #include <app/util/attribute-storage.h>
@@ -42,13 +41,13 @@ namespace ElectricalPowerMeasurement {
 
 CHIP_ERROR Instance::Init()
 {
-    VerifyOrReturnError(AttributeAccessInterfaceRegistry::Instance().Register(this), CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrReturnError(registerAttributeAccessOverride(this), CHIP_ERROR_INCORRECT_STATE);
     return CHIP_NO_ERROR;
 }
 
 void Instance::Shutdown()
 {
-    AttributeAccessInterfaceRegistry::Instance().Unregister(this);
+    unregisterAttributeAccessOverride(this);
 }
 
 bool Instance::HasFeature(Feature aFeature) const

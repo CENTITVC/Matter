@@ -18,6 +18,7 @@
 #include <platform/internal/CHIPDeviceLayerInternal.h>
 #include <platform/internal/DeviceNetworkInfo.h>
 
+#include <app/AttributeAccessInterface.h>
 #include <lib/support/CodeUtils.h>
 #include <lib/support/logging/CHIPLogging.h>
 #include <platform/GLibTypeDeleter.h>
@@ -148,11 +149,13 @@ void ThreadStackManagerImpl::ThreadDeviceRoleChangedHandler(const gchar * role)
 {
     bool attached = strcmp(role, kOpenthreadDeviceRoleDetached) != 0 && strcmp(role, kOpenthreadDeviceRoleDisabled) != 0;
 
+    ChipDeviceEvent event = ChipDeviceEvent{};
+
     if (attached != mAttached)
     {
-        ChipDeviceEvent event{ .Type                     = DeviceEventType::kThreadConnectivityChange,
-                               .ThreadConnectivityChange = { .Result = attached ? ConnectivityChange::kConnectivity_Established
-                                                                                : ConnectivityChange::kConnectivity_Lost } };
+        event.Type = DeviceEventType::kThreadConnectivityChange;
+        event.ThreadConnectivityChange.Result =
+            attached ? ConnectivityChange::kConnectivity_Established : ConnectivityChange::kConnectivity_Lost;
         CHIP_ERROR status = PlatformMgr().PostEvent(&event);
         if (status != CHIP_NO_ERROR)
         {
@@ -161,8 +164,9 @@ void ThreadStackManagerImpl::ThreadDeviceRoleChangedHandler(const gchar * role)
     }
     mAttached = attached;
 
-    ChipDeviceEvent event{ .Type = DeviceEventType::kThreadStateChange, .ThreadStateChange = { .RoleChanged = true } };
-    CHIP_ERROR status = PlatformMgr().PostEvent(&event);
+    event.Type                          = DeviceEventType::kThreadStateChange;
+    event.ThreadStateChange.RoleChanged = true;
+    CHIP_ERROR status                   = PlatformMgr().PostEvent(&event);
     if (status != CHIP_NO_ERROR)
     {
         ChipLogError(DeviceLayer, "Failed to post thread state change: %" CHIP_ERROR_FORMAT, status.Format());
@@ -254,8 +258,9 @@ CHIP_ERROR ThreadStackManagerImpl::_SetThreadProvision(ByteSpan netInfo)
     VerifyOrReturnError(err == CHIP_NO_ERROR, err, ChipLogError(DeviceLayer, "openthread: failed to set active dataset"));
 
     // post an event alerting other subsystems about change in provisioning state
-    ChipDeviceEvent event{ .Type                      = DeviceEventType::kServiceProvisioningChange,
-                           .ServiceProvisioningChange = { .IsServiceProvisioned = true } };
+    ChipDeviceEvent event;
+    event.Type                                           = DeviceEventType::kServiceProvisioningChange;
+    event.ServiceProvisioningChange.IsServiceProvisioned = true;
     return PlatformMgr().PostEvent(&event);
 }
 
@@ -563,14 +568,13 @@ CHIP_ERROR ThreadStackManagerImpl::_GetExternalIPv6Address(chip::Inet::IPAddress
     return CHIP_ERROR_NOT_IMPLEMENTED;
 }
 
-CHIP_ERROR ThreadStackManagerImpl::_GetThreadVersion(uint16_t & version)
+CHIP_ERROR ThreadStackManagerImpl::_GetPollPeriod(uint32_t & buf)
 {
-    // TODO https://github.com/project-chip/connectedhomeip/issues/30602
-    // Needs to be implemented with DBUS io.openthread.BorderRouter Thread API
+    // TODO: Remove Weave legacy APIs
     return CHIP_ERROR_NOT_IMPLEMENTED;
 }
 
-CHIP_ERROR ThreadStackManagerImpl::_GetPollPeriod(uint32_t & buf)
+CHIP_ERROR ThreadStackManagerImpl::_JoinerStart()
 {
     // TODO: Remove Weave legacy APIs
     return CHIP_ERROR_NOT_IMPLEMENTED;

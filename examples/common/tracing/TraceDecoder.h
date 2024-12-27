@@ -24,8 +24,6 @@
 #include <json/json.h>
 #include <lib/core/CHIPError.h>
 
-#include <string>
-
 namespace chip {
 namespace trace {
 

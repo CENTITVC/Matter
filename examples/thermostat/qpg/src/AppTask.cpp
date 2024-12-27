@@ -54,8 +54,6 @@ using namespace ::chip::DeviceLayer;
 #define APP_TASK_STACK_SIZE (2 * 1024)
 #define APP_TASK_PRIORITY 2
 #define APP_EVENT_QUEUE_SIZE 10
-#define SECONDS_IN_HOUR (3600)                                              // we better keep this 3600
-#define TOTAL_OPERATIONAL_HOURS_SAVE_INTERVAL_SECONDS (1 * SECONDS_IN_HOUR) // increment every hour
 
 namespace {
 TaskHandle_t sAppTaskHandle;
@@ -235,14 +233,6 @@ CHIP_ERROR AppTask::Init()
     sIsBLEAdvertisingEnabled = ConnectivityMgr().IsBLEAdvertisingEnabled();
     UpdateLEDs();
 
-    err = chip::DeviceLayer::SystemLayer().StartTimer(chip::System::Clock::Seconds32(TOTAL_OPERATIONAL_HOURS_SAVE_INTERVAL_SECONDS),
-                                                      TotalHoursTimerHandler, this);
-
-    if (err != CHIP_NO_ERROR)
-    {
-        ChipLogError(NotSpecified, "StartTimer failed %s: ", chip::ErrorStr(err));
-    }
-
     return err;
 }
 
@@ -320,40 +310,6 @@ void AppTask::TimerEventHandler(chip::System::Layer * aLayer, void * aAppState)
     event.TimerEvent.Context = aAppState;
     event.Handler            = FunctionTimerEventHandler;
     sAppTask.PostEvent(&event);
-}
-
-void AppTask::TotalHoursTimerHandler(chip::System::Layer * aLayer, void * aAppState)
-{
-    ChipLogProgress(NotSpecified, "HourlyTimer");
-
-    CHIP_ERROR err;
-    uint32_t totalOperationalHours = 0;
-
-    err = ConfigurationMgr().GetTotalOperationalHours(totalOperationalHours);
-
-    if (err == CHIP_NO_ERROR)
-    {
-        ConfigurationMgr().StoreTotalOperationalHours(totalOperationalHours +
-                                                      (TOTAL_OPERATIONAL_HOURS_SAVE_INTERVAL_SECONDS / SECONDS_IN_HOUR));
-    }
-    else if (err == CHIP_DEVICE_ERROR_CONFIG_NOT_FOUND)
-    {
-        totalOperationalHours = 0; // set this explicitly to 0 for safety
-        ConfigurationMgr().StoreTotalOperationalHours(totalOperationalHours +
-                                                      (TOTAL_OPERATIONAL_HOURS_SAVE_INTERVAL_SECONDS / SECONDS_IN_HOUR));
-    }
-    else
-    {
-        ChipLogError(DeviceLayer, "Failed to get total operational hours of the Node");
-    }
-
-    err = chip::DeviceLayer::SystemLayer().StartTimer(chip::System::Clock::Seconds32(TOTAL_OPERATIONAL_HOURS_SAVE_INTERVAL_SECONDS),
-                                                      TotalHoursTimerHandler, nullptr);
-
-    if (err != CHIP_NO_ERROR)
-    {
-        ChipLogError(NotSpecified, "StartTimer failed %s: ", chip::ErrorStr(err));
-    }
 }
 
 void AppTask::FunctionTimerEventHandler(AppEvent * aEvent)
@@ -504,14 +460,10 @@ void AppTask::UpdateLEDs(void)
     // If the system has ble connection(s) uptill the stage above, THEN blink
     // the LEDs at an even rate of 100ms.
     //
-    // Otherwise, turn the LED OFF.
+    // Otherwise, blink the LED ON for a very short time.
     if (sIsThreadProvisioned && sIsThreadEnabled)
     {
         qvIO_LedSet(SYSTEM_STATE_LED, true);
-    }
-    else if (sIsThreadProvisioned && !sIsThreadEnabled)
-    {
-        qvIO_LedBlink(SYSTEM_STATE_LED, 950, 50);
     }
     else if (sHaveBLEConnections)
     {
@@ -524,7 +476,7 @@ void AppTask::UpdateLEDs(void)
     else
     {
         // not commissioned yet
-        qvIO_LedSet(SYSTEM_STATE_LED, false);
+        qvIO_LedBlink(SYSTEM_STATE_LED, 50, 950);
     }
 }
 

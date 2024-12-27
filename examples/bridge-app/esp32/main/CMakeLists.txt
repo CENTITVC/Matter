@@ -48,7 +48,8 @@ idf_component_register(PRIV_INCLUDE_DIRS
                       "${CMAKE_SOURCE_DIR}/third_party/connectedhomeip/src/app/clusters/operational-credentials-server"
                       "${CMAKE_SOURCE_DIR}/third_party/connectedhomeip/src/app/clusters/general-commissioning-server"
                       "${CMAKE_SOURCE_DIR}/third_party/connectedhomeip/examples/platform/esp32/common"
-                      "${CMAKE_SOURCE_DIR}/third_party/connectedhomeip/examples/providers")
+                      "${CMAKE_SOURCE_DIR}/third_party/connectedhomeip/examples/providers"
+                      PRIV_REQUIRES chip QRCode bt nvs_flash)
 
 get_filename_component(CHIP_ROOT ${CMAKE_SOURCE_DIR}/third_party/connectedhomeip REALPATH)
 

@@ -226,10 +226,11 @@ private:
     CHIP_ERROR AddCommonTxtEntries(const BaseAdvertisingParams<Derived> & params, CommonTxtEntryStorage & storage,
                                    char ** txtFields, size_t & numTxtFields)
     {
+        auto optionalMrp = params.GetLocalMRPConfig();
 
-        if (const auto & optionalMrp = params.GetLocalMRPConfig(); optionalMrp.has_value())
+        if (optionalMrp.HasValue())
         {
-            auto mrp = *optionalMrp;
+            auto mrp = optionalMrp.Value();
 
             // An ICD operating as a LIT shall not advertise its slow polling interval.
             // Don't include the SII key in the advertisement when operating as so.
@@ -277,16 +278,14 @@ private:
                 txtFields[numTxtFields++] = storage.sessionActiveThresholdBuf;
             }
         }
-
-        if (params.GetTCPSupportModes() != TCPModeAdvertise::kNone)
+        if (params.GetTcpSupported().HasValue())
         {
-            size_t writtenCharactersNumber = static_cast<size_t>(snprintf(storage.tcpSupportedBuf, sizeof(storage.tcpSupportedBuf),
-                                                                          "T=%d", static_cast<int>(params.GetTCPSupportModes())));
+            size_t writtenCharactersNumber = static_cast<size_t>(
+                snprintf(storage.tcpSupportedBuf, sizeof(storage.tcpSupportedBuf), "T=%d", params.GetTcpSupported().Value()));
             VerifyOrReturnError((writtenCharactersNumber > 0) && (writtenCharactersNumber < sizeof(storage.tcpSupportedBuf)),
                                 CHIP_ERROR_INVALID_STRING_LENGTH);
             txtFields[numTxtFields++] = storage.tcpSupportedBuf;
         }
-
         if (params.GetICDModeToAdvertise() != ICDModeAdvertise::kNone)
         {
             size_t writtenCharactersNumber =
@@ -649,9 +648,9 @@ CHIP_ERROR AdvertiserMinMdns::Advertise(const CommissionAdvertisingParameters & 
         return CHIP_ERROR_NO_MEMORY;
     }
 
-    SrvResourceRecord srvRecord(instanceName, hostName, params.GetPort());
-    srvRecord.SetCacheFlush(true);
-    if (!allocator->AddResponder<SrvResponder>(srvRecord).SetReportAdditional(hostName).IsValid())
+    if (!allocator->AddResponder<SrvResponder>(SrvResourceRecord(instanceName, hostName, params.GetPort()))
+             .SetReportAdditional(hostName)
+             .IsValid())
     {
         ChipLogError(Discovery, "Failed to add SRV record mDNS responder");
         return CHIP_ERROR_NO_MEMORY;
@@ -671,9 +670,10 @@ CHIP_ERROR AdvertiserMinMdns::Advertise(const CommissionAdvertisingParameters & 
         }
     }
 
-    if (const auto & vendorId = params.GetVendorId(); vendorId.has_value())
+    if (params.GetVendorId().HasValue())
     {
-        MakeServiceSubtype(nameBuffer, sizeof(nameBuffer), DiscoveryFilter(DiscoveryFilterType::kVendorId, *vendorId));
+        MakeServiceSubtype(nameBuffer, sizeof(nameBuffer),
+                           DiscoveryFilter(DiscoveryFilterType::kVendorId, params.GetVendorId().Value()));
         FullQName vendorServiceName =
             allocator->AllocateQName(nameBuffer, kSubtypeServiceNamePart, serviceType, kCommissionProtocol, kLocalDomain);
         ReturnErrorCodeIf(vendorServiceName.nameCount == 0, CHIP_ERROR_NO_MEMORY);
@@ -688,9 +688,10 @@ CHIP_ERROR AdvertiserMinMdns::Advertise(const CommissionAdvertisingParameters & 
         }
     }
 
-    if (const auto & deviceType = params.GetDeviceType(); deviceType.has_value())
+    if (params.GetDeviceType().HasValue())
     {
-        MakeServiceSubtype(nameBuffer, sizeof(nameBuffer), DiscoveryFilter(DiscoveryFilterType::kDeviceType, *deviceType));
+        MakeServiceSubtype(nameBuffer, sizeof(nameBuffer),
+                           DiscoveryFilter(DiscoveryFilterType::kDeviceType, params.GetDeviceType().Value()));
         FullQName vendorServiceName =
             allocator->AllocateQName(nameBuffer, kSubtypeServiceNamePart, serviceType, kCommissionProtocol, kLocalDomain);
         ReturnErrorCodeIf(vendorServiceName.nameCount == 0, CHIP_ERROR_NO_MEMORY);
@@ -758,9 +759,9 @@ CHIP_ERROR AdvertiserMinMdns::Advertise(const CommissionAdvertisingParameters & 
         }
     }
 
-    TxtResourceRecord txtRecord(instanceName, GetCommissioningTxtEntries(params));
-    txtRecord.SetCacheFlush(true);
-    if (!allocator->AddResponder<TxtResponder>(txtRecord).SetReportAdditional(hostName).IsValid())
+    if (!allocator->AddResponder<TxtResponder>(TxtResourceRecord(instanceName, GetCommissioningTxtEntries(params)))
+             .SetReportAdditional(hostName)
+             .IsValid())
     {
         ChipLogError(Discovery, "Failed to add TXT record mDNS responder");
         return CHIP_ERROR_NO_MEMORY;
@@ -811,32 +812,28 @@ FullQName AdvertiserMinMdns::GetCommissioningTxtEntries(const CommissionAdvertis
                                                                                            : &mQueryResponderAllocatorCommissioner;
 
     char txtVidPid[chip::Dnssd::kKeyVendorProductMaxLength + 4];
+    if (params.GetProductId().HasValue() && params.GetVendorId().HasValue())
     {
-        const auto & productId = params.GetProductId();
-        const auto & vendorId  = params.GetVendorId();
-        if (productId.has_value() && vendorId.has_value())
-        {
-            snprintf(txtVidPid, sizeof(txtVidPid), "VP=%d+%d", *vendorId, *productId);
-            txtFields[numTxtFields++] = txtVidPid;
-        }
-        else if (vendorId.has_value())
-        {
-            snprintf(txtVidPid, sizeof(txtVidPid), "VP=%d", *vendorId);
-            txtFields[numTxtFields++] = txtVidPid;
-        }
+        snprintf(txtVidPid, sizeof(txtVidPid), "VP=%d+%d", params.GetVendorId().Value(), params.GetProductId().Value());
+        txtFields[numTxtFields++] = txtVidPid;
+    }
+    else if (params.GetVendorId().HasValue())
+    {
+        snprintf(txtVidPid, sizeof(txtVidPid), "VP=%d", params.GetVendorId().Value());
+        txtFields[numTxtFields++] = txtVidPid;
     }
 
     char txtDeviceType[chip::Dnssd::kKeyDeviceTypeMaxLength + 4];
-    if (const auto & deviceType = params.GetDeviceType(); deviceType.has_value())
+    if (params.GetDeviceType().HasValue())
     {
-        snprintf(txtDeviceType, sizeof(txtDeviceType), "DT=%" PRIu32, *deviceType);
+        snprintf(txtDeviceType, sizeof(txtDeviceType), "DT=%" PRIu32, params.GetDeviceType().Value());
         txtFields[numTxtFields++] = txtDeviceType;
     }
 
     char txtDeviceName[chip::Dnssd::kKeyDeviceNameMaxLength + 4];
-    if (const auto & deviceName = params.GetDeviceName(); deviceName.has_value())
+    if (params.GetDeviceName().HasValue())
     {
-        snprintf(txtDeviceName, sizeof(txtDeviceName), "DN=%s", *deviceName);
+        snprintf(txtDeviceName, sizeof(txtDeviceName), "DN=%s", params.GetDeviceName().Value());
         txtFields[numTxtFields++] = txtDeviceName;
     }
     CommonTxtEntryStorage commonStorage;
@@ -861,27 +858,27 @@ FullQName AdvertiserMinMdns::GetCommissioningTxtEntries(const CommissionAdvertis
         snprintf(txtCommissioningMode, sizeof(txtCommissioningMode), "CM=%d", static_cast<int>(params.GetCommissioningMode()));
         txtFields[numTxtFields++] = txtCommissioningMode;
 
-        if (const auto & rotatingDeviceId = params.GetRotatingDeviceId(); rotatingDeviceId.has_value())
+        if (params.GetRotatingDeviceId().HasValue())
         {
-            snprintf(txtRotatingDeviceId, sizeof(txtRotatingDeviceId), "RI=%s", *rotatingDeviceId);
+            snprintf(txtRotatingDeviceId, sizeof(txtRotatingDeviceId), "RI=%s", params.GetRotatingDeviceId().Value());
             txtFields[numTxtFields++] = txtRotatingDeviceId;
         }
 
-        if (const auto & pairingHint = params.GetPairingHint(); pairingHint.has_value())
+        if (params.GetPairingHint().HasValue())
         {
-            snprintf(txtPairingHint, sizeof(txtPairingHint), "PH=%d", *pairingHint);
+            snprintf(txtPairingHint, sizeof(txtPairingHint), "PH=%d", params.GetPairingHint().Value());
             txtFields[numTxtFields++] = txtPairingHint;
         }
 
-        if (const auto & pairingInstruction = params.GetPairingInstruction(); pairingInstruction.has_value())
+        if (params.GetPairingInstruction().HasValue())
         {
-            snprintf(txtPairingInstr, sizeof(txtPairingInstr), "PI=%s", *pairingInstruction);
+            snprintf(txtPairingInstr, sizeof(txtPairingInstr), "PI=%s", params.GetPairingInstruction().Value());
             txtFields[numTxtFields++] = txtPairingInstr;
         }
     }
     else
     {
-        if (params.GetCommissionerPasscodeSupported().value_or(false))
+        if (params.GetCommissionerPasscodeSupported().ValueOr(false))
         {
             snprintf(txtCommissionerPasscode, sizeof(txtCommissionerPasscode), "CP=%d", static_cast<int>(1));
             txtFields[numTxtFields++] = txtCommissionerPasscode;
@@ -978,14 +975,10 @@ void AdvertiserMinMdns::AdvertiseRecords(BroadcastAdvertiseType type)
 AdvertiserMinMdns gAdvertiser;
 } // namespace
 
-#if CHIP_DNSSD_DEFAULT_MINIMAL
-
-ServiceAdvertiser & GetDefaultAdvertiser()
+ServiceAdvertiser & ServiceAdvertiser::Instance()
 {
     return gAdvertiser;
 }
-
-#endif // CHIP_DNSSD_DEFAULT_MINIMAL
 
 } // namespace Dnssd
 } // namespace chip

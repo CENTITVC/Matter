@@ -36,7 +36,7 @@ CHIP_ERROR ResolverProxy::Init(Inet::EndPointManager<Inet::UDPEndPoint> * udpEnd
 void ResolverProxy::Shutdown()
 {
     VerifyOrReturn(mContext != nullptr);
-    mContext->SetDiscoveryDelegate(nullptr);
+    mContext->SetCommissioningDelegate(nullptr);
     mContext->Release();
     mContext = nullptr;
 }
@@ -45,21 +45,14 @@ CHIP_ERROR ResolverProxy::DiscoverCommissionableNodes(DiscoveryFilter filter)
 {
     VerifyOrReturnError(mContext != nullptr, CHIP_ERROR_INCORRECT_STATE);
 
-    return mResolver.StartDiscovery(DiscoveryType::kCommissionableNode, filter, *mContext);
+    return mResolver.DiscoverCommissionableNodes(filter, *mContext);
 }
 
 CHIP_ERROR ResolverProxy::DiscoverCommissioners(DiscoveryFilter filter)
 {
     VerifyOrReturnError(mContext != nullptr, CHIP_ERROR_INCORRECT_STATE);
 
-    return mResolver.StartDiscovery(DiscoveryType::kCommissionerNode, filter, *mContext);
-}
-
-CHIP_ERROR ResolverProxy::DiscoverOperationalNodes(DiscoveryFilter filter)
-{
-    VerifyOrReturnError(mContext != nullptr, CHIP_ERROR_INCORRECT_STATE);
-
-    return mResolver.StartDiscovery(DiscoveryType::kOperational, filter, *mContext);
+    return mResolver.DiscoverCommissioners(filter, *mContext);
 }
 
 CHIP_ERROR ResolverProxy::StopDiscovery()

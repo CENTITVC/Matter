@@ -17,7 +17,6 @@ import re
 import shlex
 from enum import Enum, auto
 
-from .builder import BuilderOutput
 from .gn import GnBuilder
 
 
@@ -181,13 +180,19 @@ class IMXBuilder(GnBuilder):
         return os.environ[name]
 
     def build_outputs(self):
+        outputs = {}
+
         for name in self.app.OutputNames():
-            if not self.options.enable_link_map_file and name.endswith(".map"):
-                continue
             path = os.path.join(self.output_dir, name)
             if os.path.isdir(path):
                 for root, dirs, files in os.walk(path):
                     for file in files:
-                        yield BuilderOutput(os.path.join(root, file), file)
+                        outputs.update({
+                            file: os.path.join(root, file)
+                        })
             else:
-                yield BuilderOutput(os.path.join(self.output_dir, name), name)
+                outputs.update({
+                    name: os.path.join(self.output_dir, name)
+                })
+
+        return outputs

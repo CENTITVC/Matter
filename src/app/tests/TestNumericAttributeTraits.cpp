@@ -27,8 +27,8 @@
  *
  */
 
-#include <lib/core/StringBuilderAdapters.h>
-#include <pw_unit_test/framework.h>
+#include <lib/support/UnitTestRegistration.h>
+#include <nlunit-test.h>
 
 // We are testing the odd-sized-integers.h module
 #include <app/util/odd-sized-integers.h>
@@ -38,7 +38,7 @@ using namespace chip::app;
 
 namespace {
 
-TEST(TestNumericAttributeTraits, Test_UINT8)
+void Test_UINT8(nlTestSuite * apSuite, void * apContext)
 {
     // Unsigned 8-bit Integer : 1 byte, endianness does not matter.
     using IntType     = NumericAttributeTraits<uint8_t>;
@@ -53,8 +53,8 @@ TEST(TestNumericAttributeTraits, Test_UINT8)
     const WorkingType workingTestUnsignedNullValue = 0xFF;
 
     // 1) Verify the size of the types
-    EXPECT_EQ(sizeof(sValue), 1u);
-    EXPECT_GE(sizeof(wValue), 1u);
+    NL_TEST_ASSERT(apSuite, sizeof(sValue) == 1);
+    NL_TEST_ASSERT(apSuite, sizeof(wValue) >= 1);
 
     // Initialize the Storage Value with the test-buffer
     memcpy(&sValue, &storageTestData, sizeof(sValue));
@@ -63,7 +63,7 @@ TEST(TestNumericAttributeTraits, Test_UINT8)
     wValue = IntType::StorageToWorking(sValue);
 
     // 2) Verify that the correct storage format has been used
-    EXPECT_EQ(wValue, 17u);
+    NL_TEST_ASSERT(apSuite, wValue == 17);
 
     StorageType sNewValue;
 
@@ -71,22 +71,22 @@ TEST(TestNumericAttributeTraits, Test_UINT8)
     IntType::WorkingToStorage(wValue, sNewValue);
 
     // 3) Verify that the bytes are located as intended
-    EXPECT_EQ(memcmp(&storageTestData, &sNewValue, sizeof(sNewValue)), 0);
+    NL_TEST_ASSERT(apSuite, memcmp(&storageTestData, &sNewValue, sizeof(sNewValue)) == 0);
 
     // Set Storage value to Null
     IntType::SetNull(sNullValue);
     wNullValue = IntType::StorageToWorking(sNullValue);
-    EXPECT_EQ(wNullValue, workingTestUnsignedNullValue);
-    EXPECT_TRUE(IntType::IsNullValue(sNullValue));
+    NL_TEST_ASSERT(apSuite, wNullValue == workingTestUnsignedNullValue);
+    NL_TEST_ASSERT(apSuite, (IntType::IsNullValue(sNullValue) == true));
 
     // Verify that null values can fit into not nullable
-    EXPECT_TRUE(IntType::CanRepresentValue(false, sNullValue));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(false, sNullValue) == true));
 
     // Verify that null values can't fit into nullable
-    EXPECT_FALSE(IntType::CanRepresentValue(true, sNullValue));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(true, sNullValue) == false));
 }
 
-TEST(TestNumericAttributeTraits, Test_SINT8)
+void Test_SINT8(nlTestSuite * apSuite, void * apContext)
 {
     // Signed 8-bit Integer : 1 byte, endianness does not matter.
     using IntType     = NumericAttributeTraits<int8_t>;
@@ -101,8 +101,8 @@ TEST(TestNumericAttributeTraits, Test_SINT8)
     const WorkingType workingTestUnsignedNullValue = -128; // 0x80
 
     // 1) Verify the size of the types
-    EXPECT_EQ(sizeof(sValue), 1u);
-    EXPECT_GE(sizeof(wValue), 1u);
+    NL_TEST_ASSERT(apSuite, sizeof(sValue) == 1);
+    NL_TEST_ASSERT(apSuite, sizeof(wValue) >= 1);
 
     // Initialize the Storage Value with the test-buffer
     memcpy(&sValue, &storageTestData, sizeof(sValue));
@@ -111,7 +111,7 @@ TEST(TestNumericAttributeTraits, Test_SINT8)
     wValue = IntType::StorageToWorking(sValue);
 
     // 2) Verify that the correct storage format has been used
-    EXPECT_EQ(wValue, 17);
+    NL_TEST_ASSERT(apSuite, wValue == 17);
 
     StorageType sNewValue;
 
@@ -119,19 +119,19 @@ TEST(TestNumericAttributeTraits, Test_SINT8)
     IntType::WorkingToStorage(wValue, sNewValue);
 
     // 3) Verify that the bytes are located as intended
-    EXPECT_EQ(memcmp(&storageTestData, &sNewValue, sizeof(sNewValue)), 0);
+    NL_TEST_ASSERT(apSuite, memcmp(&storageTestData, &sNewValue, sizeof(sNewValue)) == 0);
 
     // Set Storage value to Null
     IntType::SetNull(sNullValue);
     wNullValue = IntType::StorageToWorking(sNullValue);
-    EXPECT_EQ(wNullValue, workingTestUnsignedNullValue);
-    EXPECT_TRUE(IntType::IsNullValue(sNullValue));
+    NL_TEST_ASSERT(apSuite, wNullValue == workingTestUnsignedNullValue);
+    NL_TEST_ASSERT(apSuite, (IntType::IsNullValue(sNullValue) == true));
 
     // Verify that null values can fit into not nullable
-    EXPECT_TRUE(IntType::CanRepresentValue(false, sNullValue));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(false, sNullValue) == true));
 
     // Verify that null values can't fit into nullable
-    EXPECT_FALSE(IntType::CanRepresentValue(true, sNullValue));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(true, sNullValue) == false));
 }
 
 enum class SimpleEnum : uint8_t
@@ -140,7 +140,7 @@ enum class SimpleEnum : uint8_t
     kOne  = 1,
 };
 
-TEST(TestNumericAttributeTraits, Test_SimpleEnum)
+void Test_SimpleEnum(nlTestSuite * apSuite, void * apContext)
 {
     // Unsigned 8-bit Integer : 1 byte, endianness does not matter.
     using IntType     = NumericAttributeTraits<SimpleEnum>;
@@ -155,8 +155,8 @@ TEST(TestNumericAttributeTraits, Test_SimpleEnum)
     const WorkingType workingTestUnsignedNullValue = static_cast<SimpleEnum>(0xFF);
 
     // 1) Verify the size of the types
-    EXPECT_EQ(sizeof(sValue), 1u);
-    EXPECT_GE(sizeof(wValue), 1u);
+    NL_TEST_ASSERT(apSuite, sizeof(sValue) == 1);
+    NL_TEST_ASSERT(apSuite, sizeof(wValue) >= 1);
 
     // Initialize the Storage Value with the test-buffer
     memcpy(&sValue, &storageTestData, sizeof(sValue));
@@ -165,7 +165,7 @@ TEST(TestNumericAttributeTraits, Test_SimpleEnum)
     wValue = IntType::StorageToWorking(sValue);
 
     // 2) Verify that the correct storage format has been used
-    EXPECT_EQ(wValue, SimpleEnum::kOne);
+    NL_TEST_ASSERT(apSuite, wValue == SimpleEnum::kOne);
 
     StorageType sNewValue;
 
@@ -173,19 +173,19 @@ TEST(TestNumericAttributeTraits, Test_SimpleEnum)
     IntType::WorkingToStorage(wValue, sNewValue);
 
     // 3) Verify that the bytes are located as intended
-    EXPECT_EQ(memcmp(&storageTestData, &sNewValue, sizeof(sNewValue)), 0);
+    NL_TEST_ASSERT(apSuite, memcmp(&storageTestData, &sNewValue, sizeof(sNewValue)) == 0);
 
     // Set Storage value to Null
     IntType::SetNull(sNullValue);
     wNullValue = IntType::StorageToWorking(sNullValue);
-    EXPECT_EQ(wNullValue, workingTestUnsignedNullValue);
-    EXPECT_TRUE(IntType::IsNullValue(sNullValue));
+    NL_TEST_ASSERT(apSuite, wNullValue == workingTestUnsignedNullValue);
+    NL_TEST_ASSERT(apSuite, (IntType::IsNullValue(sNullValue) == true));
 
     // Verify that null values can fit into not nullable
-    EXPECT_TRUE(IntType::CanRepresentValue(false, sNullValue));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(false, sNullValue) == true));
 
     // Verify that null values can't fit into nullable
-    EXPECT_FALSE(IntType::CanRepresentValue(true, sNullValue));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(true, sNullValue) == false));
 }
 
 ////////////////////////////////////////////////////////////
@@ -200,7 +200,7 @@ TEST(TestNumericAttributeTraits, Test_SimpleEnum)
 // $$$$$$$$/       $$/       $$$$$$$/  $$$$$$/    $$/     //
 //                                                        //
 ////////////////////////////////////////////////////////////
-TEST(TestNumericAttributeTraits, Test_UINT24_LE)
+void Test_UINT24_LE(nlTestSuite * apSuite, void * apContext)
 {
     // Unsigned 24-bit Integer : 3 bytes - little-endian
     using IntType     = NumericAttributeTraits<OddSizedInteger<3, false>, false>;
@@ -215,8 +215,8 @@ TEST(TestNumericAttributeTraits, Test_UINT24_LE)
     const WorkingType workingTestUnsignedNullValue = 16777215; // 0xFFFFFF
 
     // 1) Verify the size of the types
-    EXPECT_EQ(sizeof(sValue), 3u);
-    EXPECT_GE(sizeof(wValue), 3u);
+    NL_TEST_ASSERT(apSuite, sizeof(sValue) == 3);
+    NL_TEST_ASSERT(apSuite, sizeof(wValue) >= 3);
 
     // Initialize the Storage Value with the test-buffer
     memcpy(&sValue, storageTestData, sizeof(sValue));
@@ -225,7 +225,7 @@ TEST(TestNumericAttributeTraits, Test_UINT24_LE)
     wValue = IntType::StorageToWorking(sValue);
 
     // 2) Verify that the correct storage format has been used
-    EXPECT_EQ(wValue, 0x123456u);
+    NL_TEST_ASSERT(apSuite, wValue == 0x123456);
 
     StorageType sNewValue;
 
@@ -233,22 +233,22 @@ TEST(TestNumericAttributeTraits, Test_UINT24_LE)
     IntType::WorkingToStorage(wValue, sNewValue);
 
     // 3) Verify that the bytes are located as intended
-    EXPECT_EQ(memcmp(storageTestData, &sNewValue, sizeof(sNewValue)), 0);
+    NL_TEST_ASSERT(apSuite, memcmp(storageTestData, &sNewValue, sizeof(sNewValue)) == 0);
 
     // Set Storage value to Null
     IntType::SetNull(sNullValue);
     wNullValue = IntType::StorageToWorking(sNullValue);
-    EXPECT_EQ(wNullValue, workingTestUnsignedNullValue);
-    EXPECT_TRUE(IntType::IsNullValue(sNullValue));
+    NL_TEST_ASSERT(apSuite, wNullValue == workingTestUnsignedNullValue);
+    NL_TEST_ASSERT(apSuite, (IntType::IsNullValue(sNullValue) == true));
 
     // Verify that null values can fit into not nullable
-    EXPECT_TRUE(IntType::CanRepresentValue(false, sNullValue));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(false, sNullValue) == true));
 
     // Verify that null values can't fit into nullable
-    EXPECT_FALSE(IntType::CanRepresentValue(true, sNullValue));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(true, sNullValue) == false));
 }
 
-TEST(TestNumericAttributeTraits, Test_UINT24_BE)
+void Test_UINT24_BE(nlTestSuite * apSuite, void * apContext)
 {
     // Unsigned 24-bit Integer : 3 bytes - big-endian
     using IntType     = NumericAttributeTraits<OddSizedInteger<3, false>, true>;
@@ -263,8 +263,8 @@ TEST(TestNumericAttributeTraits, Test_UINT24_BE)
     const WorkingType workingTestUnsignedNullValue = 16777215; // 0xFFFFFF
 
     // 1) Verify the size of the types
-    EXPECT_EQ(sizeof(sValue), 3u);
-    EXPECT_GE(sizeof(wValue), 3u);
+    NL_TEST_ASSERT(apSuite, sizeof(sValue) == 3);
+    NL_TEST_ASSERT(apSuite, sizeof(wValue) >= 3);
 
     // Initialize the Storage Value with the test-buffer
     memcpy(&sValue, storageTestData, sizeof(sValue));
@@ -273,7 +273,7 @@ TEST(TestNumericAttributeTraits, Test_UINT24_BE)
     wValue = IntType::StorageToWorking(sValue);
 
     // 2) Verify that the correct storage format has been used
-    EXPECT_EQ(wValue, 0x123456u);
+    NL_TEST_ASSERT(apSuite, wValue == 0x123456);
 
     StorageType sNewValue;
 
@@ -281,22 +281,22 @@ TEST(TestNumericAttributeTraits, Test_UINT24_BE)
     IntType::WorkingToStorage(wValue, sNewValue);
 
     // 3) Verify that the bytes are located as intended
-    EXPECT_EQ(memcmp(storageTestData, &sNewValue, sizeof(sNewValue)), 0);
+    NL_TEST_ASSERT(apSuite, memcmp(storageTestData, &sNewValue, sizeof(sNewValue)) == 0);
 
     // Set Storage value to Null
     IntType::SetNull(sNullValue);
     wNullValue = IntType::StorageToWorking(sNullValue);
-    EXPECT_EQ(wNullValue, workingTestUnsignedNullValue);
-    EXPECT_TRUE(IntType::IsNullValue(sNullValue));
+    NL_TEST_ASSERT(apSuite, wNullValue == workingTestUnsignedNullValue);
+    NL_TEST_ASSERT(apSuite, (IntType::IsNullValue(sNullValue) == true));
 
     // Verify that null values can fit into not nullable
-    EXPECT_TRUE(IntType::CanRepresentValue(false, sNullValue));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(false, sNullValue) == true));
 
     // Verify that null values can't fit into nullable
-    EXPECT_FALSE(IntType::CanRepresentValue(true, sNullValue));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(true, sNullValue) == false));
 }
 
-TEST(TestNumericAttributeTraits, Test_SINT24_LE)
+void Test_SINT24_LE(nlTestSuite * apSuite, void * apContext)
 {
     // Signed 24-bit Integer : 3 bytes - little-endian
     using IntType     = NumericAttributeTraits<OddSizedInteger<3, true>, false>;
@@ -315,10 +315,10 @@ TEST(TestNumericAttributeTraits, Test_SINT24_LE)
     const WorkingType workingTestSignedNullValue = -8388608;             // -0x800000
 
     // 1) Verify the size of the types
-    EXPECT_EQ(sizeof(sValuePos), 3u);
-    EXPECT_GE(sizeof(wValuePos), 3u);
-    EXPECT_EQ(sizeof(sValueNeg), 3u);
-    EXPECT_GE(sizeof(wValueNeg), 3u);
+    NL_TEST_ASSERT(apSuite, sizeof(sValuePos) == 3);
+    NL_TEST_ASSERT(apSuite, sizeof(wValuePos) >= 3);
+    NL_TEST_ASSERT(apSuite, sizeof(sValueNeg) == 3);
+    NL_TEST_ASSERT(apSuite, sizeof(wValueNeg) >= 3);
 
     // Initialize the Storage Values with the test-buffer
     memcpy(&sValuePos, storageTestDataPos, sizeof(sValuePos));
@@ -329,8 +329,8 @@ TEST(TestNumericAttributeTraits, Test_SINT24_LE)
     wValueNeg = IntType::StorageToWorking(sValueNeg);
 
     // 2) Verify that the correct storage format has been used
-    EXPECT_EQ(wValuePos, workingDataPos);
-    EXPECT_EQ(wValueNeg, workingDataNeg);
+    NL_TEST_ASSERT(apSuite, wValuePos == workingDataPos);
+    NL_TEST_ASSERT(apSuite, wValueNeg == workingDataNeg);
 
     StorageType sNewValuePos;
     StorageType sNewValueNeg;
@@ -340,8 +340,8 @@ TEST(TestNumericAttributeTraits, Test_SINT24_LE)
     IntType::WorkingToStorage(wValueNeg, sNewValueNeg);
 
     // 3) Verify that the bytes are located as intended
-    EXPECT_EQ(memcmp(storageTestDataPos, &sNewValuePos, sizeof(sNewValuePos)), 0);
-    EXPECT_EQ(memcmp(storageTestDataNeg, &sNewValueNeg, sizeof(sNewValueNeg)), 0);
+    NL_TEST_ASSERT(apSuite, memcmp(storageTestDataPos, &sNewValuePos, sizeof(sNewValuePos)) == 0);
+    NL_TEST_ASSERT(apSuite, memcmp(storageTestDataNeg, &sNewValueNeg, sizeof(sNewValueNeg)) == 0);
 
     StorageType sNullValue;
     WorkingType wNullValue;
@@ -349,19 +349,19 @@ TEST(TestNumericAttributeTraits, Test_SINT24_LE)
     // Set Storage value to Null
     IntType::SetNull(sNullValue);
     wNullValue = IntType::StorageToWorking(sNullValue);
-    EXPECT_EQ(wNullValue, workingTestSignedNullValue);
-    EXPECT_TRUE(IntType::IsNullValue(sNullValue));
+    NL_TEST_ASSERT(apSuite, wNullValue == workingTestSignedNullValue);
+    NL_TEST_ASSERT(apSuite, (IntType::IsNullValue(sNullValue) == true));
 
     // Verify that null values can fit into not nullable
-    EXPECT_TRUE(IntType::CanRepresentValue(false, sNullValue));
-    EXPECT_TRUE(IntType::CanRepresentValue(false, wNullValue));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(false, sNullValue) == true));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(false, wNullValue) == true));
 
     // Verify that null values can't fit into nullable
-    EXPECT_FALSE(IntType::CanRepresentValue(true, sNullValue));
-    EXPECT_FALSE(IntType::CanRepresentValue(true, wNullValue));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(true, sNullValue) == false));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(true, wNullValue) == false));
 }
 
-TEST(TestNumericAttributeTraits, Test_SINT24_BE)
+void Test_SINT24_BE(nlTestSuite * apSuite, void * apContext)
 {
     // Signed 24-bit Integer : 3 bytes - big-endian
     using IntType     = NumericAttributeTraits<OddSizedInteger<3, true>, true>;
@@ -380,10 +380,10 @@ TEST(TestNumericAttributeTraits, Test_SINT24_BE)
     const WorkingType workingTestSignedNullValue = -8388608;             // -0x800000
 
     // 1) Verify the size of the types
-    EXPECT_EQ(sizeof(sValuePos), 3u);
-    EXPECT_GE(sizeof(wValuePos), 3u);
-    EXPECT_EQ(sizeof(sValueNeg), 3u);
-    EXPECT_GE(sizeof(wValueNeg), 3u);
+    NL_TEST_ASSERT(apSuite, sizeof(sValuePos) == 3);
+    NL_TEST_ASSERT(apSuite, sizeof(wValuePos) >= 3);
+    NL_TEST_ASSERT(apSuite, sizeof(sValueNeg) == 3);
+    NL_TEST_ASSERT(apSuite, sizeof(wValueNeg) >= 3);
 
     // Initialize the Storage Values with the test-buffer
     memcpy(&sValuePos, storageTestDataPos, sizeof(sValuePos));
@@ -394,8 +394,8 @@ TEST(TestNumericAttributeTraits, Test_SINT24_BE)
     wValueNeg = IntType::StorageToWorking(sValueNeg);
 
     // 2) Verify that the correct storage format has been used
-    EXPECT_EQ(wValuePos, workingDataPos);
-    EXPECT_EQ(wValueNeg, workingDataNeg);
+    NL_TEST_ASSERT(apSuite, wValuePos == workingDataPos);
+    NL_TEST_ASSERT(apSuite, wValueNeg == workingDataNeg);
 
     StorageType sNewValuePos;
     StorageType sNewValueNeg;
@@ -405,8 +405,8 @@ TEST(TestNumericAttributeTraits, Test_SINT24_BE)
     IntType::WorkingToStorage(wValueNeg, sNewValueNeg);
 
     // 3) Verify that the bytes are located as intended
-    EXPECT_EQ(memcmp(storageTestDataPos, &sNewValuePos, sizeof(sNewValuePos)), 0);
-    EXPECT_EQ(memcmp(storageTestDataNeg, &sNewValueNeg, sizeof(sNewValueNeg)), 0);
+    NL_TEST_ASSERT(apSuite, memcmp(storageTestDataPos, &sNewValuePos, sizeof(sNewValuePos)) == 0);
+    NL_TEST_ASSERT(apSuite, memcmp(storageTestDataNeg, &sNewValueNeg, sizeof(sNewValueNeg)) == 0);
 
     StorageType sNullValue;
     WorkingType wNullValue;
@@ -414,16 +414,16 @@ TEST(TestNumericAttributeTraits, Test_SINT24_BE)
     // Set Storage value to Null
     IntType::SetNull(sNullValue);
     wNullValue = IntType::StorageToWorking(sNullValue);
-    EXPECT_EQ(wNullValue, workingTestSignedNullValue);
-    EXPECT_TRUE(IntType::IsNullValue(sNullValue));
+    NL_TEST_ASSERT(apSuite, wNullValue == workingTestSignedNullValue);
+    NL_TEST_ASSERT(apSuite, (IntType::IsNullValue(sNullValue) == true));
 
     // Verify that null values can fit into not nullable
-    EXPECT_TRUE(IntType::CanRepresentValue(false, sNullValue));
-    EXPECT_TRUE(IntType::CanRepresentValue(false, wNullValue));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(false, sNullValue) == true));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(false, wNullValue) == true));
 
     // Verify that null values can't fit into nullable
-    EXPECT_FALSE(IntType::CanRepresentValue(true, sNullValue));
-    EXPECT_FALSE(IntType::CanRepresentValue(true, wNullValue));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(true, sNullValue) == false));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(true, wNullValue) == false));
 }
 
 ////////////////////////////////////////////////////////////
@@ -438,7 +438,7 @@ TEST(TestNumericAttributeTraits, Test_SINT24_BE)
 //       $$/  $$$$$$/        $$$$$$$/  $$$$$$/    $$/     //
 //                                                        //
 ////////////////////////////////////////////////////////////
-TEST(TestNumericAttributeTraits, Test_UINT40_LE)
+void Test_UINT40_LE(nlTestSuite * apSuite, void * apContext)
 {
     // Unsigned 40-bit Integer : 5 bytes - little-endian
     using IntType     = NumericAttributeTraits<OddSizedInteger<5, false>, false>;
@@ -453,8 +453,8 @@ TEST(TestNumericAttributeTraits, Test_UINT40_LE)
     const WorkingType workingTestUnsignedNullValue = 1099511627775; // 0xFFFFFFFFFF
 
     // 1) Verify the size of the types
-    EXPECT_EQ(sizeof(sValue), 5u);
-    EXPECT_GE(sizeof(wValue), 5u);
+    NL_TEST_ASSERT(apSuite, sizeof(sValue) == 5);
+    NL_TEST_ASSERT(apSuite, sizeof(wValue) >= 5);
 
     // Initialize the Storage Value with the test-buffer
     memcpy(&sValue, storageTestData, sizeof(sValue));
@@ -463,7 +463,7 @@ TEST(TestNumericAttributeTraits, Test_UINT40_LE)
     wValue = IntType::StorageToWorking(sValue);
 
     // 2) Verify that the correct storage format has been used
-    EXPECT_EQ(wValue, 0x123456789Au);
+    NL_TEST_ASSERT(apSuite, wValue == 0x123456789A);
 
     StorageType sNewValue;
 
@@ -471,22 +471,22 @@ TEST(TestNumericAttributeTraits, Test_UINT40_LE)
     IntType::WorkingToStorage(wValue, sNewValue);
 
     // 3) Verify that the bytes are located as intended
-    EXPECT_EQ(memcmp(storageTestData, &sNewValue, sizeof(sNewValue)), 0);
+    NL_TEST_ASSERT(apSuite, memcmp(storageTestData, &sNewValue, sizeof(sNewValue)) == 0);
 
     // Set Storage value to Null
     IntType::SetNull(sNullValue);
     wNullValue = IntType::StorageToWorking(sNullValue);
-    EXPECT_EQ(wNullValue, workingTestUnsignedNullValue);
-    EXPECT_TRUE(IntType::IsNullValue(sNullValue));
+    NL_TEST_ASSERT(apSuite, wNullValue == workingTestUnsignedNullValue);
+    NL_TEST_ASSERT(apSuite, (IntType::IsNullValue(sNullValue) == true));
 
     // Verify that null values can fit into not nullable
-    EXPECT_TRUE(IntType::CanRepresentValue(false, sNullValue));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(false, sNullValue) == true));
 
     // Verify that null values can't fit into nullable
-    EXPECT_FALSE(IntType::CanRepresentValue(true, sNullValue));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(true, sNullValue) == false));
 }
 
-TEST(TestNumericAttributeTraits, Test_UINT40_BE)
+void Test_UINT40_BE(nlTestSuite * apSuite, void * apContext)
 {
     // Unsigned 40-bit Integer : 5 bytes - big-endian
     using IntType     = NumericAttributeTraits<OddSizedInteger<5, false>, true>;
@@ -500,8 +500,8 @@ TEST(TestNumericAttributeTraits, Test_UINT40_BE)
     const StorageType storageTestData              = { 0x12, 0x34, 0x56, 0x78, 0x9A };
     const WorkingType workingTestUnsignedNullValue = 1099511627775; // 0xFFFFFFFFFF
     // 1) Verify the size of the types
-    EXPECT_EQ(sizeof(sValue), 5u);
-    EXPECT_GE(sizeof(wValue), 5u);
+    NL_TEST_ASSERT(apSuite, sizeof(sValue) == 5);
+    NL_TEST_ASSERT(apSuite, sizeof(wValue) >= 5);
 
     // Initialize the Storage Value with the test-buffer
     memcpy(&sValue, storageTestData, sizeof(sValue));
@@ -510,7 +510,7 @@ TEST(TestNumericAttributeTraits, Test_UINT40_BE)
     wValue = IntType::StorageToWorking(sValue);
 
     // 2) Verify that the correct storage format has been used
-    EXPECT_EQ(wValue, 0x123456789Au);
+    NL_TEST_ASSERT(apSuite, wValue == 0x123456789A);
 
     StorageType sNewValue;
 
@@ -518,22 +518,22 @@ TEST(TestNumericAttributeTraits, Test_UINT40_BE)
     IntType::WorkingToStorage(wValue, sNewValue);
 
     // 3) Verify that the bytes are located as intended
-    EXPECT_EQ(memcmp(storageTestData, &sNewValue, sizeof(sNewValue)), 0);
+    NL_TEST_ASSERT(apSuite, memcmp(storageTestData, &sNewValue, sizeof(sNewValue)) == 0);
 
     // Set Storage value to Null
     IntType::SetNull(sNullValue);
     wNullValue = IntType::StorageToWorking(sNullValue);
-    EXPECT_EQ(wNullValue, workingTestUnsignedNullValue);
-    EXPECT_TRUE(IntType::IsNullValue(sNullValue));
+    NL_TEST_ASSERT(apSuite, wNullValue == workingTestUnsignedNullValue);
+    NL_TEST_ASSERT(apSuite, (IntType::IsNullValue(sNullValue) == true));
 
     // Verify that null values can fit into not nullable
-    EXPECT_TRUE(IntType::CanRepresentValue(false, sNullValue));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(false, sNullValue) == true));
 
     // Verify that null values can't fit into nullable
-    EXPECT_FALSE(IntType::CanRepresentValue(true, sNullValue));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(true, sNullValue) == false));
 }
 
-TEST(TestNumericAttributeTraits, Test_SINT40_LE)
+void Test_SINT40_LE(nlTestSuite * apSuite, void * apContext)
 {
     // Signed 40-bit Integer : 5 bytes - little-endian
     using IntType     = NumericAttributeTraits<OddSizedInteger<5, true>, false>;
@@ -552,10 +552,10 @@ TEST(TestNumericAttributeTraits, Test_SINT40_LE)
     const WorkingType workingTestSignedNullValue = -549755813888; // -0x8000000000
 
     // 1) Verify the size of the types
-    EXPECT_EQ(sizeof(sValuePos), 5u);
-    EXPECT_GE(sizeof(wValuePos), 5u);
-    EXPECT_EQ(sizeof(sValueNeg), 5u);
-    EXPECT_GE(sizeof(wValueNeg), 5u);
+    NL_TEST_ASSERT(apSuite, sizeof(sValuePos) == 5);
+    NL_TEST_ASSERT(apSuite, sizeof(wValuePos) >= 5);
+    NL_TEST_ASSERT(apSuite, sizeof(sValueNeg) == 5);
+    NL_TEST_ASSERT(apSuite, sizeof(wValueNeg) >= 5);
 
     // Initialize the Storage Values with the test-buffer
     memcpy(&sValuePos, storageTestDataPos, sizeof(sValuePos));
@@ -566,8 +566,8 @@ TEST(TestNumericAttributeTraits, Test_SINT40_LE)
     wValueNeg = IntType::StorageToWorking(sValueNeg);
 
     // 2) Verify that the correct storage format has been used
-    EXPECT_EQ(wValuePos, workingDataPos);
-    EXPECT_EQ(wValueNeg, workingDataNeg);
+    NL_TEST_ASSERT(apSuite, wValuePos == workingDataPos);
+    NL_TEST_ASSERT(apSuite, wValueNeg == workingDataNeg);
 
     StorageType sNewValuePos;
     StorageType sNewValueNeg;
@@ -577,8 +577,8 @@ TEST(TestNumericAttributeTraits, Test_SINT40_LE)
     IntType::WorkingToStorage(wValueNeg, sNewValueNeg);
 
     // 3) Verify that the bytes are located as intended
-    EXPECT_EQ(memcmp(storageTestDataPos, &sNewValuePos, sizeof(sNewValuePos)), 0);
-    EXPECT_EQ(memcmp(storageTestDataNeg, &sNewValueNeg, sizeof(sNewValueNeg)), 0);
+    NL_TEST_ASSERT(apSuite, memcmp(storageTestDataPos, &sNewValuePos, sizeof(sNewValuePos)) == 0);
+    NL_TEST_ASSERT(apSuite, memcmp(storageTestDataNeg, &sNewValueNeg, sizeof(sNewValueNeg)) == 0);
 
     StorageType sNullValue;
     WorkingType wNullValue;
@@ -586,19 +586,19 @@ TEST(TestNumericAttributeTraits, Test_SINT40_LE)
     // Set Storage value to Null
     IntType::SetNull(sNullValue);
     wNullValue = IntType::StorageToWorking(sNullValue);
-    EXPECT_EQ(wNullValue, workingTestSignedNullValue);
-    EXPECT_TRUE(IntType::IsNullValue(sNullValue));
+    NL_TEST_ASSERT(apSuite, wNullValue == workingTestSignedNullValue);
+    NL_TEST_ASSERT(apSuite, (IntType::IsNullValue(sNullValue) == true));
 
     // Verify that null values can fit into not nullable
-    EXPECT_TRUE(IntType::CanRepresentValue(false, sNullValue));
-    EXPECT_TRUE(IntType::CanRepresentValue(false, wNullValue));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(false, sNullValue) == true));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(false, wNullValue) == true));
 
     // Verify that null values can't fit into nullable
-    EXPECT_FALSE(IntType::CanRepresentValue(true, sNullValue));
-    EXPECT_FALSE(IntType::CanRepresentValue(true, wNullValue));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(true, sNullValue) == false));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(true, wNullValue) == false));
 }
 
-TEST(TestNumericAttributeTraits, Test_SINT40_BE)
+void Test_SINT40_BE(nlTestSuite * apSuite, void * apContext)
 {
     // Signed 40-bit Integer : 5 bytes - big-endian
     using IntType     = NumericAttributeTraits<OddSizedInteger<5, true>, true>;
@@ -617,10 +617,10 @@ TEST(TestNumericAttributeTraits, Test_SINT40_BE)
     const WorkingType workingTestSignedNullValue = -549755813888; // -0x8000000000
 
     // 1) Verify the size of the types
-    EXPECT_EQ(sizeof(sValuePos), 5u);
-    EXPECT_GE(sizeof(wValuePos), 5u);
-    EXPECT_EQ(sizeof(sValueNeg), 5u);
-    EXPECT_GE(sizeof(wValueNeg), 5u);
+    NL_TEST_ASSERT(apSuite, sizeof(sValuePos) == 5);
+    NL_TEST_ASSERT(apSuite, sizeof(wValuePos) >= 5);
+    NL_TEST_ASSERT(apSuite, sizeof(sValueNeg) == 5);
+    NL_TEST_ASSERT(apSuite, sizeof(wValueNeg) >= 5);
 
     // Initialize the Storage Values with the test-buffer
     memcpy(&sValuePos, storageTestDataPos, sizeof(sValuePos));
@@ -631,8 +631,8 @@ TEST(TestNumericAttributeTraits, Test_SINT40_BE)
     wValueNeg = IntType::StorageToWorking(sValueNeg);
 
     // 2) Verify that the correct storage format has been used
-    EXPECT_EQ(wValuePos, workingDataPos);
-    EXPECT_EQ(wValueNeg, workingDataNeg);
+    NL_TEST_ASSERT(apSuite, wValuePos == workingDataPos);
+    NL_TEST_ASSERT(apSuite, wValueNeg == workingDataNeg);
 
     StorageType sNewValuePos;
     StorageType sNewValueNeg;
@@ -642,8 +642,8 @@ TEST(TestNumericAttributeTraits, Test_SINT40_BE)
     IntType::WorkingToStorage(wValueNeg, sNewValueNeg);
 
     // 3) Verify that the bytes are located as intended
-    EXPECT_EQ(memcmp(storageTestDataPos, &sNewValuePos, sizeof(sNewValuePos)), 0);
-    EXPECT_EQ(memcmp(storageTestDataNeg, &sNewValueNeg, sizeof(sNewValueNeg)), 0);
+    NL_TEST_ASSERT(apSuite, memcmp(storageTestDataPos, &sNewValuePos, sizeof(sNewValuePos)) == 0);
+    NL_TEST_ASSERT(apSuite, memcmp(storageTestDataNeg, &sNewValueNeg, sizeof(sNewValueNeg)) == 0);
 
     StorageType sNullValue;
     WorkingType wNullValue;
@@ -651,16 +651,16 @@ TEST(TestNumericAttributeTraits, Test_SINT40_BE)
     // Set Storage value to Null
     IntType::SetNull(sNullValue);
     wNullValue = IntType::StorageToWorking(sNullValue);
-    EXPECT_EQ(wNullValue, workingTestSignedNullValue);
-    EXPECT_TRUE(IntType::IsNullValue(sNullValue));
+    NL_TEST_ASSERT(apSuite, wNullValue == workingTestSignedNullValue);
+    NL_TEST_ASSERT(apSuite, (IntType::IsNullValue(sNullValue) == true));
 
     // Verify that null values can fit into not nullable
-    EXPECT_TRUE(IntType::CanRepresentValue(false, sNullValue));
-    EXPECT_TRUE(IntType::CanRepresentValue(false, wNullValue));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(false, sNullValue) == true));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(false, wNullValue) == true));
 
     // Verify that null values can't fit into nullable
-    EXPECT_FALSE(IntType::CanRepresentValue(true, sNullValue));
-    EXPECT_FALSE(IntType::CanRepresentValue(true, wNullValue));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(true, sNullValue) == false));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(true, wNullValue) == false));
 }
 
 ////////////////////////////////////////////////////////////
@@ -675,7 +675,7 @@ TEST(TestNumericAttributeTraits, Test_SINT40_BE)
 //       $$/  $$$$$$/        $$$$$$$/  $$$$$$/    $$/     //
 //                                                        //
 ////////////////////////////////////////////////////////////
-TEST(TestNumericAttributeTraits, Test_UINT48_LE)
+void Test_UINT48_LE(nlTestSuite * apSuite, void * apContext)
 {
     // Unsigned 48-bit Integer : 6 bytes - little-endian
     using IntType     = NumericAttributeTraits<OddSizedInteger<6, false>, false>;
@@ -690,8 +690,8 @@ TEST(TestNumericAttributeTraits, Test_UINT48_LE)
     const WorkingType workingTestUnsignedNullValue = 281474976710655; // 0xFFFFFFFFFFFF
 
     // 1) Verify the size of the types
-    EXPECT_EQ(sizeof(sValue), 6u);
-    EXPECT_GE(sizeof(wValue), 6u);
+    NL_TEST_ASSERT(apSuite, sizeof(sValue) == 6);
+    NL_TEST_ASSERT(apSuite, sizeof(wValue) >= 6);
 
     // Initialize the Storage Value with the test-buffer
     memcpy(&sValue, storageTestData, sizeof(sValue));
@@ -700,7 +700,7 @@ TEST(TestNumericAttributeTraits, Test_UINT48_LE)
     wValue = IntType::StorageToWorking(sValue);
 
     // 2) Verify that the correct storage format has been used
-    EXPECT_EQ(wValue, 0x123456789ABCu);
+    NL_TEST_ASSERT(apSuite, wValue == 0x123456789ABC);
 
     StorageType sNewValue;
 
@@ -708,22 +708,22 @@ TEST(TestNumericAttributeTraits, Test_UINT48_LE)
     IntType::WorkingToStorage(wValue, sNewValue);
 
     // 3) Verify that the bytes are located as intended
-    EXPECT_EQ(memcmp(storageTestData, &sNewValue, sizeof(sNewValue)), 0);
+    NL_TEST_ASSERT(apSuite, memcmp(storageTestData, &sNewValue, sizeof(sNewValue)) == 0);
 
     // Set Storage value to Null
     IntType::SetNull(sNullValue);
     wNullValue = IntType::StorageToWorking(sNullValue);
-    EXPECT_EQ(wNullValue, workingTestUnsignedNullValue);
-    EXPECT_TRUE(IntType::IsNullValue(sNullValue));
+    NL_TEST_ASSERT(apSuite, wNullValue == workingTestUnsignedNullValue);
+    NL_TEST_ASSERT(apSuite, (IntType::IsNullValue(sNullValue) == true));
 
     // Verify that null values can fit into not nullable
-    EXPECT_TRUE(IntType::CanRepresentValue(false, sNullValue));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(false, sNullValue) == true));
 
     // Verify that null values can't fit into nullable
-    EXPECT_FALSE(IntType::CanRepresentValue(true, sNullValue));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(true, sNullValue) == false));
 }
 
-TEST(TestNumericAttributeTraits, Test_UINT48_BE)
+void Test_UINT48_BE(nlTestSuite * apSuite, void * apContext)
 {
     // Unsigned 48-bit Integer : 6 bytes - big-endian
     using IntType     = NumericAttributeTraits<OddSizedInteger<6, false>, true>;
@@ -738,8 +738,8 @@ TEST(TestNumericAttributeTraits, Test_UINT48_BE)
     const WorkingType workingTestUnsignedNullValue = 281474976710655; // 0xFFFFFFFFFFFF
 
     // 1) Verify the size of the types
-    EXPECT_EQ(sizeof(sValue), 6u);
-    EXPECT_GE(sizeof(wValue), 6u);
+    NL_TEST_ASSERT(apSuite, sizeof(sValue) == 6);
+    NL_TEST_ASSERT(apSuite, sizeof(wValue) >= 6);
 
     // Initialize the Storage Value with the test-buffer
     memcpy(&sValue, storageTestData, sizeof(sValue));
@@ -748,7 +748,7 @@ TEST(TestNumericAttributeTraits, Test_UINT48_BE)
     wValue = IntType::StorageToWorking(sValue);
 
     // 2) Verify that the correct storage format has been used
-    EXPECT_EQ(wValue, 0x123456789ABCu);
+    NL_TEST_ASSERT(apSuite, wValue == 0x123456789ABC);
 
     StorageType sNewValue;
 
@@ -756,22 +756,22 @@ TEST(TestNumericAttributeTraits, Test_UINT48_BE)
     IntType::WorkingToStorage(wValue, sNewValue);
 
     // 3) Verify that the bytes are located as intended
-    EXPECT_EQ(memcmp(storageTestData, &sNewValue, sizeof(sNewValue)), 0);
+    NL_TEST_ASSERT(apSuite, memcmp(storageTestData, &sNewValue, sizeof(sNewValue)) == 0);
 
     // Set Storage value to Null
     IntType::SetNull(sNullValue);
     wNullValue = IntType::StorageToWorking(sNullValue);
-    EXPECT_EQ(wNullValue, workingTestUnsignedNullValue);
-    EXPECT_TRUE(IntType::IsNullValue(sNullValue));
+    NL_TEST_ASSERT(apSuite, wNullValue == workingTestUnsignedNullValue);
+    NL_TEST_ASSERT(apSuite, (IntType::IsNullValue(sNullValue) == true));
 
     // Verify that null values can fit into not nullable
-    EXPECT_TRUE(IntType::CanRepresentValue(false, sNullValue));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(false, sNullValue) == true));
 
     // Verify that null values can't fit into nullable
-    EXPECT_FALSE(IntType::CanRepresentValue(true, sNullValue));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(true, sNullValue) == false));
 }
 
-TEST(TestNumericAttributeTraits, Test_SINT48_LE)
+void Test_SINT48_LE(nlTestSuite * apSuite, void * apContext)
 {
     // Signed 48-bit Integer : 6 bytes - little-endian
     using IntType     = NumericAttributeTraits<OddSizedInteger<6, true>, false>;
@@ -790,10 +790,10 @@ TEST(TestNumericAttributeTraits, Test_SINT48_LE)
     const WorkingType workingTestSignedNullValue = -140737488355328; // -0x800000000000
 
     // 1) Verify the size of the types
-    EXPECT_EQ(sizeof(sValuePos), 6u);
-    EXPECT_GE(sizeof(wValuePos), 6u);
-    EXPECT_EQ(sizeof(sValueNeg), 6u);
-    EXPECT_GE(sizeof(wValueNeg), 6u);
+    NL_TEST_ASSERT(apSuite, sizeof(sValuePos) == 6);
+    NL_TEST_ASSERT(apSuite, sizeof(wValuePos) >= 6);
+    NL_TEST_ASSERT(apSuite, sizeof(sValueNeg) == 6);
+    NL_TEST_ASSERT(apSuite, sizeof(wValueNeg) >= 6);
 
     // Initialize the Storage Values with the test-buffer
     memcpy(&sValuePos, storageTestDataPos, sizeof(sValuePos));
@@ -804,8 +804,8 @@ TEST(TestNumericAttributeTraits, Test_SINT48_LE)
     wValueNeg = IntType::StorageToWorking(sValueNeg);
 
     // 2) Verify that the correct storage format has been used
-    EXPECT_EQ(wValuePos, workingDataPos);
-    EXPECT_EQ(wValueNeg, workingDataNeg);
+    NL_TEST_ASSERT(apSuite, wValuePos == workingDataPos);
+    NL_TEST_ASSERT(apSuite, wValueNeg == workingDataNeg);
 
     StorageType sNewValuePos;
     StorageType sNewValueNeg;
@@ -815,8 +815,8 @@ TEST(TestNumericAttributeTraits, Test_SINT48_LE)
     IntType::WorkingToStorage(wValueNeg, sNewValueNeg);
 
     // 3) Verify that the bytes are located as intended
-    EXPECT_EQ(memcmp(storageTestDataPos, &sNewValuePos, sizeof(sNewValuePos)), 0);
-    EXPECT_EQ(memcmp(storageTestDataNeg, &sNewValueNeg, sizeof(sNewValueNeg)), 0);
+    NL_TEST_ASSERT(apSuite, memcmp(storageTestDataPos, &sNewValuePos, sizeof(sNewValuePos)) == 0);
+    NL_TEST_ASSERT(apSuite, memcmp(storageTestDataNeg, &sNewValueNeg, sizeof(sNewValueNeg)) == 0);
 
     StorageType sNullValue;
     WorkingType wNullValue;
@@ -824,19 +824,19 @@ TEST(TestNumericAttributeTraits, Test_SINT48_LE)
     // Set Storage value to Null
     IntType::SetNull(sNullValue);
     wNullValue = IntType::StorageToWorking(sNullValue);
-    EXPECT_EQ(wNullValue, workingTestSignedNullValue);
-    EXPECT_TRUE(IntType::IsNullValue(sNullValue));
+    NL_TEST_ASSERT(apSuite, wNullValue == workingTestSignedNullValue);
+    NL_TEST_ASSERT(apSuite, (IntType::IsNullValue(sNullValue) == true));
 
     // Verify that null values can fit into not nullable
-    EXPECT_TRUE(IntType::CanRepresentValue(false, sNullValue));
-    EXPECT_TRUE(IntType::CanRepresentValue(false, wNullValue));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(false, sNullValue) == true));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(false, wNullValue) == true));
 
     // Verify that null values can't fit into nullable
-    EXPECT_FALSE(IntType::CanRepresentValue(true, sNullValue));
-    EXPECT_FALSE(IntType::CanRepresentValue(true, wNullValue));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(true, sNullValue) == false));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(true, wNullValue) == false));
 }
 
-TEST(TestNumericAttributeTraits, Test_SINT48_BE)
+void Test_SINT48_BE(nlTestSuite * apSuite, void * apContext)
 {
     // Signed 48-bit Integer : 6 bytes - big-endian
     using IntType     = NumericAttributeTraits<OddSizedInteger<6, true>, true>;
@@ -855,10 +855,10 @@ TEST(TestNumericAttributeTraits, Test_SINT48_BE)
     const WorkingType workingTestSignedNullValue = -140737488355328; // -0x800000000000
 
     // 1) Verify the size of the types
-    EXPECT_EQ(sizeof(sValuePos), 6u);
-    EXPECT_GE(sizeof(wValuePos), 6u);
-    EXPECT_EQ(sizeof(sValueNeg), 6u);
-    EXPECT_GE(sizeof(wValueNeg), 6u);
+    NL_TEST_ASSERT(apSuite, sizeof(sValuePos) == 6);
+    NL_TEST_ASSERT(apSuite, sizeof(wValuePos) >= 6);
+    NL_TEST_ASSERT(apSuite, sizeof(sValueNeg) == 6);
+    NL_TEST_ASSERT(apSuite, sizeof(wValueNeg) >= 6);
 
     // Initialize the Storage Values with the test-buffer
     memcpy(&sValuePos, storageTestDataPos, sizeof(sValuePos));
@@ -869,8 +869,8 @@ TEST(TestNumericAttributeTraits, Test_SINT48_BE)
     wValueNeg = IntType::StorageToWorking(sValueNeg);
 
     // 2) Verify that the correct storage format has been used
-    EXPECT_EQ(wValuePos, workingDataPos);
-    EXPECT_EQ(wValueNeg, workingDataNeg);
+    NL_TEST_ASSERT(apSuite, wValuePos == workingDataPos);
+    NL_TEST_ASSERT(apSuite, wValueNeg == workingDataNeg);
 
     StorageType sNewValuePos;
     StorageType sNewValueNeg;
@@ -880,8 +880,8 @@ TEST(TestNumericAttributeTraits, Test_SINT48_BE)
     IntType::WorkingToStorage(wValueNeg, sNewValueNeg);
 
     // 3) Verify that the bytes are located as intended
-    EXPECT_EQ(memcmp(storageTestDataPos, &sNewValuePos, sizeof(sNewValuePos)), 0);
-    EXPECT_EQ(memcmp(storageTestDataNeg, &sNewValueNeg, sizeof(sNewValueNeg)), 0);
+    NL_TEST_ASSERT(apSuite, memcmp(storageTestDataPos, &sNewValuePos, sizeof(sNewValuePos)) == 0);
+    NL_TEST_ASSERT(apSuite, memcmp(storageTestDataNeg, &sNewValueNeg, sizeof(sNewValueNeg)) == 0);
 
     StorageType sNullValue;
     WorkingType wNullValue;
@@ -889,16 +889,16 @@ TEST(TestNumericAttributeTraits, Test_SINT48_BE)
     // Set Storage value to Null
     IntType::SetNull(sNullValue);
     wNullValue = IntType::StorageToWorking(sNullValue);
-    EXPECT_EQ(wNullValue, workingTestSignedNullValue);
-    EXPECT_TRUE(IntType::IsNullValue(sNullValue));
+    NL_TEST_ASSERT(apSuite, wNullValue == workingTestSignedNullValue);
+    NL_TEST_ASSERT(apSuite, (IntType::IsNullValue(sNullValue) == true));
 
     // Verify that null values can fit into not nullable
-    EXPECT_TRUE(IntType::CanRepresentValue(false, sNullValue));
-    EXPECT_TRUE(IntType::CanRepresentValue(false, wNullValue));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(false, sNullValue) == true));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(false, wNullValue) == true));
 
     // Verify that null values can't fit into nullable
-    EXPECT_FALSE(IntType::CanRepresentValue(true, sNullValue));
-    EXPECT_FALSE(IntType::CanRepresentValue(true, wNullValue));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(true, sNullValue) == false));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(true, wNullValue) == false));
 }
 
 ////////////////////////////////////////////////////////////
@@ -913,7 +913,7 @@ TEST(TestNumericAttributeTraits, Test_SINT48_BE)
 //  $$$$$$/   $$$$$$/        $$$$$$$/  $$$$$$/    $$/     //
 //                                                        //
 ////////////////////////////////////////////////////////////
-TEST(TestNumericAttributeTraits, Test_UINT56_LE)
+void Test_UINT56_LE(nlTestSuite * apSuite, void * apContext)
 {
     // Unsigned 56-bit Integer : 7 bytes - little-endian
     using IntType     = NumericAttributeTraits<OddSizedInteger<7, false>, false>;
@@ -928,8 +928,8 @@ TEST(TestNumericAttributeTraits, Test_UINT56_LE)
     const WorkingType workingTestUnsignedNullValue = 72057594037927935; // 0xFFFFFFFFFFFFFF
 
     // 1) Verify the size of the types
-    EXPECT_EQ(sizeof(sValue), 7u);
-    EXPECT_GE(sizeof(wValue), 7u);
+    NL_TEST_ASSERT(apSuite, sizeof(sValue) == 7);
+    NL_TEST_ASSERT(apSuite, sizeof(wValue) >= 7);
 
     // Initialize the Storage Value with the test-buffer
     memcpy(&sValue, storageTestData, sizeof(sValue));
@@ -938,7 +938,7 @@ TEST(TestNumericAttributeTraits, Test_UINT56_LE)
     wValue = IntType::StorageToWorking(sValue);
 
     // 2) Verify that the correct storage format has been used
-    EXPECT_EQ(wValue, 0x123456789ABCDEu);
+    NL_TEST_ASSERT(apSuite, wValue == 0x123456789ABCDE);
 
     StorageType sNewValue;
 
@@ -946,22 +946,22 @@ TEST(TestNumericAttributeTraits, Test_UINT56_LE)
     IntType::WorkingToStorage(wValue, sNewValue);
 
     // 3) Verify that the bytes are located as intended
-    EXPECT_EQ(memcmp(storageTestData, &sNewValue, sizeof(sNewValue)), 0);
+    NL_TEST_ASSERT(apSuite, memcmp(storageTestData, &sNewValue, sizeof(sNewValue)) == 0);
 
     // Set Storage value to Null
     IntType::SetNull(sNullValue);
     wNullValue = IntType::StorageToWorking(sNullValue);
-    EXPECT_EQ(wNullValue, workingTestUnsignedNullValue);
-    EXPECT_TRUE(IntType::IsNullValue(sNullValue));
+    NL_TEST_ASSERT(apSuite, wNullValue == workingTestUnsignedNullValue);
+    NL_TEST_ASSERT(apSuite, (IntType::IsNullValue(sNullValue) == true));
 
     // Verify that null values can fit into not nullable
-    EXPECT_TRUE(IntType::CanRepresentValue(false, sNullValue));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(false, sNullValue) == true));
 
     // Verify that null values can't fit into nullable
-    EXPECT_FALSE(IntType::CanRepresentValue(true, sNullValue));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(true, sNullValue) == false));
 }
 
-TEST(TestNumericAttributeTraits, Test_UINT56_BE)
+void Test_UINT56_BE(nlTestSuite * apSuite, void * apContext)
 {
     // Unsigned 56-bit Integer : 7 bytes - big-endian
     using IntType     = NumericAttributeTraits<OddSizedInteger<7, false>, true>;
@@ -976,8 +976,8 @@ TEST(TestNumericAttributeTraits, Test_UINT56_BE)
     const WorkingType workingTestUnsignedNullValue = 72057594037927935; // 0xFFFFFFFFFFFFFF
 
     // 1) Verify the size of the types
-    EXPECT_EQ(sizeof(sValue), 7u);
-    EXPECT_GE(sizeof(wValue), 7u);
+    NL_TEST_ASSERT(apSuite, sizeof(sValue) == 7);
+    NL_TEST_ASSERT(apSuite, sizeof(wValue) >= 7);
 
     // Initialize the Storage Value with the test-buffer
     memcpy(&sValue, storageTestData, sizeof(sValue));
@@ -986,7 +986,7 @@ TEST(TestNumericAttributeTraits, Test_UINT56_BE)
     wValue = IntType::StorageToWorking(sValue);
 
     // 2) Verify that the correct storage format has been used
-    EXPECT_EQ(wValue, 0x123456789ABCDEu);
+    NL_TEST_ASSERT(apSuite, wValue == 0x123456789ABCDE);
 
     StorageType sNewValue;
 
@@ -994,22 +994,22 @@ TEST(TestNumericAttributeTraits, Test_UINT56_BE)
     IntType::WorkingToStorage(wValue, sNewValue);
 
     // 3) Verify that the bytes are located as intended
-    EXPECT_EQ(memcmp(storageTestData, &sNewValue, sizeof(sNewValue)), 0);
+    NL_TEST_ASSERT(apSuite, memcmp(storageTestData, &sNewValue, sizeof(sNewValue)) == 0);
 
     // Set Storage value to Null
     IntType::SetNull(sNullValue);
     wNullValue = IntType::StorageToWorking(sNullValue);
-    EXPECT_EQ(wNullValue, workingTestUnsignedNullValue);
-    EXPECT_TRUE(IntType::IsNullValue(sNullValue));
+    NL_TEST_ASSERT(apSuite, wNullValue == workingTestUnsignedNullValue);
+    NL_TEST_ASSERT(apSuite, (IntType::IsNullValue(sNullValue) == true));
 
     // Verify that null values can fit into not nullable
-    EXPECT_TRUE(IntType::CanRepresentValue(false, sNullValue));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(false, sNullValue) == true));
 
     // Verify that null values can't fit into nullable
-    EXPECT_FALSE(IntType::CanRepresentValue(true, sNullValue));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(true, sNullValue) == false));
 }
 
-TEST(TestNumericAttributeTraits, Test_SINT56_LE)
+void Test_SINT56_LE(nlTestSuite * apSuite, void * apContext)
 {
     // Signed 56-bit Integer : 6 bytes - little-endian
     using IntType     = NumericAttributeTraits<OddSizedInteger<7, true>, false>;
@@ -1028,10 +1028,10 @@ TEST(TestNumericAttributeTraits, Test_SINT56_LE)
     const WorkingType workingTestSignedNullValue = -36028797018963968; // -0x80000000000000
 
     // 1) Verify the size of the types
-    EXPECT_EQ(sizeof(sValuePos), 7u);
-    EXPECT_GE(sizeof(wValuePos), 7u);
-    EXPECT_EQ(sizeof(sValueNeg), 7u);
-    EXPECT_GE(sizeof(wValueNeg), 7u);
+    NL_TEST_ASSERT(apSuite, sizeof(sValuePos) == 7);
+    NL_TEST_ASSERT(apSuite, sizeof(wValuePos) >= 7);
+    NL_TEST_ASSERT(apSuite, sizeof(sValueNeg) == 7);
+    NL_TEST_ASSERT(apSuite, sizeof(wValueNeg) >= 7);
 
     // Initialize the Storage Values with the test-buffer
     memcpy(&sValuePos, storageTestDataPos, sizeof(sValuePos));
@@ -1042,8 +1042,8 @@ TEST(TestNumericAttributeTraits, Test_SINT56_LE)
     wValueNeg = IntType::StorageToWorking(sValueNeg);
 
     // 2) Verify that the correct storage format has been used
-    EXPECT_EQ(wValuePos, workingDataPos);
-    EXPECT_EQ(wValueNeg, workingDataNeg);
+    NL_TEST_ASSERT(apSuite, wValuePos == workingDataPos);
+    NL_TEST_ASSERT(apSuite, wValueNeg == workingDataNeg);
 
     StorageType sNewValuePos;
     StorageType sNewValueNeg;
@@ -1053,8 +1053,8 @@ TEST(TestNumericAttributeTraits, Test_SINT56_LE)
     IntType::WorkingToStorage(wValueNeg, sNewValueNeg);
 
     // 3) Verify that the bytes are located as intended
-    EXPECT_EQ(memcmp(storageTestDataPos, &sNewValuePos, sizeof(sNewValuePos)), 0);
-    EXPECT_EQ(memcmp(storageTestDataNeg, &sNewValueNeg, sizeof(sNewValueNeg)), 0);
+    NL_TEST_ASSERT(apSuite, memcmp(storageTestDataPos, &sNewValuePos, sizeof(sNewValuePos)) == 0);
+    NL_TEST_ASSERT(apSuite, memcmp(storageTestDataNeg, &sNewValueNeg, sizeof(sNewValueNeg)) == 0);
 
     StorageType sNullValue;
     WorkingType wNullValue;
@@ -1062,19 +1062,19 @@ TEST(TestNumericAttributeTraits, Test_SINT56_LE)
     // Set Storage value to Null
     IntType::SetNull(sNullValue);
     wNullValue = IntType::StorageToWorking(sNullValue);
-    EXPECT_EQ(wNullValue, workingTestSignedNullValue);
-    EXPECT_TRUE(IntType::IsNullValue(sNullValue));
+    NL_TEST_ASSERT(apSuite, wNullValue == workingTestSignedNullValue);
+    NL_TEST_ASSERT(apSuite, (IntType::IsNullValue(sNullValue) == true));
 
     // Verify that null values can fit into not nullable
-    EXPECT_TRUE(IntType::CanRepresentValue(false, sNullValue));
-    EXPECT_TRUE(IntType::CanRepresentValue(false, wNullValue));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(false, sNullValue) == true));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(false, wNullValue) == true));
 
     // Verify that null values can't fit into nullable
-    EXPECT_FALSE(IntType::CanRepresentValue(true, sNullValue));
-    EXPECT_FALSE(IntType::CanRepresentValue(true, wNullValue));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(true, sNullValue) == false));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(true, wNullValue) == false));
 }
 
-TEST(TestNumericAttributeTraits, Test_SINT56_BE)
+void Test_SINT56_BE(nlTestSuite * apSuite, void * apContext)
 {
     // Signed 56-bit Integer : 7 bytes - big-endian
     using IntType     = NumericAttributeTraits<OddSizedInteger<7, true>, true>;
@@ -1093,10 +1093,10 @@ TEST(TestNumericAttributeTraits, Test_SINT56_BE)
     const WorkingType workingTestSignedNullValue = -36028797018963968; // -0x80000000000000
 
     // 1) Verify the size of the types
-    EXPECT_EQ(sizeof(sValuePos), 7u);
-    EXPECT_GE(sizeof(wValuePos), 7u);
-    EXPECT_EQ(sizeof(sValueNeg), 7u);
-    EXPECT_GE(sizeof(wValueNeg), 7u);
+    NL_TEST_ASSERT(apSuite, sizeof(sValuePos) == 7);
+    NL_TEST_ASSERT(apSuite, sizeof(wValuePos) >= 7);
+    NL_TEST_ASSERT(apSuite, sizeof(sValueNeg) == 7);
+    NL_TEST_ASSERT(apSuite, sizeof(wValueNeg) >= 7);
 
     // Initialize the Storage Values with the test-buffer
     memcpy(&sValuePos, storageTestDataPos, sizeof(sValuePos));
@@ -1107,8 +1107,8 @@ TEST(TestNumericAttributeTraits, Test_SINT56_BE)
     wValueNeg = IntType::StorageToWorking(sValueNeg);
 
     // 2) Verify that the correct storage format has been used
-    EXPECT_EQ(wValuePos, workingDataPos);
-    EXPECT_EQ(wValueNeg, workingDataNeg);
+    NL_TEST_ASSERT(apSuite, wValuePos == workingDataPos);
+    NL_TEST_ASSERT(apSuite, wValueNeg == workingDataNeg);
 
     StorageType sNewValuePos;
     StorageType sNewValueNeg;
@@ -1118,8 +1118,8 @@ TEST(TestNumericAttributeTraits, Test_SINT56_BE)
     IntType::WorkingToStorage(wValueNeg, sNewValueNeg);
 
     // 3) Verify that the bytes are located as intended
-    EXPECT_EQ(memcmp(storageTestDataPos, &sNewValuePos, sizeof(sNewValuePos)), 0);
-    EXPECT_EQ(memcmp(storageTestDataNeg, &sNewValueNeg, sizeof(sNewValueNeg)), 0);
+    NL_TEST_ASSERT(apSuite, memcmp(storageTestDataPos, &sNewValuePos, sizeof(sNewValuePos)) == 0);
+    NL_TEST_ASSERT(apSuite, memcmp(storageTestDataNeg, &sNewValueNeg, sizeof(sNewValueNeg)) == 0);
 
     StorageType sNullValue;
     WorkingType wNullValue;
@@ -1127,16 +1127,82 @@ TEST(TestNumericAttributeTraits, Test_SINT56_BE)
     // Set Storage value to Null
     IntType::SetNull(sNullValue);
     wNullValue = IntType::StorageToWorking(sNullValue);
-    EXPECT_EQ(wNullValue, workingTestSignedNullValue);
-    EXPECT_TRUE(IntType::IsNullValue(sNullValue));
+    NL_TEST_ASSERT(apSuite, wNullValue == workingTestSignedNullValue);
+    NL_TEST_ASSERT(apSuite, (IntType::IsNullValue(sNullValue) == true));
 
     // Verify that null values can fit into not nullable
-    EXPECT_TRUE(IntType::CanRepresentValue(false, sNullValue));
-    EXPECT_TRUE(IntType::CanRepresentValue(false, wNullValue));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(false, sNullValue) == true));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(false, wNullValue) == true));
 
     // Verify that null values can't fit into nullable
-    EXPECT_FALSE(IntType::CanRepresentValue(true, sNullValue));
-    EXPECT_FALSE(IntType::CanRepresentValue(true, wNullValue));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(true, sNullValue) == false));
+    NL_TEST_ASSERT(apSuite, (IntType::CanRepresentValue(true, wNullValue) == false));
 }
 
+static int TestSetup(void * inContext)
+{
+    return SUCCESS;
+}
+
+/**
+ *  Tear down the test suite.
+ */
+static int TestTeardown(void * inContext)
+{
+    return SUCCESS;
+}
+
+/**
+ *   Test Suite. It lists all the test functions.
+ */
+
+// clang-format off
+const nlTest sTests[] =
+{
+    NL_TEST_DEF("Test_UINT8", Test_UINT8),
+    NL_TEST_DEF("Test_SINT8", Test_SINT8),
+    NL_TEST_DEF("Test_SimpleEnum", Test_SimpleEnum),
+
+    NL_TEST_DEF("Test_UINT24_LE",Test_UINT24_LE),
+    NL_TEST_DEF("Test_SINT24_LE",Test_SINT24_LE),
+    NL_TEST_DEF("Test_UINT24_BE",Test_UINT24_BE),
+    NL_TEST_DEF("Test_SINT24_BE",Test_SINT24_BE),
+
+    NL_TEST_DEF("Test_UINT40_LE",Test_UINT40_LE),
+    NL_TEST_DEF("Test_SINT40_LE",Test_SINT40_LE),
+    NL_TEST_DEF("Test_UINT40_BE",Test_UINT40_BE),
+    NL_TEST_DEF("Test_SINT40_BE",Test_SINT40_BE),
+
+    NL_TEST_DEF("Test_UINT48_LE",Test_UINT48_LE),
+    NL_TEST_DEF("Test_SINT48_LE",Test_SINT48_LE),
+    NL_TEST_DEF("Test_UINT48_BE",Test_UINT48_BE),
+    NL_TEST_DEF("Test_SINT48_BE",Test_SINT48_BE),
+
+    NL_TEST_DEF("Test_UINT56_LE",Test_UINT56_LE),
+    NL_TEST_DEF("Test_SINT56_LE",Test_SINT56_LE),
+    NL_TEST_DEF("Test_UINT56_BE",Test_UINT56_BE),
+    NL_TEST_DEF("Test_SINT56_BE",Test_SINT56_BE),
+
+    NL_TEST_SENTINEL()
+};
+// clang-format on
+
+// clang-format off
+nlTestSuite theSuite =
+{
+    "TestNumericAttributeTraits",
+    &sTests[0],
+    TestSetup,
+    TestTeardown
+};
+// clang-format on
+
 } // namespace
+
+int TestNumericAttributeTraits()
+{
+    nlTestRunner(&theSuite, nullptr);
+    return (nlTestRunnerStats(&theSuite));
+}
+
+CHIP_REGISTER_TEST_SUITE(TestNumericAttributeTraits)

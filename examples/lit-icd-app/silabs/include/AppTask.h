@@ -28,8 +28,7 @@
 
 #include "AppEvent.h"
 #include "BaseApplication.h"
-#include <app/icd/server/ICDStateObserver.h>
-#include <ble/Ble.h>
+#include <ble/BLEEndPoint.h>
 #include <cmsis_os2.h>
 #include <lib/core/CHIPError.h>
 #include <platform/CHIPDeviceLayer.h>
@@ -50,12 +49,11 @@
  * AppTask Declaration
  *********************************************************/
 
-class AppTask : public BaseApplication, public chip::app::ICDStateObserver
+class AppTask : public BaseApplication
 {
 
 public:
-    AppTask()          = default;
-    virtual ~AppTask() = default;
+    AppTask() = default;
 
     static AppTask & GetAppTask() { return sAppTask; }
 
@@ -77,28 +75,6 @@ public:
      *                  SL_SIMPLE_BUTTON_RELEASED or SL_SIMPLE_BUTTON_DISABLED
      */
     static void ButtonEventHandler(uint8_t button, uint8_t btnAction);
-
-    /**
-     * @brief When the ICD enters ActiveMode, update LCD to reflect the ICD current state.
-     *        Set LCD to ActiveMode UI.
-     */
-    void OnEnterActiveMode();
-
-    /**
-     * @brief When the ICD enters IdleMode, update LCD to reflect the ICD current state.
-     *        Set LCD to IdleMode UI.
-     */
-    void OnEnterIdleMode();
-
-    /**
-     * @brief AppTask has no action to do on this ICD event. Do nothing.
-     */
-    void OnTransitionToIdle(){};
-
-    /**
-     * @brief AppTask has no action to do on this ICD event. Do nothing.
-     */
-    void OnICDModeChange(){};
 
 private:
     static AppTask sAppTask;

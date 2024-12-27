@@ -21,6 +21,7 @@
 #include <app-common/zap-generated/cluster-objects.h>
 
 #include <app/CommandResponseHelper.h>
+#include <app/util/af.h>
 
 namespace chip {
 namespace app {

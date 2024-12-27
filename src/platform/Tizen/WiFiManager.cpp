@@ -31,9 +31,7 @@
 #include <lib/support/logging/CHIPLogging.h>
 #include <platform/GLibTypeDeleter.h>
 #include <platform/PlatformManager.h>
-
-#include "ErrorUtils.h"
-#include "NetworkCommissioningDriver.h"
+#include <platform/Tizen/NetworkCommissioningDriver.h>
 
 using namespace ::chip::DeviceLayer::NetworkCommissioning;
 
@@ -1097,23 +1095,34 @@ CHIP_ERROR WiFiManager::GetConnectionState(wifi_manager_connection_state_e * con
     return err;
 }
 
-CHIP_ERROR WiFiManager::GetBssId(MutableByteSpan & value)
+CHIP_ERROR WiFiManager::GetBssId(uint8_t * bssId)
 {
-    VerifyOrReturnError(value.size() >= kWiFiBSSIDLength, CHIP_ERROR_BUFFER_TOO_SMALL);
+    VerifyOrReturnError(bssId != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
+
+    char * bssIdStr = nullptr;
+    std::unique_ptr<char, decltype(&::free)> _{ bssIdStr, &::free };
 
     wifi_manager_ap_h connectedAp = _WiFiGetConnectedAP();
-    VerifyOrReturnError(connectedAp != nullptr, CHIP_ERROR_INCORRECT_STATE);
+    if (connectedAp == nullptr)
+    {
+        return CHIP_ERROR_INCORRECT_STATE;
+    }
 
-    GAutoPtr<char> bssIdStr;
-    int wifiErr = wifi_manager_ap_get_bssid(connectedAp, &bssIdStr.GetReceiver());
-    VerifyOrReturnError(wifiErr == WIFI_MANAGER_ERROR_NONE, TizenToChipError(wifiErr),
-                        ChipLogError(DeviceLayer, "FAIL: Get AP BSSID: %s", get_error_message(wifiErr)));
+    int wifiErr = wifi_manager_ap_get_bssid(connectedAp, &bssIdStr);
+    if (wifiErr != WIFI_MANAGER_ERROR_NONE)
+    {
+        ChipLogError(DeviceLayer, "FAIL: get bssid [%s]", get_error_message(wifiErr));
+        return CHIP_ERROR_READ_FAILED;
+    }
 
-    uint8_t * data = value.data();
-    int rv = sscanf(bssIdStr.get(), "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", &data[0], &data[1], &data[2], &data[3], &data[4], &data[5]);
-    VerifyOrReturnError(rv == kWiFiBSSIDLength, CHIP_ERROR_READ_FAILED, ChipLogError(DeviceLayer, "FAIL: Parse AP BSSID"));
+    if (sscanf(bssIdStr, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", &mWiFiBSSID[0], &mWiFiBSSID[1], &mWiFiBSSID[2], &mWiFiBSSID[3],
+               &mWiFiBSSID[4], &mWiFiBSSID[5]) != 6)
+    {
+        ChipLogError(DeviceLayer, "FAIL: parse bssid");
+        return CHIP_ERROR_READ_FAILED;
+    }
 
-    value.reduce_size(kWiFiBSSIDLength);
+    bssId = mWiFiBSSID;
     return CHIP_NO_ERROR;
 }
 

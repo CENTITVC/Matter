@@ -86,6 +86,7 @@ static_library("webos") {
     "InetPlatformConfig.h",
     "KeyValueStoreManagerImpl.cpp",
     "KeyValueStoreManagerImpl.h",
+    "Logging.cpp",
     "MainLoop.cpp",
     "MainLoop.h",
     "NetworkCommissioningDriver.h",
@@ -151,12 +152,4 @@ static_library("webos") {
     "pbnjson_c",
     "pbnjson_cpp",
   ]
-}
-
-source_set("logging") {
-  deps = [
-    "${chip_root}/src/platform:platform_base",
-    "${chip_root}/src/platform/logging:headers",
-  ]
-  sources = [ "Logging.cpp" ]
 }

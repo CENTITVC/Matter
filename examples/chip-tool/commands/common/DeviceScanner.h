@@ -25,7 +25,6 @@
 #include <controller/CHIPDeviceController.h>
 #include <lib/dnssd/platform/Dnssd.h>
 
-#include <string>
 #include <unordered_map>
 #include <vector>
 
@@ -42,7 +41,7 @@ struct DeviceScannerResult
     chip::Optional<chip::Dnssd::CommonResolutionData> mResolutionData;
 };
 
-class DeviceScanner : public chip::Dnssd::DiscoverNodeDelegate,
+class DeviceScanner : public chip::Dnssd::CommissioningResolveDelegate,
                       public chip::Dnssd::DnssdBrowseDelegate
 #if CONFIG_NETWORK_LAYER_BLE
     ,
@@ -56,7 +55,7 @@ public:
     CHIP_ERROR Get(uint16_t index, chip::Dnssd::CommonResolutionData & resolutionData);
     void Log() const;
 
-    /////////// DiscoverNodeDelegate Interface /////////
+    /////////// CommissioningResolveDelegate Interface /////////
     void OnNodeDiscovered(const chip::Dnssd::DiscoveredNodeData & nodeData) override;
 
     /////////// DnssdBrowseDelegate Interface /////////

@@ -31,7 +31,6 @@
 #include <app/EventLoggingTypes.h>
 #include <app/MessageDef/EventDataIB.h>
 #include <app/MessageDef/StatusIB.h>
-#include <app/data-model-provider/EventsGenerator.h>
 #include <app/util/basic-types.h>
 #include <lib/core/TLVCircularBuffer.h>
 #include <lib/support/CHIPCounter.h>
@@ -197,7 +196,7 @@ struct LogStorageResources
  *   more space for new events.
  */
 
-class EventManagement : public DataModel::EventsGenerator
+class EventManagement
 {
 public:
     /**
@@ -388,10 +387,6 @@ public:
      */
     void SetScheduledEventInfo(EventNumber & aEventNumber, uint32_t & aInitialWrittenEventBytes) const;
 
-    /* EventsGenerator implementation */
-    CHIP_ERROR GenerateEvent(EventLoggingDelegate * eventPayloadWriter, const EventOptions & options,
-                             EventNumber & generatedEventNumber) override;
-
 private:
     /**
      * @brief
@@ -564,6 +559,5 @@ private:
 
     System::Clock::Milliseconds64 mMonotonicStartupTime;
 };
-
 } // namespace app
 } // namespace chip

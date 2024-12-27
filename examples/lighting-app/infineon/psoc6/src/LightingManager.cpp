@@ -39,7 +39,7 @@ CHIP_ERROR LightingManager::Init()
 
     if (sLightTimer == NULL)
     {
-        PSOC6_LOG("sLockTimer timer create failed");
+        P6_LOG("sLockTimer timer create failed");
         return APP_ERROR_CREATE_TIMER_FAILED;
     }
 
@@ -125,7 +125,7 @@ void LightingManager::StartTimer(uint32_t aTimeoutMs)
 {
     if (xTimerIsTimerActive(sLightTimer))
     {
-        PSOC6_LOG("app timer already started!");
+        P6_LOG("app timer already started!");
         CancelTimer();
     }
 
@@ -134,7 +134,7 @@ void LightingManager::StartTimer(uint32_t aTimeoutMs)
     // cannot immediately be sent to the timer command queue.
     if (xTimerChangePeriod(sLightTimer, (aTimeoutMs / portTICK_PERIOD_MS), 100) != pdPASS)
     {
-        PSOC6_LOG("sLockTimer timer start() failed");
+        P6_LOG("sLockTimer timer start() failed");
         appError(APP_ERROR_START_TIMER_FAILED);
     }
 }
@@ -143,7 +143,7 @@ void LightingManager::CancelTimer(void)
 {
     if (xTimerStop(sLightTimer, 0) == pdFAIL)
     {
-        PSOC6_LOG("sLightTimer stop() failed");
+        P6_LOG("sLightTimer stop() failed");
         appError(APP_ERROR_STOP_TIMER_FAILED);
     }
 }
@@ -183,7 +183,7 @@ void LightingManager::AutoTurnOffTimerEventHandler(AppEvent * aEvent)
 
     light->mAutoTurnOffTimerArmed = false;
 
-    PSOC6_LOG("Auto Turn Off has been triggered!");
+    P6_LOG("Auto Turn Off has been triggered!");
 
     light->InitiateAction(actor, OFF_ACTION);
 }
@@ -219,7 +219,7 @@ void LightingManager::ActuatorMovementTimerEventHandler(AppEvent * aEvent)
 
             light->mAutoTurnOffTimerArmed = true;
 
-            PSOC6_LOG("Auto Turn off enabled. Will be triggered in %u seconds", light->mAutoTurnOffDuration);
+            P6_LOG("Auto Turn off enabled. Will be triggered in %u seconds", light->mAutoTurnOffDuration);
         }
     }
 }

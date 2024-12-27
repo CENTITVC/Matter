@@ -24,17 +24,16 @@
  *      decode interfaces.
  *
  */
+#include <nlunit-test.h>
 
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
-#include <pw_unit_test/framework.h>
-
 #include <lib/asn1/ASN1.h>
 #include <lib/asn1/ASN1Macros.h>
-#include <lib/core/StringBuilderAdapters.h>
 #include <lib/core/TLV.h>
+#include <lib/support/UnitTestRegistration.h>
 
 using namespace chip;
 using namespace chip::ASN1;
@@ -160,7 +159,7 @@ exit:
     return err;
 }
 
-TEST(TestASN1, Encode)
+static void TestASN1_Encode(nlTestSuite * inSuite, void * inContext)
 {
     CHIP_ERROR err;
     static uint8_t buf[2048];
@@ -170,11 +169,11 @@ TEST(TestASN1, Encode)
     writer.Init(buf);
 
     err = EncodeASN1TestData(writer);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
     encodedLen = writer.GetLengthWritten();
-    EXPECT_EQ(encodedLen, sizeof(TestASN1_EncodedData));
-    EXPECT_EQ(memcmp(buf, TestASN1_EncodedData, sizeof(TestASN1_EncodedData)), 0);
+    NL_TEST_ASSERT(inSuite, encodedLen == sizeof(TestASN1_EncodedData));
+    NL_TEST_ASSERT(inSuite, memcmp(buf, TestASN1_EncodedData, sizeof(TestASN1_EncodedData)) == 0);
 
 #define DUMP_HEX 0
 #if DUMP_HEX
@@ -188,7 +187,7 @@ TEST(TestASN1, Encode)
 #endif
 }
 
-TEST(TestASN1, Decode)
+static void TestASN1_Decode(nlTestSuite * inSuite, void * inContext)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
     ASN1Reader reader;
@@ -202,17 +201,17 @@ TEST(TestASN1, Decode)
     ASN1_PARSE_ENTER_SEQUENCE
     {
         ASN1_PARSE_BOOLEAN(boolVal);
-        EXPECT_EQ(boolVal, kTestVal_01_Bool);
+        NL_TEST_ASSERT(inSuite, boolVal == kTestVal_01_Bool);
         ASN1_PARSE_BOOLEAN(boolVal);
-        EXPECT_EQ(boolVal, kTestVal_02_Bool);
+        NL_TEST_ASSERT(inSuite, boolVal == kTestVal_02_Bool);
         ASN1_PARSE_ENTER_SET {}
         ASN1_EXIT_SET;
         ASN1_PARSE_BIT_STRING(bitStringVal);
-        EXPECT_EQ(bitStringVal, kTestVal_03_BitString);
+        NL_TEST_ASSERT(inSuite, bitStringVal == kTestVal_03_BitString);
         ASN1_PARSE_BIT_STRING(bitStringVal);
-        EXPECT_EQ(bitStringVal, kTestVal_04_BitString);
+        NL_TEST_ASSERT(inSuite, bitStringVal == kTestVal_04_BitString);
         ASN1_PARSE_BIT_STRING(bitStringVal);
-        EXPECT_EQ(bitStringVal, kTestVal_05_BitString);
+        NL_TEST_ASSERT(inSuite, bitStringVal == kTestVal_05_BitString);
         ASN1_PARSE_ENTER_SEQUENCE
         {
             ASN1_PARSE_ENTER_SEQUENCE
@@ -220,65 +219,65 @@ TEST(TestASN1, Decode)
                 ASN1_PARSE_ENTER_SEQUENCE
                 {
                     ASN1_PARSE_BIT_STRING(bitStringVal);
-                    EXPECT_EQ(bitStringVal, kTestVal_06_BitString);
+                    NL_TEST_ASSERT(inSuite, bitStringVal == kTestVal_06_BitString);
                     ASN1_PARSE_BIT_STRING(bitStringVal);
-                    EXPECT_EQ(bitStringVal, kTestVal_07_BitString);
+                    NL_TEST_ASSERT(inSuite, bitStringVal == kTestVal_07_BitString);
                 }
                 ASN1_EXIT_SEQUENCE;
                 ASN1_PARSE_BIT_STRING(bitStringVal);
-                EXPECT_EQ(bitStringVal, kTestVal_08_BitString);
+                NL_TEST_ASSERT(inSuite, bitStringVal == kTestVal_08_BitString);
             }
             ASN1_EXIT_SEQUENCE;
             ASN1_PARSE_BIT_STRING(bitStringVal);
-            EXPECT_EQ(bitStringVal, kTestVal_09_BitString);
+            NL_TEST_ASSERT(inSuite, bitStringVal == kTestVal_09_BitString);
         }
         ASN1_EXIT_SEQUENCE;
         ASN1_PARSE_INTEGER(intVal);
-        EXPECT_EQ(intVal, kTestVal_10_Int);
+        NL_TEST_ASSERT(inSuite, intVal == kTestVal_10_Int);
         ASN1_PARSE_INTEGER(intVal);
-        EXPECT_EQ(intVal, kTestVal_11_Int);
+        NL_TEST_ASSERT(inSuite, intVal == kTestVal_11_Int);
         ASN1_PARSE_INTEGER(intVal);
-        EXPECT_EQ(intVal, kTestVal_12_Int);
+        NL_TEST_ASSERT(inSuite, intVal == kTestVal_12_Int);
         ASN1_PARSE_INTEGER(intVal);
-        EXPECT_EQ(intVal, kTestVal_13_Int);
+        NL_TEST_ASSERT(inSuite, intVal == kTestVal_13_Int);
         ASN1_PARSE_INTEGER(intVal);
-        EXPECT_EQ(intVal, kTestVal_14_Int);
+        NL_TEST_ASSERT(inSuite, intVal == kTestVal_14_Int);
         ASN1_PARSE_INTEGER(intVal);
-        EXPECT_EQ(intVal, kTestVal_15_Int);
+        NL_TEST_ASSERT(inSuite, intVal == kTestVal_15_Int);
         ASN1_PARSE_INTEGER(intVal);
-        EXPECT_EQ(intVal, kTestVal_16_Int);
+        NL_TEST_ASSERT(inSuite, intVal == kTestVal_16_Int);
         ASN1_PARSE_INTEGER(intVal);
-        EXPECT_EQ(intVal, kTestVal_17_Int);
+        NL_TEST_ASSERT(inSuite, intVal == kTestVal_17_Int);
         ASN1_PARSE_INTEGER(intVal);
-        EXPECT_EQ(intVal, kTestVal_18_Int);
+        NL_TEST_ASSERT(inSuite, intVal == kTestVal_18_Int);
         ASN1_PARSE_OBJECT_ID(oidVal);
-        EXPECT_EQ(oidVal, kTestVal_19_OID);
+        NL_TEST_ASSERT(inSuite, oidVal == kTestVal_19_OID);
         ASN1_PARSE_ELEMENT(kASN1TagClass_Universal, kASN1UniversalTag_OctetString);
-        EXPECT_EQ(reader.GetValueLen(), sizeof(kTestVal_20_OctetString));
-        EXPECT_EQ(memcmp(reader.GetValue(), kTestVal_20_OctetString, sizeof(kTestVal_20_OctetString)), 0);
+        NL_TEST_ASSERT(inSuite, reader.GetValueLen() == sizeof(kTestVal_20_OctetString));
+        NL_TEST_ASSERT(inSuite, memcmp(reader.GetValue(), kTestVal_20_OctetString, sizeof(kTestVal_20_OctetString)) == 0);
         ASN1_PARSE_ELEMENT(kASN1TagClass_Universal, kASN1UniversalTag_OctetString);
-        EXPECT_EQ(reader.GetValueLen(), 1u);
-        EXPECT_EQ(reader.GetValue()[0], kTestVal_20_OctetString[0]);
+        NL_TEST_ASSERT(inSuite, reader.GetValueLen() == 1);
+        NL_TEST_ASSERT(inSuite, reader.GetValue()[0] == kTestVal_20_OctetString[0]);
         ASN1_PARSE_ELEMENT(kASN1TagClass_Universal, kASN1UniversalTag_OctetString);
-        EXPECT_EQ(reader.GetValueLen(), 0u);
+        NL_TEST_ASSERT(inSuite, reader.GetValueLen() == 0);
         ASN1_PARSE_ELEMENT(kASN1TagClass_Universal, kASN1UniversalTag_GeneralString);
-        EXPECT_EQ(reader.GetValueLen(), 0u);
+        NL_TEST_ASSERT(inSuite, reader.GetValueLen() == 0);
         ASN1_PARSE_ELEMENT(kASN1TagClass_Universal, kASN1UniversalTag_PrintableString);
-        EXPECT_EQ(reader.GetValueLen(), strlen(kTestVal_21_PrintableString));
-        EXPECT_EQ(memcmp(reader.GetValue(), kTestVal_21_PrintableString, strlen(kTestVal_21_PrintableString)), 0);
+        NL_TEST_ASSERT(inSuite, reader.GetValueLen() == strlen(kTestVal_21_PrintableString));
+        NL_TEST_ASSERT(inSuite, memcmp(reader.GetValue(), kTestVal_21_PrintableString, strlen(kTestVal_21_PrintableString)) == 0);
         ASN1_PARSE_ELEMENT(kASN1TagClass_Universal, kASN1UniversalTag_UTF8String);
-        EXPECT_EQ(reader.GetValueLen(), strlen(kTestVal_22_UTFString));
-        EXPECT_EQ(memcmp(reader.GetValue(), kTestVal_22_UTFString, strlen(kTestVal_22_UTFString)), 0);
+        NL_TEST_ASSERT(inSuite, reader.GetValueLen() == strlen(kTestVal_22_UTFString));
+        NL_TEST_ASSERT(inSuite, memcmp(reader.GetValue(), kTestVal_22_UTFString, strlen(kTestVal_22_UTFString)) == 0);
         ASN1_PARSE_ENTER_ENCAPSULATED(kASN1TagClass_Universal, kASN1UniversalTag_OctetString)
         {
             ASN1_PARSE_ENTER_SEQUENCE
             {
                 ASN1_PARSE_OBJECT_ID(oidVal);
-                EXPECT_EQ(oidVal, kTestVal_23_OID);
+                NL_TEST_ASSERT(inSuite, oidVal == kTestVal_23_OID);
                 ASN1_PARSE_ENTER_ENCAPSULATED(kASN1TagClass_Universal, kASN1UniversalTag_BitString)
                 {
                     ASN1_PARSE_INTEGER(intVal);
-                    EXPECT_EQ(intVal, kTestVal_24_Int);
+                    NL_TEST_ASSERT(inSuite, intVal == kTestVal_24_Int);
                 }
                 ASN1_EXIT_ENCAPSULATED;
             }
@@ -289,10 +288,10 @@ TEST(TestASN1, Decode)
     ASN1_EXIT_SEQUENCE;
 
 exit:
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 }
 
-TEST(TestASN1, NullWriter)
+static void TestASN1_NullWriter(nlTestSuite * inSuite, void * inContext)
 {
     CHIP_ERROR err;
     ASN1Writer writer;
@@ -301,24 +300,24 @@ TEST(TestASN1, NullWriter)
     writer.InitNullWriter();
 
     err = EncodeASN1TestData(writer);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
     encodedLen = writer.GetLengthWritten();
-    EXPECT_EQ(encodedLen, 0u);
+    NL_TEST_ASSERT(inSuite, encodedLen == 0);
 
     // Methods that take a reader should still read from it,
     // even if the output is suppressed by the null writer.
     TLVReader emptyTlvReader;
     emptyTlvReader.Init(ByteSpan());
     err = writer.PutBitString(0, emptyTlvReader);
-    EXPECT_EQ(err, CHIP_ERROR_WRONG_TLV_TYPE);
+    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_WRONG_TLV_TYPE);
 
     emptyTlvReader.Init(ByteSpan());
     err = writer.PutOctetString(kASN1TagClass_ContextSpecific, 123, emptyTlvReader);
-    EXPECT_EQ(err, CHIP_ERROR_WRONG_TLV_TYPE);
+    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_WRONG_TLV_TYPE);
 }
 
-TEST(TestASN1, ASN1UniversalTime)
+static void TestASN1_ASN1UniversalTime(nlTestSuite * inSuite, void * inContext)
 {
     struct ASN1TimeTestCase
     {
@@ -370,19 +369,16 @@ TEST(TestASN1, ASN1UniversalTime)
         CharSpan testStr = CharSpan(testCase.asn1TimeStr, strlen(testCase.asn1TimeStr));
         ASN1UniversalTime result;
 
-        EXPECT_EQ(result.ImportFrom_ASN1_TIME_string(testStr), CHIP_NO_ERROR);
-
-        EXPECT_EQ(result.Year, testCase.asn1Time.Year);
-        EXPECT_EQ(result.Month, testCase.asn1Time.Month);
-        EXPECT_EQ(result.Day, testCase.asn1Time.Day);
-        EXPECT_EQ(result.Hour, testCase.asn1Time.Hour);
-        EXPECT_EQ(result.Minute, testCase.asn1Time.Minute);
-        EXPECT_EQ(result.Second, testCase.asn1Time.Second);
+        NL_TEST_ASSERT(inSuite, result.ImportFrom_ASN1_TIME_string(testStr) == CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite,
+                       result.Year == testCase.asn1Time.Year && result.Month == testCase.asn1Time.Month &&
+                           result.Day == testCase.asn1Time.Day && result.Hour == testCase.asn1Time.Hour &&
+                           result.Minute == testCase.asn1Time.Minute && result.Second == testCase.asn1Time.Second);
 
         char buf[ASN1UniversalTime::kASN1TimeStringMaxLength];
         MutableCharSpan resultTimeStr(buf);
-        EXPECT_EQ(result.ExportTo_ASN1_TIME_string(resultTimeStr), CHIP_NO_ERROR);
-        EXPECT_TRUE(resultTimeStr.data_equal(testStr));
+        NL_TEST_ASSERT(inSuite, result.ExportTo_ASN1_TIME_string(resultTimeStr) == CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, resultTimeStr.data_equal(testStr));
     }
 
     for (auto & testCase : sASN1TimeErrorTestCases)
@@ -390,11 +386,11 @@ TEST(TestASN1, ASN1UniversalTime)
         CharSpan testStr = CharSpan(testCase.asn1TimeStr, strlen(testCase.asn1TimeStr));
         ASN1UniversalTime result;
 
-        EXPECT_EQ(result.ImportFrom_ASN1_TIME_string(testStr), testCase.mExpectedResult);
+        NL_TEST_ASSERT(inSuite, result.ImportFrom_ASN1_TIME_string(testStr) == testCase.mExpectedResult);
     }
 }
 
-TEST(TestASN1, ObjectID)
+static void TestASN1_ObjectID(nlTestSuite * inSuite, void * inContext)
 {
     CHIP_ERROR err;
     static uint8_t buf[2048];
@@ -416,7 +412,7 @@ TEST(TestASN1, ObjectID)
     ASN1_END_SEQUENCE;
 
     encodedLen = writer.GetLengthWritten();
-    EXPECT_GT(encodedLen, 0u);
+    NL_TEST_ASSERT(inSuite, encodedLen > 0);
 
     reader.Init(buf, encodedLen);
 
@@ -424,37 +420,41 @@ TEST(TestASN1, ObjectID)
     ASN1_PARSE_ENTER_SEQUENCE
     {
         ASN1_PARSE_ELEMENT(kASN1TagClass_Universal, kASN1UniversalTag_ObjectId);
-        EXPECT_EQ(reader.GetValueLen(), sizeof(sOID_AttributeType_ChipNodeId));
-        EXPECT_EQ(memcmp(reader.GetValue(), sOID_AttributeType_ChipNodeId, sizeof(sOID_AttributeType_ChipNodeId)), 0);
+        NL_TEST_ASSERT(inSuite, reader.GetValueLen() == sizeof(sOID_AttributeType_ChipNodeId));
+        NL_TEST_ASSERT(inSuite,
+                       memcmp(reader.GetValue(), sOID_AttributeType_ChipNodeId, sizeof(sOID_AttributeType_ChipNodeId)) == 0);
 
         ASN1_PARSE_ELEMENT(kASN1TagClass_Universal, kASN1UniversalTag_ObjectId);
-        EXPECT_EQ(reader.GetValueLen(), sizeof(sOID_SigAlgo_ECDSAWithSHA256));
-        EXPECT_EQ(memcmp(reader.GetValue(), sOID_SigAlgo_ECDSAWithSHA256, sizeof(sOID_SigAlgo_ECDSAWithSHA256)), 0);
+        NL_TEST_ASSERT(inSuite, reader.GetValueLen() == sizeof(sOID_SigAlgo_ECDSAWithSHA256));
+        NL_TEST_ASSERT(inSuite, memcmp(reader.GetValue(), sOID_SigAlgo_ECDSAWithSHA256, sizeof(sOID_SigAlgo_ECDSAWithSHA256)) == 0);
 
         ASN1_PARSE_ELEMENT(kASN1TagClass_Universal, kASN1UniversalTag_ObjectId);
-        EXPECT_EQ(reader.GetValueLen(), sizeof(sOID_EllipticCurve_prime256v1));
-        EXPECT_EQ(memcmp(reader.GetValue(), sOID_EllipticCurve_prime256v1, sizeof(sOID_EllipticCurve_prime256v1)), 0);
+        NL_TEST_ASSERT(inSuite, reader.GetValueLen() == sizeof(sOID_EllipticCurve_prime256v1));
+        NL_TEST_ASSERT(inSuite,
+                       memcmp(reader.GetValue(), sOID_EllipticCurve_prime256v1, sizeof(sOID_EllipticCurve_prime256v1)) == 0);
 
         ASN1_PARSE_ELEMENT(kASN1TagClass_Universal, kASN1UniversalTag_ObjectId);
-        EXPECT_EQ(reader.GetValueLen(), sizeof(sOID_Extension_AuthorityKeyIdentifier));
-        EXPECT_EQ(memcmp(reader.GetValue(), sOID_Extension_AuthorityKeyIdentifier, sizeof(sOID_Extension_AuthorityKeyIdentifier)),
-                  0);
+        NL_TEST_ASSERT(inSuite, reader.GetValueLen() == sizeof(sOID_Extension_AuthorityKeyIdentifier));
+        NL_TEST_ASSERT(
+            inSuite,
+            memcmp(reader.GetValue(), sOID_Extension_AuthorityKeyIdentifier, sizeof(sOID_Extension_AuthorityKeyIdentifier)) == 0);
 
         ASN1_PARSE_ELEMENT(kASN1TagClass_Universal, kASN1UniversalTag_ObjectId);
-        EXPECT_EQ(reader.GetValueLen(), sizeof(sOID_Extension_BasicConstraints));
-        EXPECT_EQ(memcmp(reader.GetValue(), sOID_Extension_BasicConstraints, sizeof(sOID_Extension_BasicConstraints)), 0);
+        NL_TEST_ASSERT(inSuite, reader.GetValueLen() == sizeof(sOID_Extension_BasicConstraints));
+        NL_TEST_ASSERT(inSuite,
+                       memcmp(reader.GetValue(), sOID_Extension_BasicConstraints, sizeof(sOID_Extension_BasicConstraints)) == 0);
 
         ASN1_PARSE_ELEMENT(kASN1TagClass_Universal, kASN1UniversalTag_ObjectId);
-        EXPECT_EQ(reader.GetValueLen(), sizeof(sOID_KeyPurpose_ServerAuth));
-        EXPECT_EQ(memcmp(reader.GetValue(), sOID_KeyPurpose_ServerAuth, sizeof(sOID_KeyPurpose_ServerAuth)), 0);
+        NL_TEST_ASSERT(inSuite, reader.GetValueLen() == sizeof(sOID_KeyPurpose_ServerAuth));
+        NL_TEST_ASSERT(inSuite, memcmp(reader.GetValue(), sOID_KeyPurpose_ServerAuth, sizeof(sOID_KeyPurpose_ServerAuth)) == 0);
     }
     ASN1_EXIT_SEQUENCE;
 
 exit:
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 }
 
-TEST(TestASN1, FromTLVReader)
+static void TestASN1_FromTLVReader(nlTestSuite * inSuite, void * inContext)
 {
     CHIP_ERROR err;
     static uint8_t tlvBuf[128];
@@ -474,23 +474,23 @@ TEST(TestASN1, FromTLVReader)
         tlvWriter.Init(tlvEncodedData);
 
         err = tlvWriter.StartContainer(AnonymousTag(), kTLVType_Structure, outerContainerType);
-        EXPECT_EQ(err, CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
         err = tlvWriter.PutBytes(TLV::ContextTag(1), kTestVal_20_OctetString, sizeof(kTestVal_20_OctetString));
-        EXPECT_EQ(err, CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
         err = tlvWriter.PutBytes(TLV::ContextTag(2), kTestVal_09_BitString_AsOctetString,
                                  sizeof(kTestVal_09_BitString_AsOctetString));
-        EXPECT_EQ(err, CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
         err = tlvWriter.PutString(TLV::ContextTag(3), kTestVal_21_PrintableString);
-        EXPECT_EQ(err, CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
         err = tlvWriter.EndContainer(outerContainerType);
-        EXPECT_EQ(err, CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
         err = tlvWriter.Finalize();
-        EXPECT_EQ(err, CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
     }
 
     // Construct first ASN1 SEQUESNCE using values.
@@ -504,7 +504,7 @@ TEST(TestASN1, FromTLVReader)
         err = writer.PutValue(kASN1TagClass_Universal, kASN1UniversalTag_PrintableString, false,
                               reinterpret_cast<const uint8_t *>(kTestVal_21_PrintableString),
                               static_cast<uint16_t>(strlen(kTestVal_21_PrintableString)));
-        EXPECT_EQ(err, CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
     }
     ASN1_END_SEQUENCE;
     asn1EncodedData1.reduce_size(writer.GetLengthWritten());
@@ -515,58 +515,84 @@ TEST(TestASN1, FromTLVReader)
     ASN1_START_SEQUENCE
     {
         err = tlvReader.Next(kTLVType_Structure, AnonymousTag());
-        EXPECT_EQ(err, CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
         err = tlvReader.EnterContainer(outerContainerType);
-        EXPECT_EQ(err, CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
         err = tlvReader.Next(kTLVType_ByteString, ContextTag(1));
-        EXPECT_EQ(err, CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
         err = writer.PutOctetString(kASN1TagClass_Universal, kASN1UniversalTag_OctetString, tlvReader);
-        EXPECT_EQ(err, CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
         err = tlvReader.Next(kTLVType_ByteString, ContextTag(2));
-        EXPECT_EQ(err, CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
         err = writer.PutBitString(6, tlvReader);
-        EXPECT_EQ(err, CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
         err = tlvReader.Next(kTLVType_UTF8String, ContextTag(3));
-        EXPECT_EQ(err, CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
         err = writer.PutValue(kASN1TagClass_Universal, kASN1UniversalTag_PrintableString, false, tlvReader);
-        EXPECT_EQ(err, CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
         err = tlvReader.ExitContainer(outerContainerType);
-        EXPECT_EQ(err, CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
     }
     ASN1_END_SEQUENCE;
     asn1EncodedData2.reduce_size(writer.GetLengthWritten());
 
     // Compare two ASN1 SEQUENCEs.
-    EXPECT_TRUE(asn1EncodedData2.data_equal(asn1EncodedData1));
+    NL_TEST_ASSERT(inSuite, asn1EncodedData2.data_equal(asn1EncodedData1));
 
     // Initialize ASN1Reader and test data.
     reader.Init(asn1EncodedData2);
     ASN1_PARSE_ENTER_SEQUENCE
     {
         ASN1_PARSE_ELEMENT(kASN1TagClass_Universal, kASN1UniversalTag_OctetString);
-        ASSERT_NE(reader.GetValue(), nullptr);
-        EXPECT_EQ(reader.GetValueLen(), sizeof(kTestVal_20_OctetString));
-        EXPECT_EQ(memcmp(reader.GetValue(), kTestVal_20_OctetString, sizeof(kTestVal_20_OctetString)), 0);
+        NL_TEST_ASSERT(inSuite, reader.GetValue() != nullptr);
+        NL_TEST_ASSERT(inSuite, reader.GetValueLen() == sizeof(kTestVal_20_OctetString));
+        NL_TEST_ASSERT(inSuite, memcmp(reader.GetValue(), kTestVal_20_OctetString, sizeof(kTestVal_20_OctetString)) == 0);
 
         uint32_t val;
         ASN1_PARSE_BIT_STRING(val);
-        EXPECT_EQ(val, kTestVal_09_BitString);
+        NL_TEST_ASSERT(inSuite, val == kTestVal_09_BitString);
 
         ASN1_PARSE_ELEMENT(kASN1TagClass_Universal, kASN1UniversalTag_PrintableString);
-        ASSERT_NE(reader.GetValue(), nullptr);
-        EXPECT_EQ(reader.GetValueLen(), strlen(kTestVal_21_PrintableString));
-        EXPECT_EQ(memcmp(reader.GetValue(), kTestVal_21_PrintableString, strlen(kTestVal_21_PrintableString)), 0);
+        NL_TEST_ASSERT(inSuite, reader.GetValue() != nullptr);
+        NL_TEST_ASSERT(inSuite, reader.GetValueLen() == strlen(kTestVal_21_PrintableString));
+        NL_TEST_ASSERT(inSuite, memcmp(reader.GetValue(), kTestVal_21_PrintableString, strlen(kTestVal_21_PrintableString)) == 0);
     }
     ASN1_EXIT_SEQUENCE;
 
 exit:
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 }
+
+/**
+ *   Test Suite. It lists all the test functions.
+ */
+
+// clang-format off
+static const nlTest sTests[] =
+{
+    NL_TEST_DEF("Test ASN1 encoding macros", TestASN1_Encode),
+    NL_TEST_DEF("Test ASN1 decoding macros", TestASN1_Decode),
+    NL_TEST_DEF("Test ASN1 NULL writer", TestASN1_NullWriter),
+    NL_TEST_DEF("Test ASN1 universal time", TestASN1_ASN1UniversalTime),
+    NL_TEST_DEF("Test ASN1 Object IDs", TestASN1_ObjectID),
+    NL_TEST_DEF("Test ASN1 Init with ByteSpan", TestASN1_FromTLVReader),
+    NL_TEST_SENTINEL()
+};
+// clang-format on
+
+int TestASN1()
+{
+    nlTestSuite theSuite = { "Support-ASN1", &sTests[0], nullptr, nullptr };
+    nlTestRunner(&theSuite, nullptr);
+    return (nlTestRunnerStats(&theSuite));
+}
+
+CHIP_REGISTER_TEST_SUITE(TestASN1);

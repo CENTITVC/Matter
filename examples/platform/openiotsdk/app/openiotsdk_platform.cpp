@@ -32,10 +32,9 @@
 #endif
 
 #include <DeviceInfoProviderImpl.h>
-#include <app/util/endpoint-config-api.h>
 #include <lib/support/CHIPMem.h>
 #include <lib/support/logging/CHIPLogging.h>
-#include <lib/support/logging/Constants.h>
+#include <platform/openiotsdk/Logging.h>
 #include <platform/openiotsdk/OpenIoTSDKArchUtils.h>
 
 #include <lib/core/CHIPConfig.h>
@@ -44,6 +43,7 @@
 #ifdef USE_CHIP_DATA_MODEL
 #include <app/server/OnboardingCodesUtil.h>
 #include <app/server/Server.h>
+#include <app/util/af.h>
 #include <credentials/DeviceAttestationCredsProvider.h>
 #include <credentials/examples/DeviceAttestationCredsExample.h>
 #endif // USE_CHIP_DATA_MODEL
@@ -59,7 +59,7 @@
 using namespace ::chip;
 using namespace ::chip::Platform;
 using namespace ::chip::DeviceLayer;
-using namespace ::chip::Logging;
+using namespace ::chip::Logging::Platform;
 
 constexpr EndpointId kNetworkCommissioningEndpointSecondary = 0xFFFE;
 
@@ -172,9 +172,7 @@ int openiotsdk_platform_init(void)
 {
     int ret;
 
-#if defined(NDEBUG) && CHIP_CONFIG_TEST == 0
-    SetLogFilter(LogCategory::kLogCategory_Progress);
-#endif
+    ois_logging_init();
 
     ret = mbedtls_platform_setup(NULL);
     if (ret)

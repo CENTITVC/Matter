@@ -19,9 +19,8 @@
 #include <App.h>
 #include <AppShellCommands.h>
 #include <BindingHandler.h>
-#include <LEDWidget.h>
 #include <LightSwitch.h>
-#include <cycfg.h>
+#include <LightingManager.h>
 #include <lib/shell/Engine.h>
 #include <lib/shell/commands/Help.h>
 #include <platform/CHIPDeviceLayer.h>
@@ -81,7 +80,7 @@ static CHIP_ERROR AppCommandHandler(int argc, char ** argv)
 CHIP_ERROR OnCommandHandler(int argc, char ** argv)
 {
     streamer_printf(streamer_get(), "Turning the light on ...\n");
-    LEDWid().Set(true, PLATFORM_LED_RED);
+    LightMgr().Set(true, PLATFORM_LED_1);
 
     return CHIP_NO_ERROR;
 }
@@ -89,7 +88,7 @@ CHIP_ERROR OnCommandHandler(int argc, char ** argv)
 CHIP_ERROR OffCommandHandler(int argc, char ** argv)
 {
     streamer_printf(streamer_get(), "Turning the light off ...\n");
-    LEDWid().Set(false, PLATFORM_LED_RED);
+    LightMgr().Set(false, PLATFORM_LED_1);
 
     return CHIP_NO_ERROR;
 }
@@ -97,13 +96,13 @@ CHIP_ERROR OffCommandHandler(int argc, char ** argv)
 CHIP_ERROR ToggleCommandHandler(int argc, char ** argv)
 {
     streamer_printf(streamer_get(), "Toggling the light ...\n");
-    if (LEDWid().IsLEDOn())
+    if (LightMgr().IsLightOn())
     {
-        LEDWid().Set(false, PLATFORM_LED_RED);
+        LightMgr().Set(false, PLATFORM_LED_1);
     }
     else
     {
-        LEDWid().Set(true, PLATFORM_LED_RED);
+        LightMgr().Set(true, PLATFORM_LED_1);
     }
 
     return CHIP_NO_ERROR;
@@ -366,7 +365,7 @@ CHIP_ERROR GroupBindCommandHandler(int argc, char ** argv)
     entry->local                   = 1; // Hardcoded to endpoint 1 for now
     entry->fabricIndex             = atoi(argv[0]);
     entry->groupId                 = atoi(argv[1]);
-    entry->clusterId.emplace(atoi(argv[3]));
+    entry->clusterId.SetValue(atoi(argv[3]));
 
     DeviceLayer::PlatformMgr().ScheduleWork(BindingHandler::BindingWorkerHandler, reinterpret_cast<intptr_t>(entry));
     return CHIP_NO_ERROR;
@@ -385,7 +384,7 @@ CHIP_ERROR UnicastBindCommandHandler(int argc, char ** argv)
     entry->fabricIndex             = atoi(argv[0]);
     entry->nodeId                  = atoi(argv[1]);
     entry->remote                  = atoi(argv[2]);
-    entry->clusterId.emplace(atoi(argv[3]));
+    entry->clusterId.SetValue(atoi(argv[3]));
 
     DeviceLayer::PlatformMgr().ScheduleWork(BindingHandler::BindingWorkerHandler, reinterpret_cast<intptr_t>(entry));
     return CHIP_NO_ERROR;

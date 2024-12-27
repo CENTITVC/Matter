@@ -17,18 +17,14 @@
  */
 
 #include "scenes-server.h"
-
 #include <app-common/zap-generated/attributes/Accessors.h>
 #include <app-common/zap-generated/cluster-objects.h>
-#include <app/AttributeAccessInterfaceRegistry.h>
 #include <app/CommandHandlerInterface.h>
-#include <app/CommandHandlerInterfaceRegistry.h>
 #include <app/InteractionModelEngine.h>
 #include <app/clusters/scenes-server/SceneTableImpl.h>
 #include <app/reporting/reporting.h>
 #include <app/server/Server.h>
 #include <app/util/attribute-storage.h>
-#include <app/util/config.h>
 #include <credentials/GroupDataProvider.h>
 #include <lib/support/CommonIterator.h>
 #include <lib/support/Span.h>
@@ -73,11 +69,6 @@ CHIP_ERROR AddResponseOnError(CommandHandlerInterface::HandlerContext & ctx, Res
         else if (CHIP_ERROR_NO_MEMORY == err)
         {
             resp.status = to_underlying(Protocols::InteractionModel::Status::ResourceExhausted);
-        }
-        else if (CHIP_IM_GLOBAL_STATUS(UnsupportedAttribute) == err)
-        {
-            // TODO: Confirm if we need to add UnsupportedAttribute status as a return for Scene Commands
-            resp.status = to_underlying(Protocols::InteractionModel::Status::InvalidCommand);
         }
         else
         {
@@ -344,8 +335,8 @@ CHIP_ERROR ScenesServer::Init()
     // Prevents re-initializing
     VerifyOrReturnError(!mIsInitialized, CHIP_ERROR_INCORRECT_STATE);
 
-    ReturnErrorOnFailure(chip::app::CommandHandlerInterfaceRegistry::Instance().RegisterCommandHandler(this));
-    VerifyOrReturnError(AttributeAccessInterfaceRegistry::Instance().Register(this), CHIP_ERROR_INCORRECT_STATE);
+    ReturnErrorOnFailure(chip::app::InteractionModelEngine::GetInstance()->RegisterCommandHandler(this));
+    VerifyOrReturnError(registerAttributeAccessOverride(this), CHIP_ERROR_INCORRECT_STATE);
     mGroupProvider = Credentials::GetGroupDataProvider();
 
     SceneTable * sceneTable = scenes::GetSceneTableImpl();
@@ -358,7 +349,7 @@ CHIP_ERROR ScenesServer::Init()
 
 void ScenesServer::Shutdown()
 {
-    chip::app::CommandHandlerInterfaceRegistry::Instance().UnregisterCommandHandler(this);
+    chip::app::InteractionModelEngine::GetInstance()->UnregisterCommandHandler(this);
 
     mGroupProvider = nullptr;
     mIsInitialized = false;
@@ -381,10 +372,9 @@ void AddSceneParse(CommandHandlerInterface::HandlerContext & ctx, const CommandD
     response.sceneID = req.sceneID;
 
     // Verify the attributes are respecting constraints
-    if (req.transitionTime > scenes::kScenesMaxTransitionTime || req.sceneName.size() > scenes::kSceneNameMaxLength ||
-        req.sceneID == scenes::kUndefinedSceneId)
+    if (req.transitionTime > scenes::kScenesMaxTransitionTime || req.sceneName.size() > scenes::kSceneNameMaxLength)
     {
-        response.status = to_underlying(Protocols::InteractionModel::Status::ConstraintError);
+        response.status = to_underlying(Protocols::InteractionModel::Status::InvalidCommand);
         ctx.mCommandHandler.AddResponse(ctx.mRequestPath, response);
         return;
     }
@@ -488,14 +478,6 @@ void ViewSceneParse(HandlerContext & ctx, const CommandData & req, GroupDataProv
     // Response data
     response.groupID = req.groupID;
     response.sceneID = req.sceneID;
-
-    // Verify the attributes are respecting constraints
-    if (req.sceneID == scenes::kUndefinedSceneId)
-    {
-        response.status = to_underlying(Protocols::InteractionModel::Status::ConstraintError);
-        ctx.mCommandHandler.AddResponse(ctx.mRequestPath, response);
-        return;
-    }
 
     // Verify Endpoint in group
     VerifyOrReturn(nullptr != groupProvider);
@@ -844,14 +826,6 @@ void ScenesServer::HandleRemoveScene(HandlerContext & ctx, const Commands::Remov
     response.groupID = req.groupID;
     response.sceneID = req.sceneID;
 
-    // Verify the attributes are respecting constraints
-    if (req.sceneID == scenes::kUndefinedSceneId)
-    {
-        response.status = to_underlying(Protocols::InteractionModel::Status::ConstraintError);
-        ctx.mCommandHandler.AddResponse(ctx.mRequestPath, response);
-        return;
-    }
-
     // Scene Table interface data
     SceneTableEntry scene(SceneStorageId(req.sceneID, req.groupID));
 
@@ -952,14 +926,6 @@ void ScenesServer::HandleStoreScene(HandlerContext & ctx, const Commands::StoreS
     response.groupID = req.groupID;
     response.sceneID = req.sceneID;
 
-    // Verify the attributes are respecting constraints
-    if (req.sceneID == scenes::kUndefinedSceneId)
-    {
-        response.status = to_underlying(Protocols::InteractionModel::Status::ConstraintError);
-        ctx.mCommandHandler.AddResponse(ctx.mRequestPath, response);
-        return;
-    }
-
     CHIP_ERROR err = StoreSceneParse(ctx.mCommandHandler.GetAccessingFabricIndex(), ctx.mRequestPath.mEndpointId, req.groupID,
                                      req.sceneID, mGroupProvider);
 
@@ -973,14 +939,6 @@ void ScenesServer::HandleStoreScene(HandlerContext & ctx, const Commands::StoreS
 void ScenesServer::HandleRecallScene(HandlerContext & ctx, const Commands::RecallScene::DecodableType & req)
 {
     MATTER_TRACE_SCOPE("RecallScene", "Scenes");
-
-    // Verify the attributes are respecting constraints
-    if (req.sceneID == scenes::kUndefinedSceneId)
-    {
-        ctx.mCommandHandler.AddStatus(ctx.mRequestPath, Protocols::InteractionModel::Status::ConstraintError);
-        return;
-    }
-
     CHIP_ERROR err = RecallSceneParse(ctx.mCommandHandler.GetAccessingFabricIndex(), ctx.mRequestPath.mEndpointId, req.groupID,
                                       req.sceneID, req.transitionTime, mGroupProvider);
 
@@ -1062,14 +1020,6 @@ void ScenesServer::HandleCopyScene(HandlerContext & ctx, const Commands::CopySce
     // Response data
     response.groupIdentifierFrom = req.groupIdentifierFrom;
     response.sceneIdentifierFrom = req.sceneIdentifierFrom;
-
-    // Verify the attributes are respecting constraints
-    if (req.sceneIdentifierFrom == scenes::kUndefinedSceneId || req.sceneIdentifierTo == scenes::kUndefinedSceneId)
-    {
-        response.status = to_underlying(Protocols::InteractionModel::Status::ResourceExhausted);
-        ctx.mCommandHandler.AddResponse(ctx.mRequestPath, response);
-        return;
-    }
 
     // Verify Endpoint in group
     VerifyOrReturn(nullptr != mGroupProvider);

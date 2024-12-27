@@ -31,6 +31,7 @@
 namespace chip {
 namespace app {
 
+using namespace Protocols::SecureChannel;
 /**
  * The ICDClientStorage class is an abstract interface that defines the operations
  * for storing, retrieving and deleting ICD client information in persistent storage.
@@ -80,8 +81,7 @@ public:
      * @param[out] clientInfo retrieved matched clientInfo from storage
      * @param[out] counter counter value received in the check-in message
      */
-    virtual CHIP_ERROR ProcessCheckInPayload(const ByteSpan & payload, ICDClientInfo & clientInfo,
-                                             Protocols::SecureChannel::CounterType & counter) = 0;
+    virtual CHIP_ERROR ProcessCheckInPayload(const ByteSpan & payload, ICDClientInfo & clientInfo, CounterType & counter) = 0;
 
     // 4 bytes for counter + 2 bytes for ActiveModeThreshold
     static inline constexpr uint8_t kAppDataLength = 6;

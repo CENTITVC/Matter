@@ -20,7 +20,11 @@
 #import <Foundation/Foundation.h>
 #import <Matter/MTRDefines.h>
 #import <Matter/MTRDeviceController.h>
+#if MTR_PER_CONTROLLER_STORAGE_ENABLED
 #import <Matter/MTRDeviceControllerParameters.h>
+#else
+#import "MTRDeviceControllerParameters_Wrapper.h"
+#endif // MTR_PER_CONTROLLER_STORAGE_ENABLED
 
 #include <crypto/CHIPCryptoPAL.h>
 #include <lib/core/DataModelTypes.h>
@@ -84,10 +88,6 @@ NS_ASSUME_NONNULL_BEGIN
 
 @property (nonatomic, strong, readonly, nullable) id<MTROTAProviderDelegate> otaProviderDelegate;
 @property (nonatomic, strong, readonly, nullable) dispatch_queue_t otaProviderDelegateQueue;
-
-+ (nullable NSNumber *)nodeIDFromNOC:(MTRCertificateDERBytes)noc;
-+ (nullable NSNumber *)fabricIDFromNOC:(MTRCertificateDERBytes)noc;
-+ (nullable NSData *)publicKeyFromCertificate:(MTRCertificateDERBytes)certificate;
 
 @end
 

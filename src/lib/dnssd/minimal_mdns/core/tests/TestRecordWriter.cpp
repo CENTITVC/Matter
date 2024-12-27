@@ -16,17 +16,17 @@
  *    limitations under the License.
  */
 
-#include <pw_unit_test/framework.h>
-
-#include <lib/core/StringBuilderAdapters.h>
 #include <lib/dnssd/minimal_mdns/core/RecordWriter.h>
+#include <lib/support/UnitTestRegistration.h>
+
+#include <nlunit-test.h>
 
 namespace {
 
 using namespace mdns::Minimal;
 using namespace chip::Encoding::BigEndian;
 
-TEST(TestRecordWriter, BasicWriteTest)
+void BasicWriteTest(nlTestSuite * inSuite, void * inContext)
 {
     const QNamePart kName1[] = { "some", "name" };
     const QNamePart kName2[] = { "abc", "xyz", "here" };
@@ -52,11 +52,11 @@ TEST(TestRecordWriter, BasicWriteTest)
     };
     // clang-format on
 
-    EXPECT_EQ(output.Needed(), sizeof(expectedOutput));
-    EXPECT_EQ(memcmp(dataBuffer, expectedOutput, sizeof(expectedOutput)), 0);
+    NL_TEST_ASSERT(inSuite, output.Needed() == sizeof(expectedOutput));
+    NL_TEST_ASSERT(inSuite, memcmp(dataBuffer, expectedOutput, sizeof(expectedOutput)) == 0);
 }
 
-TEST(TestRecordWriter, SimpleDedup)
+void SimpleDedup(nlTestSuite * inSuite, void * inContext)
 {
     const QNamePart kName1[] = { "some", "name" };
     const QNamePart kName2[] = { "other", "name" };
@@ -80,11 +80,11 @@ TEST(TestRecordWriter, SimpleDedup)
     };
     // clang-format on
 
-    EXPECT_EQ(output.Needed(), sizeof(expectedOutput));
-    EXPECT_EQ(memcmp(dataBuffer, expectedOutput, sizeof(expectedOutput)), 0);
+    NL_TEST_ASSERT(inSuite, output.Needed() == sizeof(expectedOutput));
+    NL_TEST_ASSERT(inSuite, memcmp(dataBuffer, expectedOutput, sizeof(expectedOutput)) == 0);
 }
 
-TEST(TestRecordWriter, ComplexDedup)
+void ComplexDedup(nlTestSuite * inSuite, void * inContext)
 {
     const QNamePart kName1[] = { "some", "name" };
     const QNamePart kName2[] = { "other", "name" };
@@ -125,11 +125,11 @@ TEST(TestRecordWriter, ComplexDedup)
     };
     // clang-format on
 
-    EXPECT_EQ(output.Needed(), sizeof(expectedOutput));
-    EXPECT_EQ(memcmp(dataBuffer, expectedOutput, sizeof(expectedOutput)), 0);
+    NL_TEST_ASSERT(inSuite, output.Needed() == sizeof(expectedOutput));
+    NL_TEST_ASSERT(inSuite, memcmp(dataBuffer, expectedOutput, sizeof(expectedOutput)) == 0);
 }
 
-TEST(TestRecordWriter, TonsOfReferences)
+void TonsOfReferences(nlTestSuite * inSuite, void * inContext)
 {
     const QNamePart kName1[] = { "some", "name" };
     const QNamePart kName2[] = { "different", "name" };
@@ -159,8 +159,39 @@ TEST(TestRecordWriter, TonsOfReferences)
         writer.WriteQName(FullQName(kName2));
     }
 
-    EXPECT_TRUE(output.Fit());
-    EXPECT_EQ(output.Needed(), 423u);
+    NL_TEST_ASSERT(inSuite, output.Fit());
+    NL_TEST_ASSERT(inSuite, output.Needed() == 423);
 }
 
 } // namespace
+
+// clang-format off
+static const nlTest sTests[] =
+{
+    NL_TEST_DEF("BasicWriteTest", BasicWriteTest),
+    NL_TEST_DEF("SimpleDedup", SimpleDedup),
+    NL_TEST_DEF("ComplexDedup", ComplexDedup),
+    NL_TEST_DEF("TonsOfReferences", TonsOfReferences),
+
+    NL_TEST_SENTINEL()
+};
+// clang-format on
+
+int TestRecordWriter()
+{
+    // clang-format off
+    nlTestSuite theSuite =
+    {
+        "RecordWriter",
+        &sTests[0],
+        nullptr,
+        nullptr
+    };
+    // clang-format on
+
+    nlTestRunner(&theSuite, nullptr);
+
+    return (nlTestRunnerStats(&theSuite));
+}
+
+CHIP_REGISTER_TEST_SUITE(TestRecordWriter)

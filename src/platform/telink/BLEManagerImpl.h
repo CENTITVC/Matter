@@ -1,6 +1,6 @@
 /*
  *
- *    Copyright (c) 2022-2024 Project CHIP Authors
+ *    Copyright (c) 2022 Project CHIP Authors
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -67,15 +67,18 @@ private:
 
     // ===== Members that implement virtual methods on BlePlatformDelegate.
 
-    CHIP_ERROR SubscribeCharacteristic(BLE_CONNECTION_OBJECT conId, const ChipBleUUID * svcId, const ChipBleUUID * charId) override;
-    CHIP_ERROR UnsubscribeCharacteristic(BLE_CONNECTION_OBJECT conId, const ChipBleUUID * svcId,
-                                         const ChipBleUUID * charId) override;
-    CHIP_ERROR CloseConnection(BLE_CONNECTION_OBJECT conId) override;
+    bool SubscribeCharacteristic(BLE_CONNECTION_OBJECT conId, const ChipBleUUID * svcId, const ChipBleUUID * charId) override;
+    bool UnsubscribeCharacteristic(BLE_CONNECTION_OBJECT conId, const ChipBleUUID * svcId, const ChipBleUUID * charId) override;
+    bool CloseConnection(BLE_CONNECTION_OBJECT conId) override;
     uint16_t GetMTU(BLE_CONNECTION_OBJECT conId) const override;
-    CHIP_ERROR SendIndication(BLE_CONNECTION_OBJECT conId, const ChipBleUUID * svcId, const ChipBleUUID * charId,
-                              PacketBufferHandle pBuf) override;
-    CHIP_ERROR SendWriteRequest(BLE_CONNECTION_OBJECT conId, const ChipBleUUID * svcId, const ChipBleUUID * charId,
-                                PacketBufferHandle pBuf) override;
+    bool SendIndication(BLE_CONNECTION_OBJECT conId, const ChipBleUUID * svcId, const ChipBleUUID * charId,
+                        PacketBufferHandle pBuf) override;
+    bool SendWriteRequest(BLE_CONNECTION_OBJECT conId, const ChipBleUUID * svcId, const ChipBleUUID * charId,
+                          PacketBufferHandle pBuf) override;
+    bool SendReadRequest(BLE_CONNECTION_OBJECT conId, const ChipBleUUID * svcId, const ChipBleUUID * charId,
+                         PacketBufferHandle pBuf) override;
+    bool SendReadResponse(BLE_CONNECTION_OBJECT conId, BLE_READ_REQUEST_CONTEXT requestContext, const ChipBleUUID * svcId,
+                          const ChipBleUUID * charId) override;
 
     // ===== Members that implement virtual methods on BleApplicationDelegate.
 
@@ -121,16 +124,14 @@ private:
     CHIP_ERROR HandleBleConnectionClosed(const ChipDeviceEvent * event);
 
     /*
-        WORKAROUND: Due to abscense of non-cuncurrent mode in Matter
+        @todo WORKAROUND: Due to abscense of non-cuncurrent mode in Matter
         we are emulating connection to Thread with this events and manually
         disconnect BLE ass soon as OperationalNetworkEnabled occures.
         This functionality shall be removed as soon as non-cuncurrent mode
         would be implemented
      */
-#if CHIP_DEVICE_CONFIG_ENABLE_THREAD
     CHIP_ERROR HandleThreadStateChange(const ChipDeviceEvent * event);
     CHIP_ERROR HandleOperationalNetworkEnabled(const ChipDeviceEvent * event);
-#endif // CHIP_DEVICE_CONFIG_ENABLE_THREAD
 
     InternalScanCallback * mInternalScanCallback;
 
@@ -167,10 +168,8 @@ public:
     static ssize_t HandleC3Read(struct bt_conn * conn, const struct bt_gatt_attr * attr, void * buf, uint16_t len, uint16_t offset);
 #endif
 
-#if CHIP_DEVICE_CONFIG_ENABLE_THREAD
-    // Switch context from BLE to Thread
+    /* Switch to IEEE802154 interface. @todo: remove to other module? */
     void SwitchToIeee802154(void);
-#endif // CHIP_DEVICE_CONFIG_ENABLE_THREAD
 
     CHIP_ERROR StartAdvertisingProcess(void);
 };

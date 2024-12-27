@@ -41,7 +41,6 @@ import chip.native
 from chip import ChipDeviceCtrl
 from chip.ChipStack import ChipStack
 from chip.crypto import p256keypair
-from chip.exceptions import ChipStackException
 from chip.utils import CommissioningBuildingBlocks
 from cirque_restart_remote_device import restartRemoteDevice
 from ecdsa import NIST256p
@@ -179,12 +178,35 @@ class TestTimeout(threading.Thread):
             TestFail("Timeout", doCrash=True)
 
 
+class TestResult:
+    def __init__(self, operationName, result):
+        self.operationName = operationName
+        self.result = result
+
+    def assertStatusEqual(self, expected):
+        if self.result is None:
+            raise Exception(f"{self.operationName}: no result got")
+        if self.result.status != expected:
+            raise Exception(
+                f"{self.operationName}: expected status {expected}, got {self.result.status}")
+        return self
+
+    def assertValueEqual(self, expected):
+        self.assertStatusEqual(0)
+        if self.result is None:
+            raise Exception(f"{self.operationName}: no result got")
+        if self.result.value != expected:
+            raise Exception(
+                f"{self.operationName}: expected value {expected}, got {self.result.value}")
+        return self
+
+
 class BaseTestHelper:
     def __init__(self, nodeid: int, paaTrustStorePath: str, testCommissioner: bool = False,
                  keypair: p256keypair.P256Keypair = None):
         chip.native.Init()
 
-        self.chipStack = ChipStack('/tmp/repl_storage.json', enableServerInteractions=True)
+        self.chipStack = ChipStack('/tmp/repl_storage.json')
         self.certificateAuthorityManager = chip.CertificateAuthority.CertificateAuthorityManager(chipStack=self.chipStack)
         self.certificateAuthority = self.certificateAuthorityManager.NewCertificateAuthority()
         self.fabricAdmin = self.certificateAuthority.NewFabricAdmin(vendorId=0xFFF1, fabricId=1)
@@ -210,10 +232,10 @@ class BaseTestHelper:
             return None
         return ctypes.string_at(addrStrStorage).decode("utf-8")
 
-    async def TestDiscovery(self, discriminator: int):
+    def TestDiscovery(self, discriminator: int):
         self.logger.info(
             f"Discovering commissionable nodes with discriminator {discriminator}")
-        res = await self.devCtrl.DiscoverCommissionableNodes(
+        res = self.devCtrl.DiscoverCommissionableNodes(
             chip.discovery.FilterType.LONG_DISCRIMINATOR, discriminator, stopOnFirst=True, timeoutSecond=3)
         if not res:
             self.logger.info(
@@ -234,7 +256,7 @@ class BaseTestHelper:
     async def TestRevokeCommissioningWindow(self, ip: str, setuppin: int, nodeid: int):
         await self.devCtrl.SendCommand(
             nodeid, 0, Clusters.AdministratorCommissioning.Commands.OpenBasicCommissioningWindow(180), timedRequestTimeoutMs=10000)
-        if not await self.TestPaseOnly(ip=ip, setuppin=setuppin, nodeid=nodeid, devCtrl=self.devCtrl2):
+        if not self.TestPaseOnly(ip=ip, setuppin=setuppin, nodeid=nodeid, devCtrl=self.devCtrl2):
             return False
 
         await self.devCtrl2.SendCommand(
@@ -248,18 +270,17 @@ class BaseTestHelper:
             nodeid, 0, Clusters.AdministratorCommissioning.Commands.RevokeCommissioning(), timedRequestTimeoutMs=10000)
         return True
 
-    async def TestEnhancedCommissioningWindow(self, ip: str, nodeid: int):
-        params = await self.devCtrl.OpenCommissioningWindow(nodeid=nodeid, timeout=600, iteration=10000, discriminator=3840, option=1)
-        return await self.TestPaseOnly(ip=ip, nodeid=nodeid, setuppin=params.setupPinCode, devCtrl=self.devCtrl2)
+    def TestEnhancedCommissioningWindow(self, ip: str, nodeid: int):
+        params = self.devCtrl.OpenCommissioningWindow(nodeid=nodeid, timeout=600, iteration=10000, discriminator=3840, option=1)
+        return self.TestPaseOnly(ip=ip, nodeid=nodeid, setuppin=params.setupPinCode, devCtrl=self.devCtrl2)
 
-    async def TestPaseOnly(self, ip: str, setuppin: int, nodeid: int, devCtrl=None):
+    def TestPaseOnly(self, ip: str, setuppin: int, nodeid: int, devCtrl=None):
         if devCtrl is None:
             devCtrl = self.devCtrl
         self.logger.info(
             "Attempting to establish PASE session with device id: {} addr: {}".format(str(nodeid), ip))
-        try:
-            await devCtrl.EstablishPASESessionIP(ip, setuppin, nodeid)
-        except ChipStackException:
+        if devCtrl.EstablishPASESessionIP(
+                ip, setuppin, nodeid) is not None:
             self.logger.info(
                 "Failed to establish PASE session with device id: {} addr: {}".format(str(nodeid), ip))
             return False
@@ -267,12 +288,10 @@ class BaseTestHelper:
             "Successfully established PASE session with device id: {} addr: {}".format(str(nodeid), ip))
         return True
 
-    async def TestCommissionOnly(self, nodeid: int):
+    def TestCommissionOnly(self, nodeid: int):
         self.logger.info(
             "Commissioning device with id {}".format(nodeid))
-        try:
-            await self.devCtrl.Commission(nodeid)
-        except ChipStackException:
+        if not self.devCtrl.Commission(nodeid):
             self.logger.info(
                 "Failed to commission device with id {}".format(str(nodeid)))
             return False
@@ -280,17 +299,17 @@ class BaseTestHelper:
             "Successfully commissioned device with id {}".format(str(nodeid)))
         return True
 
-    async def TestKeyExchangeBLE(self, discriminator: int, setuppin: int, nodeid: int):
+    def TestKeyExchangeBLE(self, discriminator: int, setuppin: int, nodeid: int):
         self.logger.info(
             "Conducting key exchange with device {}".format(discriminator))
-        if not await self.devCtrl.ConnectBLE(discriminator, setuppin, nodeid):
+        if not self.devCtrl.ConnectBLE(discriminator, setuppin, nodeid):
             self.logger.info(
                 "Failed to finish key exchange with device {}".format(discriminator))
             return False
         self.logger.info("Device finished key exchange.")
         return True
 
-    async def TestCommissionFailure(self, nodeid: int, failAfter: int):
+    def TestCommissionFailure(self, nodeid: int, failAfter: int):
         self.devCtrl.ResetTestCommissioner()
         a = self.devCtrl.SetTestCommissionerSimulateFailureOnStage(failAfter)
         if not a:
@@ -299,10 +318,10 @@ class BaseTestHelper:
 
         self.logger.info(
             "Commissioning device, expecting failure after stage {}".format(failAfter))
-        await self.devCtrl.Commission(nodeid)
+        self.devCtrl.Commission(nodeid)
         return self.devCtrl.CheckTestCommissionerCallbacks() and self.devCtrl.CheckTestCommissionerPaseConnection(nodeid)
 
-    async def TestCommissionFailureOnReport(self, nodeid: int, failAfter: int):
+    def TestCommissionFailureOnReport(self, nodeid: int, failAfter: int):
         self.devCtrl.ResetTestCommissioner()
         a = self.devCtrl.SetTestCommissionerSimulateFailureOnReport(failAfter)
         if not a:
@@ -310,34 +329,30 @@ class BaseTestHelper:
             return True
         self.logger.info(
             "Commissioning device, expecting failure on report for stage {}".format(failAfter))
-        await self.devCtrl.Commission(nodeid)
+        self.devCtrl.Commission(nodeid)
         return self.devCtrl.CheckTestCommissionerCallbacks() and self.devCtrl.CheckTestCommissionerPaseConnection(nodeid)
 
-    async def TestCommissioning(self, ip: str, setuppin: int, nodeid: int):
+    def TestCommissioning(self, ip: str, setuppin: int, nodeid: int):
         self.logger.info("Commissioning device {}".format(ip))
-        try:
-            await self.devCtrl.CommissionIP(ip, setuppin, nodeid)
-        except ChipStackException:
-            self.logger.exception(
+        if not self.devCtrl.CommissionIP(ip, setuppin, nodeid):
+            self.logger.info(
                 "Failed to finish commissioning device {}".format(ip))
             return False
         self.logger.info("Commissioning finished.")
         return True
 
-    async def TestCommissioningWithSetupPayload(self, setupPayload: str, nodeid: int, discoveryType: int = 2):
+    def TestCommissioningWithSetupPayload(self, setupPayload: str, nodeid: int, discoveryType: int = 2):
         self.logger.info("Commissioning device with setup payload {}".format(setupPayload))
-        try:
-            await self.devCtrl.CommissionWithCode(setupPayload, nodeid, chip.discovery.DiscoveryType(discoveryType))
-        except ChipStackException:
-            self.logger.exception(
+        if not self.devCtrl.CommissionWithCode(setupPayload, nodeid, chip.discovery.DiscoveryType(discoveryType)):
+            self.logger.info(
                 "Failed to finish commissioning device {}".format(setupPayload))
             return False
         self.logger.info("Commissioning finished.")
         return True
 
-    async def TestOnNetworkCommissioning(self, discriminator: int, setuppin: int, nodeid: int, ip_override: str = None):
+    def TestOnNetworkCommissioning(self, discriminator: int, setuppin: int, nodeid: int, ip_override: str = None):
         self.logger.info("Testing discovery")
-        device = await self.TestDiscovery(discriminator=discriminator)
+        device = self.TestDiscovery(discriminator=discriminator)
         if not device:
             self.logger.info("Failed to discover any devices.")
             return False
@@ -345,7 +360,7 @@ class BaseTestHelper:
         if ip_override:
             address = ip_override
         self.logger.info("Testing commissioning")
-        if not await self.TestCommissioning(address, setuppin, nodeid):
+        if not self.TestCommissioning(address, setuppin, nodeid):
             self.logger.info("Failed to finish commissioning")
             return False
         return True
@@ -353,16 +368,15 @@ class BaseTestHelper:
     def TestUsedTestCommissioner(self):
         return self.devCtrl.GetTestCommissionerUsed()
 
-    async def TestFailsafe(self, nodeid: int):
+    def TestFailsafe(self, nodeid: int):
         self.logger.info("Testing arm failsafe")
 
         self.logger.info("Setting failsafe on CASE connection")
-        try:
-            resp = await self.devCtrl.SendCommand(nodeid, 0,
-                                                  Clusters.GeneralCommissioning.Commands.ArmFailSafe(expiryLengthSeconds=60, breadcrumb=1))
-        except IM.InteractionModelError as ex:
+        err, resp = self.devCtrl.ZCLSend("GeneralCommissioning", "ArmFailSafe", nodeid,
+                                         0, 0, dict(expiryLengthSeconds=60, breadcrumb=1), blocking=True)
+        if err != 0:
             self.logger.error(
-                "Failed to send arm failsafe command error is {}".format(ex.status))
+                "Failed to send arm failsafe command error is {} with im response{}".format(err, resp))
             return False
 
         if resp.errorCode is not Clusters.GeneralCommissioning.Enums.CommissioningErrorEnum.kOk:
@@ -373,17 +387,17 @@ class BaseTestHelper:
         self.logger.info(
             "Attempting to open basic commissioning window - this should fail since the failsafe is armed")
         try:
-            await self.devCtrl.SendCommand(
+            asyncio.run(self.devCtrl.SendCommand(
                 nodeid,
                 0,
                 Clusters.AdministratorCommissioning.Commands.OpenBasicCommissioningWindow(180),
                 timedRequestTimeoutMs=10000
-            )
+            ))
             # we actually want the exception here because we want to see a failure, so return False here
             self.logger.error(
                 'Incorrectly succeeded in opening basic commissioning window')
             return False
-        except IM.InteractionModelError:
+        except Exception:
             pass
 
         # TODO:
@@ -399,39 +413,39 @@ class BaseTestHelper:
         self.logger.info(
             "Attempting to open enhanced commissioning window - this should fail since the failsafe is armed")
         try:
-            await self.devCtrl.SendCommand(
+            asyncio.run(self.devCtrl.SendCommand(
                 nodeid, 0, Clusters.AdministratorCommissioning.Commands.OpenCommissioningWindow(
                     commissioningTimeout=180,
                     PAKEPasscodeVerifier=verifier,
                     discriminator=discriminator,
                     iterations=iterations,
-                    salt=salt), timedRequestTimeoutMs=10000)
+                    salt=salt), timedRequestTimeoutMs=10000))
 
             # we actually want the exception here because we want to see a failure, so return False here
             self.logger.error(
                 'Incorrectly succeeded in opening enhanced commissioning window')
             return False
-        except IM.InteractionModelError:
+        except Exception:
             pass
 
         self.logger.info("Disarming failsafe on CASE connection")
-        try:
-            resp = await self.devCtrl.SendCommand(nodeid, 0,
-                                                  Clusters.GeneralCommissioning.Commands.ArmFailSafe(expiryLengthSeconds=0, breadcrumb=1))
-        except IM.InteractionModelError as ex:
+        err, resp = self.devCtrl.ZCLSend("GeneralCommissioning", "ArmFailSafe", nodeid,
+                                         0, 0, dict(expiryLengthSeconds=0, breadcrumb=1), blocking=True)
+        if err != 0:
             self.logger.error(
-                "Failed to send arm failsafe command error is {}".format(ex.status))
+                "Failed to send arm failsafe command error is {} with im response{}".format(err, resp))
             return False
 
         self.logger.info(
             "Opening Commissioning Window - this should succeed since the failsafe was just disarmed")
         try:
-            await self.devCtrl.SendCommand(
-                nodeid,
-                0,
-                Clusters.AdministratorCommissioning.Commands.OpenBasicCommissioningWindow(180),
-                timedRequestTimeoutMs=10000
-            )
+            asyncio.run(
+                self.devCtrl.SendCommand(
+                    nodeid,
+                    0,
+                    Clusters.AdministratorCommissioning.Commands.OpenBasicCommissioningWindow(180),
+                    timedRequestTimeoutMs=10000
+                ))
         except Exception:
             self.logger.error(
                 'Failed to open commissioning window after disarming failsafe')
@@ -439,12 +453,11 @@ class BaseTestHelper:
 
         self.logger.info(
             "Attempting to arm failsafe over CASE - this should fail since the commissioning window is open")
-        try:
-            resp = await self.devCtrl.SendCommand(nodeid, 0,
-                                                  Clusters.GeneralCommissioning.Commands.ArmFailSafe(expiryLengthSeconds=60, breadcrumb=1))
-        except IM.InteractionModelError as ex:
+        err, resp = self.devCtrl.ZCLSend("GeneralCommissioning", "ArmFailSafe", nodeid,
+                                         0, 0, dict(expiryLengthSeconds=60, breadcrumb=1), blocking=True)
+        if err != 0:
             self.logger.error(
-                "Failed to send arm failsafe command error is {}".format(ex.status))
+                "Failed to send arm failsafe command error is {} with im response{}".format(err, resp))
             return False
         if resp.errorCode is Clusters.GeneralCommissioning.Enums.CommissioningErrorEnum.kBusyWithOtherAdmin:
             return True
@@ -684,13 +697,13 @@ class BaseTestHelper:
         # on the sub we established previously. Since it was just marked defunct, it should return back to being
         # active and a report should get delivered.
         #
-        sawValueChangeEvent = asyncio.Event()
-        loop = asyncio.get_running_loop()
+        sawValueChange = False
 
         def OnValueChange(path: Attribute.TypedAttributePath, transaction: Attribute.SubscriptionTransaction) -> None:
+            nonlocal sawValueChange
             self.logger.info("Saw value change!")
             if (path.AttributeType == Clusters.UnitTesting.Attributes.Int8u and path.Path.EndpointId == 1):
-                loop.call_soon_threadsafe(sawValueChangeEvent.set)
+                sawValueChange = True
 
         self.logger.info("Testing CASE defunct logic")
 
@@ -707,15 +720,14 @@ class BaseTestHelper:
         # was received.
         #
         await self.devCtrl2.WriteAttribute(nodeid, [(1, Clusters.UnitTesting.Attributes.Int8u(4))])
+        time.sleep(2)
 
-        try:
-            await asyncio.wait_for(sawValueChangeEvent.wait(), 2)
-        except TimeoutError:
+        sub.Shutdown()
+
+        if sawValueChange is False:
             self.logger.error(
                 "Didn't see value change in time, likely because sub got terminated due to unexpected session eviction!")
             return False
-        finally:
-            sub.Shutdown()
 
         #
         # In this test, we're going to setup a subscription on fabric1 through devCtl, then, constantly keep
@@ -727,7 +739,7 @@ class BaseTestHelper:
         #
         self.logger.info("Testing fabric-isolated CASE eviction")
 
-        sawValueChangeEvent.clear()
+        sawValueChange = False
         sub = await self.devCtrl.ReadAttribute(nodeid, [(Clusters.UnitTesting.Attributes.Int8u)], reportInterval=(0, 1))
         sub.SetAttributeUpdateCallback(OnValueChange)
 
@@ -737,25 +749,23 @@ class BaseTestHelper:
 
         #
         # Now write the attribute from fabric2, give it some time before checking if the report
-        # was received.  Use a different value from before, so there is an actual change.
+        # was received.
         #
-        await self.devCtrl2.WriteAttribute(nodeid, [(1, Clusters.UnitTesting.Attributes.Int8u(5))])
+        await self.devCtrl2.WriteAttribute(nodeid, [(1, Clusters.UnitTesting.Attributes.Int8u(4))])
+        time.sleep(2)
 
-        try:
-            await asyncio.wait_for(sawValueChangeEvent.wait(), 2)
-        except TimeoutError:
+        sub.Shutdown()
+
+        if sawValueChange is False:
             self.logger.error("Didn't see value change in time, likely because sub got terminated due to other fabric (fabric1)")
             return False
-        finally:
-            sub.Shutdown()
 
         #
-        # Do the same test again, but reversing the roles of fabric1 and fabric2.  And again
-        # writing a different value, so there is an actual value change.
+        # Do the same test again, but reversing the roles of fabric1 and fabric2.
         #
         self.logger.info("Testing fabric-isolated CASE eviction (reverse)")
 
-        sawValueChangeEvent.clear()
+        sawValueChange = False
         sub = await self.devCtrl2.ReadAttribute(nodeid, [(Clusters.UnitTesting.Attributes.Int8u)], reportInterval=(0, 1))
         sub.SetAttributeUpdateCallback(OnValueChange)
 
@@ -763,14 +773,14 @@ class BaseTestHelper:
             self.devCtrl.CloseSession(nodeid)
             await self.devCtrl.ReadAttribute(nodeid, [(Clusters.BasicInformation.Attributes.ClusterRevision)])
 
-        await self.devCtrl.WriteAttribute(nodeid, [(1, Clusters.UnitTesting.Attributes.Int8u(6))])
-        try:
-            await asyncio.wait_for(sawValueChangeEvent.wait(), 2)
-        except TimeoutError:
+        await self.devCtrl.WriteAttribute(nodeid, [(1, Clusters.UnitTesting.Attributes.Int8u(4))])
+        time.sleep(2)
+
+        sub.Shutdown()
+
+        if sawValueChange is False:
             self.logger.error("Didn't see value change in time, likely because sub got terminated due to other fabric (fabric2)")
             return False
-        finally:
-            sub.Shutdown()
 
         return True
 
@@ -791,10 +801,8 @@ class BaseTestHelper:
         self.devCtrl2 = self.fabricAdmin2.NewController(
             self.controllerNodeId, self.paaTrustStorePath)
 
-        try:
-            await self.devCtrl2.CommissionIP(ip, setuppin, nodeid)
-        except ChipStackException:
-            self.logger.exception(
+        if not self.devCtrl2.CommissionIP(ip, setuppin, nodeid):
+            self.logger.info(
                 "Failed to finish key exchange with device {}".format(ip))
             return False
 
@@ -1084,48 +1092,50 @@ class BaseTestHelper:
         self.devCtrl.SetThreadOperationalDataset(bytes.fromhex(dataset))
         return True
 
-    async def TestOnOffCluster(self, nodeid: int, endpoint: int):
+    def TestOnOffCluster(self, nodeid: int, endpoint: int, group: int):
         self.logger.info(
             "Sending On/Off commands to device {} endpoint {}".format(nodeid, endpoint))
-
-        try:
-            await self.devCtrl.SendCommand(nodeid, endpoint,
-                                           Clusters.OnOff.Commands.On())
-        except IM.InteractionModelError as ex:
+        err, resp = self.devCtrl.ZCLSend("OnOff", "On", nodeid,
+                                         endpoint, group, {}, blocking=True)
+        if err != 0:
             self.logger.error(
-                "failed to send OnOff.On: error is {}".format(ex.status))
+                "failed to send OnOff.On: error is {} with im response{}".format(err, resp))
             return False
-
-        try:
-            await self.devCtrl.SendCommand(nodeid, endpoint,
-                                           Clusters.OnOff.Commands.Off())
-        except IM.InteractionModelError as ex:
+        err, resp = self.devCtrl.ZCLSend("OnOff", "Off", nodeid,
+                                         endpoint, group, {}, blocking=True)
+        if err != 0:
             self.logger.error(
-                "failed to send OnOff.Off: error is {}".format(ex.status))
+                "failed to send OnOff.Off: error is {} with im response {}".format(err, resp))
             return False
         return True
 
-    async def TestLevelControlCluster(self, nodeid: int, endpoint: int):
+    def TestLevelControlCluster(self, nodeid: int, endpoint: int, group: int):
         self.logger.info(
             f"Sending MoveToLevel command to device {nodeid} endpoint {endpoint}")
-
-        commonArgs = dict(transitionTime=0, optionsMask=1, optionsOverride=1)
-
-        async def _moveClusterLevel(setLevel):
-            await self.devCtrl.SendCommand(nodeid,
-                                           endpoint,
-                                           Clusters.LevelControl.Commands.MoveToLevel(**commonArgs, level=setLevel))
-            res = await self.devCtrl.ReadAttribute(nodeid, [(endpoint, Clusters.LevelControl.Attributes.CurrentLevel)])
-            readVal = res[endpoint][Clusters.LevelControl][Clusters.LevelControl.Attributes.CurrentLevel]
-            if readVal != setLevel:
-                raise Exception(f"Read attribute LevelControl.CurrentLevel: expected value {setLevel}, got {readVal}")
-
         try:
+            commonArgs = dict(transitionTime=0, optionsMask=1, optionsOverride=1)
+
             # Move to 1
-            await _moveClusterLevel(1)
+            self.devCtrl.ZCLSend("LevelControl", "MoveToLevel", nodeid,
+                                 endpoint, group, dict(**commonArgs, level=1), blocking=True)
+            res = self.devCtrl.ZCLReadAttribute(cluster="LevelControl",
+                                                attribute="CurrentLevel",
+                                                nodeid=nodeid,
+                                                endpoint=endpoint,
+                                                groupid=group)
+            TestResult("Read attribute LevelControl.CurrentLevel",
+                       res).assertValueEqual(1)
 
             # Move to 254
-            await _moveClusterLevel(254)
+            self.devCtrl.ZCLSend("LevelControl", "MoveToLevel", nodeid,
+                                 endpoint, group, dict(**commonArgs, level=254), blocking=True)
+            res = self.devCtrl.ZCLReadAttribute(cluster="LevelControl",
+                                                attribute="CurrentLevel",
+                                                nodeid=nodeid,
+                                                endpoint=endpoint,
+                                                groupid=group)
+            TestResult("Read attribute LevelControl.CurrentLevel",
+                       res).assertValueEqual(254)
 
             return True
         except Exception as ex:
@@ -1158,45 +1168,29 @@ class BaseTestHelper:
             self.logger.exception("Failed to resolve. {}".format(ex))
             return False
 
-    async def TestTriggerTestEventHandler(self, nodeid, enable_key, event_trigger):
-        self.logger.info("Test trigger test event handler for device = %08x", nodeid)
-        try:
-            await self.devCtrl.SendCommand(nodeid, 0, Clusters.GeneralDiagnostics.Commands.TestEventTrigger(enableKey=enable_key, eventTrigger=event_trigger))
-            return True
-        except Exception as ex:
-            self.logger.exception("Failed to trigger test event handler {}".format(ex))
-            return False
-
-    async def TestWaitForActive(self, nodeid):
-        self.logger.info("Test wait for device = %08x", nodeid)
-        try:
-            await self.devCtrl.WaitForActive(nodeid)
-            return True
-        except Exception as ex:
-            self.logger.exception("Failed to wait for active. {}".format(ex))
-            return False
-
-    async def TestReadBasicAttributes(self, nodeid: int, endpoint: int):
-        attrs = Clusters.BasicInformation.Attributes
+    def TestReadBasicAttributes(self, nodeid: int, endpoint: int, group: int):
         basic_cluster_attrs = {
-            attrs.VendorName: "TEST_VENDOR",
-            attrs.VendorID: 0xFFF1,
-            attrs.ProductName: "TEST_PRODUCT",
-            attrs.ProductID: 0x8001,
-            attrs.NodeLabel: "Test",
-            attrs.Location: "XX",
-            attrs.HardwareVersion: 0,
-            attrs.HardwareVersionString: "TEST_VERSION",
-            attrs.SoftwareVersion: 1,
-            attrs.SoftwareVersionString: "1.0",
+            "VendorName": "TEST_VENDOR",
+            "VendorID": 0xFFF1,
+            "ProductName": "TEST_PRODUCT",
+            "ProductID": 0x8001,
+            "NodeLabel": "Test",
+            "Location": "XX",
+            "HardwareVersion": 0,
+            "HardwareVersionString": "TEST_VERSION",
+            "SoftwareVersion": 1,
+            "SoftwareVersionString": "1.0",
         }
         failed_zcl = {}
         for basic_attr, expected_value in basic_cluster_attrs.items():
             try:
-                res = await self.devCtrl.ReadAttribute(nodeid, [(endpoint, basic_attr)])
-                readVal = res[endpoint][Clusters.BasicInformation][basic_attr]
-                if readVal != expected_value:
-                    raise Exception(f"Read attribute: expected value {expected_value}, got {readVal}")
+                res = self.devCtrl.ZCLReadAttribute(cluster="BasicInformation",
+                                                    attribute=basic_attr,
+                                                    nodeid=nodeid,
+                                                    endpoint=endpoint,
+                                                    groupid=group)
+                TestResult(f"Read attribute {basic_attr}", res).assertValueEqual(
+                    expected_value)
             except Exception as ex:
                 failed_zcl[basic_attr] = str(ex)
         if failed_zcl:
@@ -1204,114 +1198,121 @@ class BaseTestHelper:
             return False
         return True
 
-    async def TestWriteBasicAttributes(self, nodeid: int, endpoint: int):
+    def TestWriteBasicAttributes(self, nodeid: int, endpoint: int, group: int):
         @ dataclass
         class AttributeWriteRequest:
-            cluster: Clusters.ClusterObjects.Cluster
-            attribute: Clusters.ClusterObjects.ClusterAttributeDescriptor
+            cluster: str
+            attribute: str
             value: Any
             expected_status: IM.Status = IM.Status.Success
 
         requests = [
-            AttributeWriteRequest(Clusters.BasicInformation, Clusters.BasicInformation.Attributes.NodeLabel, "Test"),
-            AttributeWriteRequest(Clusters.BasicInformation, Clusters.BasicInformation.Attributes.Location,
+            AttributeWriteRequest("BasicInformation", "NodeLabel", "Test"),
+            AttributeWriteRequest("BasicInformation", "Location",
                                   "a pretty loooooooooooooog string", IM.Status.ConstraintError),
         ]
-        failed_attribute_write = []
+        failed_zcl = []
         for req in requests:
             try:
-                # Errors tested here is in the per-attribute result list (type AttributeStatus)
-                write_res = await self.devCtrl.WriteAttribute(nodeid, [(endpoint, req.attribute(req.value))])
-                status = write_res[0].Status
-                if req.expected_status != status:
-                    raise AssertionError(
-                        f"Write attribute {req.attribute.__qualname__} expects {req.expected_status} but got {status}")
-
-                # Only execute read tests where write is successful.
-                if req.expected_status != IM.Status.Success:
-                    continue
-
-                res = await self.devCtrl.ReadAttribute(nodeid, [(endpoint, req.attribute)])
-                val = res[endpoint][req.cluster][req.attribute]
-                if val != req.value:
-                    raise Exception(
-                        f"Read attribute {req.attribute.__qualname__}: expected value {req.value}, got {val}")
+                try:
+                    self.devCtrl.ZCLWriteAttribute(cluster=req.cluster,
+                                                   attribute=req.attribute,
+                                                   nodeid=nodeid,
+                                                   endpoint=endpoint,
+                                                   groupid=group,
+                                                   value=req.value)
+                    if req.expected_status != IM.Status.Success:
+                        raise AssertionError(
+                            f"Write attribute {req.cluster}.{req.attribute} expects failure but got success response")
+                except Exception as ex:
+                    if req.expected_status != IM.Status.Success:
+                        continue
+                    else:
+                        raise ex
+                res = self.devCtrl.ZCLReadAttribute(
+                    cluster=req.cluster, attribute=req.attribute, nodeid=nodeid, endpoint=endpoint, groupid=group)
+                TestResult(f"Read attribute {req.cluster}.{req.attribute}", res).assertValueEqual(
+                    req.value)
             except Exception as ex:
-                failed_attribute_write.append(str(ex))
-        if failed_attribute_write:
-            self.logger.exception(f"Following attributes failed: {failed_attribute_write}")
+                failed_zcl.append(str(ex))
+        if failed_zcl:
+            self.logger.exception(f"Following attributes failed: {failed_zcl}")
             return False
         return True
 
-    async def TestSubscription(self, nodeid: int, endpoint: int):
+    def TestSubscription(self, nodeid: int, endpoint: int):
         desiredPath = None
         receivedUpdate = 0
-        updateEvent = asyncio.Event()
-        loop = asyncio.get_running_loop()
+        updateLock = threading.Lock()
+        updateCv = threading.Condition(updateLock)
 
         def OnValueChange(path: Attribute.TypedAttributePath, transaction: Attribute.SubscriptionTransaction) -> None:
-            nonlocal desiredPath, updateEvent, receivedUpdate
+            nonlocal desiredPath, updateCv, updateLock, receivedUpdate
             if path.Path != desiredPath:
                 return
 
             data = transaction.GetAttribute(path)
             logger.info(
                 f"Received report from server: path: {path.Path}, value: {data}")
-            receivedUpdate += 1
-            loop.call_soon_threadsafe(updateEvent.set)
+            with updateLock:
+                receivedUpdate += 1
+                updateCv.notify_all()
 
-        async def _conductAttributeChange(devCtrl: ChipDeviceCtrl.ChipDeviceController, nodeid: int, endpoint: int):
-            for i in range(5):
-                await asyncio.sleep(3)
-                await self.devCtrl.SendCommand(nodeid, endpoint, Clusters.OnOff.Commands.Toggle())
+        class _conductAttributeChange(threading.Thread):
+            def __init__(self, devCtrl: ChipDeviceCtrl.ChipDeviceController, nodeid: int, endpoint: int):
+                super(_conductAttributeChange, self).__init__()
+                self.nodeid = nodeid
+                self.endpoint = endpoint
+                self.devCtrl = devCtrl
+
+            def run(self):
+                for i in range(5):
+                    time.sleep(3)
+                    self.devCtrl.ZCLSend(
+                        "OnOff", "Toggle", self.nodeid, self.endpoint, 0, {})
 
         try:
             desiredPath = Clusters.Attribute.AttributePath(
                 EndpointId=1, ClusterId=6, AttributeId=0)
             # OnOff Cluster, OnOff Attribute
-            subscription = await self.devCtrl.ReadAttribute(nodeid, [(endpoint, Clusters.OnOff.Attributes.OnOff)], None, False, reportInterval=(1, 10),
-                                                            keepSubscriptions=False, autoResubscribe=True)
+            subscription = self.devCtrl.ZCLSubscribeAttribute(
+                "OnOff", "OnOff", nodeid, endpoint, 1, 10)
             subscription.SetAttributeUpdateCallback(OnValueChange)
+            changeThread = _conductAttributeChange(
+                self.devCtrl, nodeid, endpoint)
             # Reset the number of subscriptions received as subscribing causes a callback.
-            taskAttributeChange = loop.create_task(_conductAttributeChange(self.devCtrl, nodeid, endpoint))
+            changeThread.start()
+            with updateCv:
+                while receivedUpdate < 5:
+                    # We should observe 5 attribute changes
+                    # The changing thread will change the value after 3 seconds. If we're waiting more than 10, assume something
+                    # is really wrong and bail out here with some information.
+                    if not updateCv.wait(10.0):
+                        self.logger.error(
+                            "Failed to receive subscription update")
+                        break
 
-            while receivedUpdate < 5:
-                # We should observe 5 attribute changes
-                # The changing thread will change the value after 3 seconds. If we're waiting more than 10, assume something
-                # is really wrong and bail out here with some information.
-                try:
-                    await asyncio.wait_for(updateEvent.wait(), 10)
-                    updateEvent.clear()
-                except TimeoutError:
-                    self.logger.error(
-                        "Failed to receive subscription update")
-                    break
+            # thread changes 5 times, and sleeps for 3 seconds in between.
+            # Add an additional 3 seconds of slack. Timeout is in seconds.
+            changeThread.join(18.0)
 
-            # At this point the task should really have done the three attribute,
-            # otherwise something is wrong. Wait for just 1s in case of a race
-            # condition between the last attribute update and the callback.
-            try:
-                await asyncio.wait_for(taskAttributeChange, 1)
-            except asyncio.TimeoutError:
-                # If attribute change task did not finish something is wrong. Cancel
-                # the task.
-                taskAttributeChange.cancel()
-                # This will throw a asyncio.CancelledError and makes sure the test
-                # is declared failed.
-                await taskAttributeChange
-
-            return True if receivedUpdate == 5 else False
-
-        except Exception as ex:
-            self.logger.exception(f"Failed to finish API test: {ex}")
-            return False
-        finally:
             #
             # Clean-up by shutting down the sub. Otherwise, we're going to get callbacks through
             # OnValueChange on what will soon become an invalid
             # execution context above.
             #
             subscription.Shutdown()
+
+            if changeThread.is_alive():
+                # Thread join timed out
+                self.logger.error("Failed to join change thread")
+                return False
+
+            return True if receivedUpdate == 5 else False
+
+        except Exception as ex:
+            self.logger.exception(f"Failed to finish API test: {ex}")
+            return False
 
         return True
 
@@ -1331,21 +1332,21 @@ class BaseTestHelper:
             return False
         return True
 
-    async def TestFabricScopedCommandDuringPase(self, nodeid: int):
+    def TestFabricScopedCommandDuringPase(self, nodeid: int):
         '''Validates that fabric-scoped commands fail during PASE with UNSUPPORTED_ACCESS
 
         The nodeid is the PASE pseudo-node-ID used during PASE establishment
         '''
         status = None
         try:
-            await self.devCtrl.SendCommand(
-                nodeid, 0, Clusters.OperationalCredentials.Commands.UpdateFabricLabel("roboto"))
+            asyncio.run(self.devCtrl.SendCommand(
+                nodeid, 0, Clusters.OperationalCredentials.Commands.UpdateFabricLabel("roboto")))
         except IM.InteractionModelError as ex:
             status = ex.status
 
         return status == IM.Status.UnsupportedAccess
 
-    async def TestSubscriptionResumption(self, nodeid: int, endpoint: int, remote_ip: str, ssh_port: int, remote_server_app: str):
+    def TestSubscriptionResumption(self, nodeid: int, endpoint: int, remote_ip: str, ssh_port: int, remote_server_app: str):
         '''
         This test validates that the device can resume the subscriptions after restarting.
         It is executed in Linux Cirque tests and the steps of this test are:
@@ -1354,40 +1355,42 @@ class BaseTestHelper:
         3. Validate that the controller can receive a report from the remote server app
         '''
         desiredPath = None
-        updateEvent = asyncio.Event()
-        loop = asyncio.get_running_loop()
+        receivedUpdate = False
+        updateLock = threading.Lock()
+        updateCv = threading.Condition(updateLock)
 
         def OnValueReport(path: Attribute.TypedAttributePath, transaction: Attribute.SubscriptionTransaction) -> None:
-            nonlocal desiredPath, updateEvent, receivedUpdate
+            nonlocal desiredPath, updateCv, updateLock, receivedUpdate
             if path.Path != desiredPath:
                 return
 
             data = transaction.GetAttribute(path)
             logger.info(
                 f"Received report from server: path: {path.Path}, value: {data}")
-            loop.call_soon_threadsafe(updateEvent.set)
+            with updateLock:
+                receivedUpdate = True
+                updateCv.notify_all()
 
         try:
             desiredPath = Clusters.Attribute.AttributePath(
                 EndpointId=0, ClusterId=0x28, AttributeId=5)
             # BasicInformation Cluster, NodeLabel Attribute
-            subscription = await self.devCtrl.ReadAttribute(nodeid, [(endpoint, Clusters.BasicInformation.Attributes.NodeLabel)], None, False, reportInterval=(1, 50),
-                                                            keepSubscriptions=True, autoResubscribe=False)
+            subscription = self.devCtrl.ZCLSubscribeAttribute(
+                "BasicInformation", "NodeLabel", nodeid, endpoint, 1, 50, keepSubscriptions=True, autoResubscribe=False)
             subscription.SetAttributeUpdateCallback(OnValueReport)
 
-            self.logger.info("Restart remote device")
+            self.logger.info("Restart remote deivce")
             restartRemoteThread = restartRemoteDevice(
                 remote_ip, ssh_port, "root", "admin", remote_server_app, "--thread --discriminator 3840")
             restartRemoteThread.start()
             # After device restarts, the attribute will be set dirty so the subscription can receive
             # the update
-            receivedUpdate = False
-            try:
-                await asyncio.wait_for(updateEvent.wait(), 10)
-                receivedUpdate = True
-            except TimeoutError:
-                self.logger.error(
-                    "Failed to receive subscription resumption report")
+            with updateCv:
+                while receivedUpdate is False:
+                    if not updateCv.wait(10.0):
+                        self.logger.error(
+                            "Failed to receive subscription resumption report")
+                        break
 
             restartRemoteThread.join(10.0)
 
@@ -1434,26 +1437,25 @@ class BaseTestHelper:
     controller 1 in container 1 while the Step2 is executed in controller 2 in container 2
     '''
 
-    async def TestSubscriptionResumptionCapacityStep1(self, nodeid: int, endpoint: int, passcode: int, subscription_capacity: int):
+    def TestSubscriptionResumptionCapacityStep1(self, nodeid: int, endpoint: int, passcode: int, subscription_capacity: int):
         try:
             # BasicInformation Cluster, NodeLabel Attribute
             for i in range(subscription_capacity):
-                await self.devCtrl.ReadAttribute(nodeid, [(endpoint, Clusters.BasicInformation.Attributes.NodeLabel)], None,
-                                                 False, reportInterval=(1, 50),
-                                                 keepSubscriptions=True, autoResubscribe=False)
+                self.devCtrl.ZCLSubscribeAttribute(
+                    "BasicInformation", "NodeLabel", nodeid, endpoint, 1, 50, keepSubscriptions=True, autoResubscribe=False)
 
             logger.info("Send OpenCommissioningWindow command on fist controller")
             discriminator = 3840
             salt = secrets.token_bytes(16)
             iterations = 2000
             verifier = GenerateVerifier(passcode, salt, iterations)
-            await self.devCtrl.SendCommand(
+            asyncio.run(self.devCtrl.SendCommand(
                 nodeid, 0, Clusters.AdministratorCommissioning.Commands.OpenCommissioningWindow(
                     commissioningTimeout=180,
                     PAKEPasscodeVerifier=verifier,
                     discriminator=discriminator,
                     iterations=iterations,
-                    salt=salt), timedRequestTimeoutMs=10000)
+                    salt=salt), timedRequestTimeoutMs=10000))
             return True
 
         except Exception as ex:
@@ -1462,8 +1464,8 @@ class BaseTestHelper:
 
         return True
 
-    async def TestSubscriptionResumptionCapacityStep2(self, nodeid: int, endpoint: int, remote_ip: str, ssh_port: int,
-                                                      remote_server_app: str, subscription_capacity: int):
+    def TestSubscriptionResumptionCapacityStep2(self, nodeid: int, endpoint: int, remote_ip: str, ssh_port: int,
+                                                remote_server_app: str, subscription_capacity: int):
         try:
             self.logger.info("Restart remote deivce")
             extra_agrs = f"--thread --discriminator 3840 --subscription-capacity {subscription_capacity}"
@@ -1477,9 +1479,8 @@ class BaseTestHelper:
             self.logger.info("Send a new subscription request from the second controller")
             # Close previous session so that the second controller will res-establish the session with the remote device
             self.devCtrl.CloseSession(nodeid)
-            await self.devCtrl.ReadAttribute(nodeid, [(endpoint, Clusters.BasicInformation.Attributes.NodeLabel)], None,
-                                             False, reportInterval=(1, 50),
-                                             keepSubscriptions=True, autoResubscribe=False)
+            self.devCtrl.ZCLSubscribeAttribute(
+                "BasicInformation", "NodeLabel", nodeid, endpoint, 1, 50, keepSubscriptions=True, autoResubscribe=False)
 
             if restartRemoteThread.is_alive():
                 # Thread join timed out

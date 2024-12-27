@@ -23,8 +23,6 @@
 #include <json/json.h>
 #include <platform/DiagnosticDataProvider.h>
 
-#include <string>
-
 class AirQualitySensorAttrUpdateHandler
 {
 public:

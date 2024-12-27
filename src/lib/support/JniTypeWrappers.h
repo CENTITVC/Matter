@@ -19,7 +19,6 @@
 
 #include <cstdint>
 #include <jni.h>
-#include <lib/core/CHIPSafeCasts.h>
 #include <lib/support/CHIPJNIError.h>
 #include <lib/support/JniReferences.h>
 #include <lib/support/Span.h>
@@ -51,15 +50,13 @@ public:
 
     chip::CharSpan charSpan() const { return chip::CharSpan(c_str(), static_cast<size_t>(size())); }
 
-    chip::ByteSpan byteSpan() const { return chip::ByteSpan(chip::Uint8::from_const_char(c_str()), static_cast<size_t>(size())); }
-
     jsize size() const { return mDataLength; }
 
 private:
-    JNIEnv * mEnv       = nullptr;
-    jstring mString     = nullptr;
-    const char * mChars = nullptr;
-    jsize mDataLength   = 0;
+    JNIEnv * mEnv;
+    jstring mString;
+    const char * mChars;
+    jsize mDataLength;
 };
 
 /// Exposes the underlying binary data from a jni byte array

@@ -15,8 +15,7 @@
  *    limitations under the License.
  */
 
-#include "thermostat-server.h"
-#include "PresetStructWithOwnedMembers.h"
+#include <app/util/af.h>
 
 #include <app/util/attribute-storage.h>
 
@@ -27,17 +26,15 @@
 #include <app/CommandHandler.h>
 #include <app/ConcreteAttributePath.h>
 #include <app/ConcreteCommandPath.h>
-#include <app/server/Server.h>
-#include <app/util/endpoint-config-api.h>
 #include <lib/core/CHIPEncoding.h>
 
 using namespace chip;
 using namespace chip::app;
 using namespace chip::app::Clusters;
 using namespace chip::app::Clusters::Thermostat;
-using namespace chip::app::Clusters::Thermostat::Structs;
 using namespace chip::app::Clusters::Thermostat::Attributes;
-using namespace Protocols::InteractionModel;
+
+using imcode = Protocols::InteractionModel::Status;
 
 constexpr int16_t kDefaultAbsMinHeatSetpointLimit = 700;  // 7C (44.5 F) is the default
 constexpr int16_t kDefaultAbsMaxHeatSetpointLimit = 3000; // 30C (86 F) is the default
@@ -67,183 +64,25 @@ constexpr int8_t kDefaultDeadBand                 = 25; // 2.5C is the default
 
 #define FEATURE_MAP_DEFAULT FEATURE_MAP_HEAT | FEATURE_MAP_COOL | FEATURE_MAP_AUTO
 
-static_assert(kThermostatEndpointCount <= kEmberInvalidEndpointIndex, "Thermostat Delegate table size error");
+namespace {
 
-Delegate * gDelegateTable[kThermostatEndpointCount] = { nullptr };
+class ThermostatAttrAccess : public AttributeAccessInterface
+{
+public:
+    ThermostatAttrAccess() : AttributeAccessInterface(Optional<EndpointId>::Missing(), Thermostat::Id) {}
 
-namespace chip {
-namespace app {
-namespace Clusters {
-namespace Thermostat {
+    CHIP_ERROR Read(const ConcreteReadAttributePath & aPath, AttributeValueEncoder & aEncoder) override;
+    CHIP_ERROR Write(const ConcreteDataAttributePath & aPath, AttributeValueDecoder & aDecoder) override;
+};
 
 ThermostatAttrAccess gThermostatAttrAccess;
-
-int16_t EnforceHeatingSetpointLimits(int16_t HeatingSetpoint, EndpointId endpoint)
-{
-    // Optional Mfg supplied limits
-    int16_t AbsMinHeatSetpointLimit = kDefaultAbsMinHeatSetpointLimit;
-    int16_t AbsMaxHeatSetpointLimit = kDefaultAbsMaxHeatSetpointLimit;
-
-    // Optional User supplied limits
-    int16_t MinHeatSetpointLimit = kDefaultMinHeatSetpointLimit;
-    int16_t MaxHeatSetpointLimit = kDefaultMaxHeatSetpointLimit;
-
-    // Attempt to read the setpoint limits
-    // Absmin/max are manufacturer limits
-    // min/max are user imposed min/max
-
-    // Note that the limits are initialized above per the spec limits
-    // if they are not present Get() will not update the value so the defaults are used
-    Status status;
-
-    // https://github.com/CHIP-Specifications/connectedhomeip-spec/issues/3724
-    // behavior is not specified when Abs * values are not present and user values are present
-    // implemented behavior accepts the user values without regard to default Abs values.
-
-    // Per global matter data model policy
-    // if a attribute is not present then it's default shall be used.
-
-    status = AbsMinHeatSetpointLimit::Get(endpoint, &AbsMinHeatSetpointLimit);
-    if (status != Status::Success)
-    {
-        ChipLogError(Zcl, "Warning: AbsMinHeatSetpointLimit missing using default");
-    }
-
-    status = AbsMaxHeatSetpointLimit::Get(endpoint, &AbsMaxHeatSetpointLimit);
-    if (status != Status::Success)
-    {
-        ChipLogError(Zcl, "Warning: AbsMaxHeatSetpointLimit missing using default");
-    }
-    status = MinHeatSetpointLimit::Get(endpoint, &MinHeatSetpointLimit);
-    if (status != Status::Success)
-    {
-        MinHeatSetpointLimit = AbsMinHeatSetpointLimit;
-    }
-
-    status = MaxHeatSetpointLimit::Get(endpoint, &MaxHeatSetpointLimit);
-    if (status != Status::Success)
-    {
-        MaxHeatSetpointLimit = AbsMaxHeatSetpointLimit;
-    }
-
-    // Make sure the user imposed limits are within the manufacturer imposed limits
-
-    // https://github.com/CHIP-Specifications/connectedhomeip-spec/issues/3725
-    // Spec does not specify the behavior is the requested setpoint exceeds the limit allowed
-    // This implementation clamps at the limit.
-
-    // resolution of 3725 is to clamp.
-
-    if (MinHeatSetpointLimit < AbsMinHeatSetpointLimit)
-        MinHeatSetpointLimit = AbsMinHeatSetpointLimit;
-
-    if (MaxHeatSetpointLimit > AbsMaxHeatSetpointLimit)
-        MaxHeatSetpointLimit = AbsMaxHeatSetpointLimit;
-
-    if (HeatingSetpoint < MinHeatSetpointLimit)
-        HeatingSetpoint = MinHeatSetpointLimit;
-
-    if (HeatingSetpoint > MaxHeatSetpointLimit)
-        HeatingSetpoint = MaxHeatSetpointLimit;
-
-    return HeatingSetpoint;
-}
-
-int16_t EnforceCoolingSetpointLimits(int16_t CoolingSetpoint, EndpointId endpoint)
-{
-    // Optional Mfg supplied limits
-    int16_t AbsMinCoolSetpointLimit = kDefaultAbsMinCoolSetpointLimit;
-    int16_t AbsMaxCoolSetpointLimit = kDefaultAbsMaxCoolSetpointLimit;
-
-    // Optional User supplied limits
-    int16_t MinCoolSetpointLimit = kDefaultMinCoolSetpointLimit;
-    int16_t MaxCoolSetpointLimit = kDefaultMaxCoolSetpointLimit;
-
-    // Attempt to read the setpoint limits
-    // Absmin/max are manufacturer limits
-    // min/max are user imposed min/max
-
-    // Note that the limits are initialized above per the spec limits
-    // if they are not present Get() will not update the value so the defaults are used
-    Status status;
-
-    // https://github.com/CHIP-Specifications/connectedhomeip-spec/issues/3724
-    // behavior is not specified when Abs * values are not present and user values are present
-    // implemented behavior accepts the user values without regard to default Abs values.
-
-    // Per global matter data model policy
-    // if a attribute is not present then it's default shall be used.
-
-    status = AbsMinCoolSetpointLimit::Get(endpoint, &AbsMinCoolSetpointLimit);
-    if (status != Status::Success)
-    {
-        ChipLogError(Zcl, "Warning: AbsMinCoolSetpointLimit missing using default");
-    }
-
-    status = AbsMaxCoolSetpointLimit::Get(endpoint, &AbsMaxCoolSetpointLimit);
-    if (status != Status::Success)
-    {
-        ChipLogError(Zcl, "Warning: AbsMaxCoolSetpointLimit missing using default");
-    }
-
-    status = MinCoolSetpointLimit::Get(endpoint, &MinCoolSetpointLimit);
-    if (status != Status::Success)
-    {
-        MinCoolSetpointLimit = AbsMinCoolSetpointLimit;
-    }
-
-    status = MaxCoolSetpointLimit::Get(endpoint, &MaxCoolSetpointLimit);
-    if (status != Status::Success)
-    {
-        MaxCoolSetpointLimit = AbsMaxCoolSetpointLimit;
-    }
-
-    // Make sure the user imposed limits are within the manufacture imposed limits
-    // https://github.com/CHIP-Specifications/connectedhomeip-spec/issues/3725
-    // Spec does not specify the behavior is the requested setpoint exceeds the limit allowed
-    // This implementation clamps at the limit.
-
-    // resolution of 3725 is to clamp.
-
-    if (MinCoolSetpointLimit < AbsMinCoolSetpointLimit)
-        MinCoolSetpointLimit = AbsMinCoolSetpointLimit;
-
-    if (MaxCoolSetpointLimit > AbsMaxCoolSetpointLimit)
-        MaxCoolSetpointLimit = AbsMaxCoolSetpointLimit;
-
-    if (CoolingSetpoint < MinCoolSetpointLimit)
-        CoolingSetpoint = MinCoolSetpointLimit;
-
-    if (CoolingSetpoint > MaxCoolSetpointLimit)
-        CoolingSetpoint = MaxCoolSetpointLimit;
-
-    return CoolingSetpoint;
-}
-
-Delegate * GetDelegate(EndpointId endpoint)
-{
-    uint16_t ep =
-        emberAfGetClusterServerEndpointIndex(endpoint, Thermostat::Id, MATTER_DM_THERMOSTAT_CLUSTER_SERVER_ENDPOINT_COUNT);
-    return (ep >= ArraySize(gDelegateTable) ? nullptr : gDelegateTable[ep]);
-}
-
-void SetDefaultDelegate(EndpointId endpoint, Delegate * delegate)
-{
-    uint16_t ep =
-        emberAfGetClusterServerEndpointIndex(endpoint, Thermostat::Id, MATTER_DM_THERMOSTAT_CLUSTER_SERVER_ENDPOINT_COUNT);
-    // if endpoint is found, add the delegate in the delegate table
-    if (ep < ArraySize(gDelegateTable))
-    {
-        gDelegateTable[ep] = delegate;
-    }
-}
 
 CHIP_ERROR ThermostatAttrAccess::Read(const ConcreteReadAttributePath & aPath, AttributeValueEncoder & aEncoder)
 {
     VerifyOrDie(aPath.mClusterId == Thermostat::Id);
 
     uint32_t ourFeatureMap;
-    bool localTemperatureNotExposedSupported = (FeatureMap::Get(aPath.mEndpointId, &ourFeatureMap) == Status::Success) &&
+    bool localTemperatureNotExposedSupported = (FeatureMap::Get(aPath.mEndpointId, &ourFeatureMap) == imcode::Success) &&
         ((ourFeatureMap & to_underlying(Feature::kLocalTemperatureNotExposed)) != 0);
 
     switch (aPath.mAttributeId)
@@ -258,8 +97,8 @@ CHIP_ERROR ThermostatAttrAccess::Read(const ConcreteReadAttributePath & aPath, A
         if (localTemperatureNotExposedSupported)
         {
             BitMask<RemoteSensingBitmap> valueRemoteSensing;
-            Status status = RemoteSensing::Get(aPath.mEndpointId, &valueRemoteSensing);
-            if (status != Status::Success)
+            imcode status = RemoteSensing::Get(aPath.mEndpointId, &valueRemoteSensing);
+            if (status != imcode::Success)
             {
                 StatusIB statusIB(status);
                 return statusIB.ToChipError();
@@ -269,79 +108,11 @@ CHIP_ERROR ThermostatAttrAccess::Read(const ConcreteReadAttributePath & aPath, A
         }
         break;
     case PresetTypes::Id: {
-        auto delegate = GetDelegate(aPath.mEndpointId);
-        VerifyOrReturnError(delegate != nullptr, CHIP_ERROR_INCORRECT_STATE, ChipLogError(Zcl, "Delegate is null"));
-
-        return aEncoder.EncodeList([delegate](const auto & encoder) -> CHIP_ERROR {
-            for (uint8_t i = 0; true; i++)
-            {
-                PresetTypeStruct::Type presetType;
-                auto err = delegate->GetPresetTypeAtIndex(i, presetType);
-                if (err == CHIP_ERROR_PROVIDER_LIST_EXHAUSTED)
-                {
-                    return CHIP_NO_ERROR;
-                }
-                ReturnErrorOnFailure(err);
-                ReturnErrorOnFailure(encoder.Encode(presetType));
-            }
-        });
-    }
-    break;
-    case NumberOfPresets::Id: {
-        auto delegate = GetDelegate(aPath.mEndpointId);
-        VerifyOrReturnError(delegate != nullptr, CHIP_ERROR_INCORRECT_STATE, ChipLogError(Zcl, "Delegate is null"));
-
-        ReturnErrorOnFailure(aEncoder.Encode(delegate->GetNumberOfPresets()));
+        return aEncoder.EncodeList([](const auto & encoder) -> CHIP_ERROR { return CHIP_NO_ERROR; });
     }
     break;
     case Presets::Id: {
-        auto delegate = GetDelegate(aPath.mEndpointId);
-        VerifyOrReturnError(delegate != nullptr, CHIP_ERROR_INCORRECT_STATE, ChipLogError(Zcl, "Delegate is null"));
-
-        auto & subjectDescriptor = aEncoder.GetSubjectDescriptor();
-        if (InAtomicWrite(aPath.mEndpointId, subjectDescriptor, MakeOptional(aPath.mAttributeId)))
-        {
-            return aEncoder.EncodeList([delegate](const auto & encoder) -> CHIP_ERROR {
-                for (uint8_t i = 0; true; i++)
-                {
-                    PresetStructWithOwnedMembers preset;
-                    auto err = delegate->GetPendingPresetAtIndex(i, preset);
-                    if (err == CHIP_ERROR_PROVIDER_LIST_EXHAUSTED)
-                    {
-                        return CHIP_NO_ERROR;
-                    }
-                    ReturnErrorOnFailure(err);
-                    ReturnErrorOnFailure(encoder.Encode(preset));
-                }
-            });
-        }
-        return aEncoder.EncodeList([delegate](const auto & encoder) -> CHIP_ERROR {
-            for (uint8_t i = 0; true; i++)
-            {
-                PresetStructWithOwnedMembers preset;
-                auto err = delegate->GetPresetAtIndex(i, preset);
-                if (err == CHIP_ERROR_PROVIDER_LIST_EXHAUSTED)
-                {
-                    return CHIP_NO_ERROR;
-                }
-                ReturnErrorOnFailure(err);
-                ReturnErrorOnFailure(encoder.Encode(preset));
-            }
-        });
-    }
-    break;
-    case ActivePresetHandle::Id: {
-        auto delegate = GetDelegate(aPath.mEndpointId);
-        VerifyOrReturnError(delegate != nullptr, CHIP_ERROR_INCORRECT_STATE, ChipLogError(Zcl, "Delegate is null"));
-
-        uint8_t buffer[kPresetHandleSize];
-        MutableByteSpan activePresetHandleSpan(buffer);
-        auto activePresetHandle = DataModel::MakeNullable(activePresetHandleSpan);
-
-        CHIP_ERROR err = delegate->GetActivePresetHandle(activePresetHandle);
-        ReturnErrorOnFailure(err);
-
-        ReturnErrorOnFailure(aEncoder.Encode(activePresetHandle));
+        return aEncoder.EncodeList([](const auto & encoder) -> CHIP_ERROR { return CHIP_NO_ERROR; });
     }
     break;
     case ScheduleTypes::Id: {
@@ -352,6 +123,10 @@ CHIP_ERROR ThermostatAttrAccess::Read(const ConcreteReadAttributePath & aPath, A
         return aEncoder.EncodeList([](const auto & encoder) -> CHIP_ERROR { return CHIP_NO_ERROR; });
     }
     break;
+    case QueuedPreset::Id: {
+        DataModel::Nullable<Structs::QueuedPresetStruct::Type> value;
+        return aEncoder.Encode(value);
+    }
     default: // return CHIP_NO_ERROR and just read from the attribute store in default
         break;
     }
@@ -363,73 +138,8 @@ CHIP_ERROR ThermostatAttrAccess::Write(const ConcreteDataAttributePath & aPath, 
 {
     VerifyOrDie(aPath.mClusterId == Thermostat::Id);
 
-    EndpointId endpoint      = aPath.mEndpointId;
-    auto & subjectDescriptor = aDecoder.GetSubjectDescriptor();
-
-    // Check atomic attributes first
-    switch (aPath.mAttributeId)
-    {
-    case Presets::Id: {
-
-        auto delegate = GetDelegate(endpoint);
-        VerifyOrReturnError(delegate != nullptr, CHIP_ERROR_INCORRECT_STATE, ChipLogError(Zcl, "Delegate is null"));
-
-        // Presets are not editable, return INVALID_IN_STATE.
-        VerifyOrReturnError(InAtomicWrite(endpoint, MakeOptional(aPath.mAttributeId)), CHIP_IM_GLOBAL_STATUS(InvalidInState),
-                            ChipLogError(Zcl, "Presets are not editable"));
-
-        // OK, we're in an atomic write, make sure the requesting node is the same one that started the atomic write,
-        // otherwise return BUSY.
-        if (!InAtomicWrite(endpoint, subjectDescriptor, MakeOptional(aPath.mAttributeId)))
-        {
-            ChipLogError(Zcl, "Another node is editing presets. Server is busy. Try again later");
-            return CHIP_IM_GLOBAL_STATUS(Busy);
-        }
-
-        // If the list operation is replace all, clear the existing pending list, iterate over the new presets list
-        // and add to the pending presets list.
-        if (!aPath.IsListOperation() || aPath.mListOp == ConcreteDataAttributePath::ListOperation::ReplaceAll)
-        {
-            // Clear the pending presets list
-            delegate->ClearPendingPresetList();
-
-            Presets::TypeInfo::DecodableType newPresetsList;
-            ReturnErrorOnFailure(aDecoder.Decode(newPresetsList));
-
-            // Iterate over the presets and call the delegate to append to the list of pending presets.
-            auto iter = newPresetsList.begin();
-            while (iter.Next())
-            {
-                const PresetStruct::Type & preset = iter.GetValue();
-                ReturnErrorOnFailure(AppendPendingPreset(delegate, preset));
-            }
-            return iter.GetStatus();
-        }
-
-        // If the list operation is AppendItem, call the delegate to append the item to the list of pending presets.
-        if (aPath.mListOp == ConcreteDataAttributePath::ListOperation::AppendItem)
-        {
-            PresetStruct::Type preset;
-            ReturnErrorOnFailure(aDecoder.Decode(preset));
-            return AppendPendingPreset(delegate, preset);
-        }
-    }
-    break;
-    case Schedules::Id: {
-        return CHIP_ERROR_NOT_IMPLEMENTED;
-    }
-    break;
-    }
-
-    // This is not an atomic attribute, so check to make sure we don't have an atomic write going for this client
-    if (InAtomicWrite(endpoint, subjectDescriptor))
-    {
-        ChipLogError(Zcl, "Can not write to non-atomic attributes during atomic write");
-        return CHIP_IM_GLOBAL_STATUS(InvalidInState);
-    }
-
     uint32_t ourFeatureMap;
-    bool localTemperatureNotExposedSupported = (FeatureMap::Get(aPath.mEndpointId, &ourFeatureMap) == Status::Success) &&
+    bool localTemperatureNotExposedSupported = (FeatureMap::Get(aPath.mEndpointId, &ourFeatureMap) == imcode::Success) &&
         ((ourFeatureMap & to_underlying(Feature::kLocalTemperatureNotExposed)) != 0);
 
     switch (aPath.mAttributeId)
@@ -443,12 +153,24 @@ CHIP_ERROR ThermostatAttrAccess::Write(const ConcreteDataAttributePath & aPath, 
             {
                 return CHIP_IM_GLOBAL_STATUS(ConstraintError);
             }
-            Status status = RemoteSensing::Set(aPath.mEndpointId, valueRemoteSensing);
+            imcode status = RemoteSensing::Set(aPath.mEndpointId, valueRemoteSensing);
             StatusIB statusIB(status);
             return statusIB.ToChipError();
         }
         break;
+    case Presets::Id: {
+        return CHIP_ERROR_NOT_IMPLEMENTED;
+    }
+    break;
 
+    case Schedules::Id: {
+        return CHIP_ERROR_NOT_IMPLEMENTED;
+    }
+    break;
+    case QueuedPreset::Id: {
+        return CHIP_ERROR_NOT_IMPLEMENTED;
+    }
+    break;
     default: // return CHIP_NO_ERROR and just write to the attribute store in default
         break;
     }
@@ -456,68 +178,7 @@ CHIP_ERROR ThermostatAttrAccess::Write(const ConcreteDataAttributePath & aPath, 
     return CHIP_NO_ERROR;
 }
 
-void ThermostatAttrAccess::OnFabricRemoved(const FabricTable & fabricTable, FabricIndex fabricIndex)
-{
-    for (size_t i = 0; i < ArraySize(mAtomicWriteSessions); ++i)
-    {
-        auto & atomicWriteState = mAtomicWriteSessions[i];
-        if (atomicWriteState.state == AtomicWriteState::Open && atomicWriteState.nodeId.GetFabricIndex() == fabricIndex)
-        {
-            ResetAtomicWrite(atomicWriteState.endpointId);
-        }
-    }
-}
-
-void MatterThermostatClusterServerAttributeChangedCallback(const ConcreteAttributePath & attributePath)
-{
-    uint32_t flags;
-    if (FeatureMap::Get(attributePath.mEndpointId, &flags) != Status::Success)
-    {
-        ChipLogError(Zcl, "MatterThermostatClusterServerAttributeChangedCallback: could not get feature flags");
-        return;
-    }
-
-    auto featureMap = BitMask<Feature, uint32_t>(flags);
-    if (!featureMap.Has(Feature::kPresets))
-    {
-        // This server does not support presets, so nothing to do
-        return;
-    }
-
-    bool occupied = true;
-    if (featureMap.Has(Feature::kOccupancy))
-    {
-        BitMask<OccupancyBitmap, uint8_t> occupancy;
-        if (Occupancy::Get(attributePath.mEndpointId, &occupancy) == Status::Success)
-        {
-            occupied = occupancy.Has(OccupancyBitmap::kOccupied);
-        }
-    }
-
-    bool clearActivePreset = false;
-    switch (attributePath.mAttributeId)
-    {
-    case OccupiedHeatingSetpoint::Id:
-    case OccupiedCoolingSetpoint::Id:
-        clearActivePreset = occupied;
-        break;
-    case UnoccupiedHeatingSetpoint::Id:
-    case UnoccupiedCoolingSetpoint::Id:
-        clearActivePreset = !occupied;
-        break;
-    }
-    if (!clearActivePreset)
-    {
-        return;
-    }
-    ChipLogProgress(Zcl, "Setting active preset to null");
-    gThermostatAttrAccess.SetActivePreset(attributePath.mEndpointId, std::nullopt);
-}
-
-} // namespace Thermostat
-} // namespace Clusters
-} // namespace app
-} // namespace chip
+} // anonymous namespace
 
 void emberAfThermostatClusterServerInitCallback(chip::EndpointId endpoint)
 {
@@ -564,7 +225,7 @@ MatterThermostatClusterServerPreAttributeChangedCallback(const app::ConcreteAttr
     bool CoolSupported      = false;
     bool OccupancySupported = false;
 
-    if (FeatureMap::Get(endpoint, &OurFeatureMap) != Status::Success)
+    if (FeatureMap::Get(endpoint, &OurFeatureMap) != imcode::Success)
         OurFeatureMap = FEATURE_MAP_DEFAULT;
 
     if (OurFeatureMap & 1 << 5) // Bit 5 is Auto Mode supported
@@ -581,63 +242,63 @@ MatterThermostatClusterServerPreAttributeChangedCallback(const app::ConcreteAttr
 
     if (AutoSupported)
     {
-        if (MinSetpointDeadBand::Get(endpoint, &DeadBand) != Status::Success)
+        if (MinSetpointDeadBand::Get(endpoint, &DeadBand) != imcode::Success)
         {
             DeadBand = kDefaultDeadBand;
         }
         DeadBandTemp = static_cast<int16_t>(DeadBand * 10);
     }
 
-    if (AbsMinCoolSetpointLimit::Get(endpoint, &AbsMinCoolSetpointLimit) != Status::Success)
+    if (AbsMinCoolSetpointLimit::Get(endpoint, &AbsMinCoolSetpointLimit) != imcode::Success)
         AbsMinCoolSetpointLimit = kDefaultAbsMinCoolSetpointLimit;
 
-    if (AbsMaxCoolSetpointLimit::Get(endpoint, &AbsMaxCoolSetpointLimit) != Status::Success)
+    if (AbsMaxCoolSetpointLimit::Get(endpoint, &AbsMaxCoolSetpointLimit) != imcode::Success)
         AbsMaxCoolSetpointLimit = kDefaultAbsMaxCoolSetpointLimit;
 
-    if (MinCoolSetpointLimit::Get(endpoint, &MinCoolSetpointLimit) != Status::Success)
+    if (MinCoolSetpointLimit::Get(endpoint, &MinCoolSetpointLimit) != imcode::Success)
         MinCoolSetpointLimit = AbsMinCoolSetpointLimit;
 
-    if (MaxCoolSetpointLimit::Get(endpoint, &MaxCoolSetpointLimit) != Status::Success)
+    if (MaxCoolSetpointLimit::Get(endpoint, &MaxCoolSetpointLimit) != imcode::Success)
         MaxCoolSetpointLimit = AbsMaxCoolSetpointLimit;
 
-    if (AbsMinHeatSetpointLimit::Get(endpoint, &AbsMinHeatSetpointLimit) != Status::Success)
+    if (AbsMinHeatSetpointLimit::Get(endpoint, &AbsMinHeatSetpointLimit) != imcode::Success)
         AbsMinHeatSetpointLimit = kDefaultAbsMinHeatSetpointLimit;
 
-    if (AbsMaxHeatSetpointLimit::Get(endpoint, &AbsMaxHeatSetpointLimit) != Status::Success)
+    if (AbsMaxHeatSetpointLimit::Get(endpoint, &AbsMaxHeatSetpointLimit) != imcode::Success)
         AbsMaxHeatSetpointLimit = kDefaultAbsMaxHeatSetpointLimit;
 
-    if (MinHeatSetpointLimit::Get(endpoint, &MinHeatSetpointLimit) != Status::Success)
+    if (MinHeatSetpointLimit::Get(endpoint, &MinHeatSetpointLimit) != imcode::Success)
         MinHeatSetpointLimit = AbsMinHeatSetpointLimit;
 
-    if (MaxHeatSetpointLimit::Get(endpoint, &MaxHeatSetpointLimit) != Status::Success)
+    if (MaxHeatSetpointLimit::Get(endpoint, &MaxHeatSetpointLimit) != imcode::Success)
         MaxHeatSetpointLimit = AbsMaxHeatSetpointLimit;
 
     if (CoolSupported)
-        if (OccupiedCoolingSetpoint::Get(endpoint, &OccupiedCoolingSetpoint) != Status::Success)
+        if (OccupiedCoolingSetpoint::Get(endpoint, &OccupiedCoolingSetpoint) != imcode::Success)
         {
             ChipLogError(Zcl, "Error: Can not read Occupied Cooling Setpoint");
-            return Status::Failure;
+            return imcode::Failure;
         }
 
     if (HeatSupported)
-        if (OccupiedHeatingSetpoint::Get(endpoint, &OccupiedHeatingSetpoint) != Status::Success)
+        if (OccupiedHeatingSetpoint::Get(endpoint, &OccupiedHeatingSetpoint) != imcode::Success)
         {
             ChipLogError(Zcl, "Error: Can not read Occupied Heating Setpoint");
-            return Status::Failure;
+            return imcode::Failure;
         }
 
     if (CoolSupported && OccupancySupported)
-        if (UnoccupiedCoolingSetpoint::Get(endpoint, &UnoccupiedCoolingSetpoint) != Status::Success)
+        if (UnoccupiedCoolingSetpoint::Get(endpoint, &UnoccupiedCoolingSetpoint) != imcode::Success)
         {
             ChipLogError(Zcl, "Error: Can not read Unoccupied Cooling Setpoint");
-            return Status::Failure;
+            return imcode::Failure;
         }
 
     if (HeatSupported && OccupancySupported)
-        if (UnoccupiedHeatingSetpoint::Get(endpoint, &UnoccupiedHeatingSetpoint) != Status::Success)
+        if (UnoccupiedHeatingSetpoint::Get(endpoint, &UnoccupiedHeatingSetpoint) != imcode::Success)
         {
             ChipLogError(Zcl, "Error: Can not read Unoccupied Heating Setpoint");
-            return Status::Failure;
+            return imcode::Failure;
         }
 
     switch (attributePath.mAttributeId)
@@ -645,143 +306,143 @@ MatterThermostatClusterServerPreAttributeChangedCallback(const app::ConcreteAttr
     case OccupiedHeatingSetpoint::Id: {
         requested = static_cast<int16_t>(chip::Encoding::LittleEndian::Get16(value));
         if (!HeatSupported)
-            return Status::UnsupportedAttribute;
+            return imcode::UnsupportedAttribute;
         if (requested < AbsMinHeatSetpointLimit || requested < MinHeatSetpointLimit || requested > AbsMaxHeatSetpointLimit ||
             requested > MaxHeatSetpointLimit)
-            return Status::InvalidValue;
+            return imcode::InvalidValue;
         if (AutoSupported)
         {
             if (requested > OccupiedCoolingSetpoint - DeadBandTemp)
-                return Status::InvalidValue;
+                return imcode::InvalidValue;
         }
-        return Status::Success;
+        return imcode::Success;
     }
 
     case OccupiedCoolingSetpoint::Id: {
         requested = static_cast<int16_t>(chip::Encoding::LittleEndian::Get16(value));
         if (!CoolSupported)
-            return Status::UnsupportedAttribute;
+            return imcode::UnsupportedAttribute;
         if (requested < AbsMinCoolSetpointLimit || requested < MinCoolSetpointLimit || requested > AbsMaxCoolSetpointLimit ||
             requested > MaxCoolSetpointLimit)
-            return Status::InvalidValue;
+            return imcode::InvalidValue;
         if (AutoSupported)
         {
             if (requested < OccupiedHeatingSetpoint + DeadBandTemp)
-                return Status::InvalidValue;
+                return imcode::InvalidValue;
         }
-        return Status::Success;
+        return imcode::Success;
     }
 
     case UnoccupiedHeatingSetpoint::Id: {
         requested = static_cast<int16_t>(chip::Encoding::LittleEndian::Get16(value));
         if (!(HeatSupported && OccupancySupported))
-            return Status::UnsupportedAttribute;
+            return imcode::UnsupportedAttribute;
         if (requested < AbsMinHeatSetpointLimit || requested < MinHeatSetpointLimit || requested > AbsMaxHeatSetpointLimit ||
             requested > MaxHeatSetpointLimit)
-            return Status::InvalidValue;
+            return imcode::InvalidValue;
         if (AutoSupported)
         {
             if (requested > UnoccupiedCoolingSetpoint - DeadBandTemp)
-                return Status::InvalidValue;
+                return imcode::InvalidValue;
         }
-        return Status::Success;
+        return imcode::Success;
     }
     case UnoccupiedCoolingSetpoint::Id: {
         requested = static_cast<int16_t>(chip::Encoding::LittleEndian::Get16(value));
         if (!(CoolSupported && OccupancySupported))
-            return Status::UnsupportedAttribute;
+            return imcode::UnsupportedAttribute;
         if (requested < AbsMinCoolSetpointLimit || requested < MinCoolSetpointLimit || requested > AbsMaxCoolSetpointLimit ||
             requested > MaxCoolSetpointLimit)
-            return Status::InvalidValue;
+            return imcode::InvalidValue;
         if (AutoSupported)
         {
             if (requested < UnoccupiedHeatingSetpoint + DeadBandTemp)
-                return Status::InvalidValue;
+                return imcode::InvalidValue;
         }
-        return Status::Success;
+        return imcode::Success;
     }
 
     case MinHeatSetpointLimit::Id: {
         requested = static_cast<int16_t>(chip::Encoding::LittleEndian::Get16(value));
         if (!HeatSupported)
-            return Status::UnsupportedAttribute;
+            return imcode::UnsupportedAttribute;
         if (requested < AbsMinHeatSetpointLimit || requested > MaxHeatSetpointLimit || requested > AbsMaxHeatSetpointLimit)
-            return Status::InvalidValue;
+            return imcode::InvalidValue;
         if (AutoSupported)
         {
             if (requested > MinCoolSetpointLimit - DeadBandTemp)
-                return Status::InvalidValue;
+                return imcode::InvalidValue;
         }
-        return Status::Success;
+        return imcode::Success;
     }
     case MaxHeatSetpointLimit::Id: {
         requested = static_cast<int16_t>(chip::Encoding::LittleEndian::Get16(value));
         if (!HeatSupported)
-            return Status::UnsupportedAttribute;
+            return imcode::UnsupportedAttribute;
         if (requested < AbsMinHeatSetpointLimit || requested < MinHeatSetpointLimit || requested > AbsMaxHeatSetpointLimit)
-            return Status::InvalidValue;
+            return imcode::InvalidValue;
         if (AutoSupported)
         {
             if (requested > MaxCoolSetpointLimit - DeadBandTemp)
-                return Status::InvalidValue;
+                return imcode::InvalidValue;
         }
-        return Status::Success;
+        return imcode::Success;
     }
     case MinCoolSetpointLimit::Id: {
         requested = static_cast<int16_t>(chip::Encoding::LittleEndian::Get16(value));
         if (!CoolSupported)
-            return Status::UnsupportedAttribute;
+            return imcode::UnsupportedAttribute;
         if (requested < AbsMinCoolSetpointLimit || requested > MaxCoolSetpointLimit || requested > AbsMaxCoolSetpointLimit)
-            return Status::InvalidValue;
+            return imcode::InvalidValue;
         if (AutoSupported)
         {
             if (requested < MinHeatSetpointLimit + DeadBandTemp)
-                return Status::InvalidValue;
+                return imcode::InvalidValue;
         }
-        return Status::Success;
+        return imcode::Success;
     }
     case MaxCoolSetpointLimit::Id: {
         requested = static_cast<int16_t>(chip::Encoding::LittleEndian::Get16(value));
         if (!CoolSupported)
-            return Status::UnsupportedAttribute;
+            return imcode::UnsupportedAttribute;
         if (requested < AbsMinCoolSetpointLimit || requested < MinCoolSetpointLimit || requested > AbsMaxCoolSetpointLimit)
-            return Status::InvalidValue;
+            return imcode::InvalidValue;
         if (AutoSupported)
         {
             if (requested < MaxHeatSetpointLimit + DeadBandTemp)
-                return Status::InvalidValue;
+                return imcode::InvalidValue;
         }
-        return Status::Success;
+        return imcode::Success;
     }
     case MinSetpointDeadBand::Id: {
         requested = *value;
         if (!AutoSupported)
-            return Status::UnsupportedAttribute;
+            return imcode::UnsupportedAttribute;
         if (requested < 0 || requested > 25)
-            return Status::InvalidValue;
-        return Status::Success;
+            return imcode::InvalidValue;
+        return imcode::Success;
     }
 
     case ControlSequenceOfOperation::Id: {
         uint8_t requestedCSO;
         requestedCSO = *value;
         if (requestedCSO > to_underlying(ControlSequenceOfOperationEnum::kCoolingAndHeatingWithReheat))
-            return Status::InvalidValue;
-        return Status::Success;
+            return imcode::InvalidValue;
+        return imcode::Success;
     }
 
     case SystemMode::Id: {
         ControlSequenceOfOperationEnum ControlSequenceOfOperation;
-        Status status = ControlSequenceOfOperation::Get(endpoint, &ControlSequenceOfOperation);
-        if (status != Status::Success)
+        imcode status = ControlSequenceOfOperation::Get(endpoint, &ControlSequenceOfOperation);
+        if (status != imcode::Success)
         {
-            return Status::InvalidValue;
+            return imcode::InvalidValue;
         }
         auto RequestedSystemMode = static_cast<SystemModeEnum>(*value);
         if (ControlSequenceOfOperation > ControlSequenceOfOperationEnum::kCoolingAndHeatingWithReheat ||
             RequestedSystemMode > SystemModeEnum::kFanOnly)
         {
-            return Status::InvalidValue;
+            return imcode::InvalidValue;
         }
 
         switch (ControlSequenceOfOperation)
@@ -789,28 +450,23 @@ MatterThermostatClusterServerPreAttributeChangedCallback(const app::ConcreteAttr
         case ControlSequenceOfOperationEnum::kCoolingOnly:
         case ControlSequenceOfOperationEnum::kCoolingWithReheat:
             if (RequestedSystemMode == SystemModeEnum::kHeat || RequestedSystemMode == SystemModeEnum::kEmergencyHeat)
-                return Status::InvalidValue;
+                return imcode::InvalidValue;
             else
-                return Status::Success;
+                return imcode::Success;
 
         case ControlSequenceOfOperationEnum::kHeatingOnly:
         case ControlSequenceOfOperationEnum::kHeatingWithReheat:
             if (RequestedSystemMode == SystemModeEnum::kCool || RequestedSystemMode == SystemModeEnum::kPrecooling)
-                return Status::InvalidValue;
+                return imcode::InvalidValue;
             else
-                return Status::Success;
+                return imcode::Success;
         default:
-            return Status::Success;
+            return imcode::Success;
         }
     }
     default:
-        return Status::Success;
+        return imcode::Success;
     }
-}
-
-void MatterThermostatClusterServerAttributeChangedCallback(const ConcreteAttributePath & attributePath)
-{
-    Thermostat::MatterThermostatClusterServerAttributeChangedCallback(attributePath);
 }
 
 bool emberAfThermostatClusterClearWeeklyScheduleCallback(app::CommandHandler * commandObj,
@@ -838,11 +494,201 @@ bool emberAfThermostatClusterSetWeeklyScheduleCallback(app::CommandHandler * com
 }
 
 bool emberAfThermostatClusterSetActiveScheduleRequestCallback(
-    CommandHandler * commandObj, const ConcreteCommandPath & commandPath,
-    const Clusters::Thermostat::Commands::SetActiveScheduleRequest::DecodableType & commandData)
+    chip::app::CommandHandler * commandObj, const chip::app::ConcreteCommandPath & commandPath,
+    const chip::app::Clusters::Thermostat::Commands::SetActiveScheduleRequest::DecodableType & commandData)
 {
     // TODO
     return false;
+}
+
+bool emberAfThermostatClusterSetActivePresetRequestCallback(
+    chip::app::CommandHandler * commandObj, const chip::app::ConcreteCommandPath & commandPath,
+    const chip::app::Clusters::Thermostat::Commands::SetActivePresetRequest::DecodableType & commandData)
+{
+    // TODO
+    return false;
+}
+
+bool emberAfThermostatClusterStartPresetsSchedulesEditRequestCallback(
+    chip::app::CommandHandler * commandObj, const chip::app::ConcreteCommandPath & commandPath,
+    const chip::app::Clusters::Thermostat::Commands::StartPresetsSchedulesEditRequest::DecodableType & commandData)
+{
+    // TODO
+    return false;
+}
+
+bool emberAfThermostatClusterCancelPresetsSchedulesEditRequestCallback(
+    chip::app::CommandHandler * commandObj, const chip::app::ConcreteCommandPath & commandPath,
+    const chip::app::Clusters::Thermostat::Commands::CancelPresetsSchedulesEditRequest::DecodableType & commandData)
+{
+    // TODO
+    return false;
+}
+
+bool emberAfThermostatClusterCommitPresetsSchedulesRequestCallback(
+    chip::app::CommandHandler * commandObj, const chip::app::ConcreteCommandPath & commandPath,
+    const chip::app::Clusters::Thermostat::Commands::CommitPresetsSchedulesRequest::DecodableType & commandData)
+{
+    // TODO
+    return false;
+}
+
+bool emberAfThermostatClusterCancelSetActivePresetRequestCallback(
+    chip::app::CommandHandler * commandObj, const chip::app::ConcreteCommandPath & commandPath,
+    const chip::app::Clusters::Thermostat::Commands::CancelSetActivePresetRequest::DecodableType & commandData)
+{
+    // TODO
+    return false;
+}
+
+bool emberAfThermostatClusterSetTemperatureSetpointHoldPolicyCallback(
+    chip::app::CommandHandler * commandObj, const chip::app::ConcreteCommandPath & commandPath,
+    const chip::app::Clusters::Thermostat::Commands::SetTemperatureSetpointHoldPolicy::DecodableType & commandData)
+{
+    // TODO
+    return false;
+}
+
+int16_t EnforceHeatingSetpointLimits(int16_t HeatingSetpoint, EndpointId endpoint)
+{
+    // Optional Mfg supplied limits
+    int16_t AbsMinHeatSetpointLimit = kDefaultAbsMinHeatSetpointLimit;
+    int16_t AbsMaxHeatSetpointLimit = kDefaultAbsMaxHeatSetpointLimit;
+
+    // Optional User supplied limits
+    int16_t MinHeatSetpointLimit = kDefaultMinHeatSetpointLimit;
+    int16_t MaxHeatSetpointLimit = kDefaultMaxHeatSetpointLimit;
+
+    // Attempt to read the setpoint limits
+    // Absmin/max are manufacturer limits
+    // min/max are user imposed min/max
+
+    // Note that the limits are initialized above per the spec limits
+    // if they are not present Get() will not update the value so the defaults are used
+    imcode status;
+
+    // https://github.com/CHIP-Specifications/connectedhomeip-spec/issues/3724
+    // behavior is not specified when Abs * values are not present and user values are present
+    // implemented behavior accepts the user values without regard to default Abs values.
+
+    // Per global matter data model policy
+    // if a attribute is not present then it's default shall be used.
+
+    status = AbsMinHeatSetpointLimit::Get(endpoint, &AbsMinHeatSetpointLimit);
+    if (status != imcode::Success)
+    {
+        ChipLogError(Zcl, "Warning: AbsMinHeatSetpointLimit missing using default");
+    }
+
+    status = AbsMaxHeatSetpointLimit::Get(endpoint, &AbsMaxHeatSetpointLimit);
+    if (status != imcode::Success)
+    {
+        ChipLogError(Zcl, "Warning: AbsMaxHeatSetpointLimit missing using default");
+    }
+    status = MinHeatSetpointLimit::Get(endpoint, &MinHeatSetpointLimit);
+    if (status != imcode::Success)
+    {
+        MinHeatSetpointLimit = AbsMinHeatSetpointLimit;
+    }
+
+    status = MaxHeatSetpointLimit::Get(endpoint, &MaxHeatSetpointLimit);
+    if (status != imcode::Success)
+    {
+        MaxHeatSetpointLimit = AbsMaxHeatSetpointLimit;
+    }
+
+    // Make sure the user imposed limits are within the manufacturer imposed limits
+
+    // https://github.com/CHIP-Specifications/connectedhomeip-spec/issues/3725
+    // Spec does not specify the behavior is the requested setpoint exceeds the limit allowed
+    // This implementation clamps at the limit.
+
+    // resolution of 3725 is to clamp.
+
+    if (MinHeatSetpointLimit < AbsMinHeatSetpointLimit)
+        MinHeatSetpointLimit = AbsMinHeatSetpointLimit;
+
+    if (MaxHeatSetpointLimit > AbsMaxHeatSetpointLimit)
+        MaxHeatSetpointLimit = AbsMaxHeatSetpointLimit;
+
+    if (HeatingSetpoint < MinHeatSetpointLimit)
+        HeatingSetpoint = MinHeatSetpointLimit;
+
+    if (HeatingSetpoint > MaxHeatSetpointLimit)
+        HeatingSetpoint = MaxHeatSetpointLimit;
+
+    return HeatingSetpoint;
+}
+
+int16_t EnforceCoolingSetpointLimits(int16_t CoolingSetpoint, EndpointId endpoint)
+{
+    // Optional Mfg supplied limits
+    int16_t AbsMinCoolSetpointLimit = kDefaultAbsMinCoolSetpointLimit;
+    int16_t AbsMaxCoolSetpointLimit = kDefaultAbsMaxCoolSetpointLimit;
+
+    // Optional User supplied limits
+    int16_t MinCoolSetpointLimit = kDefaultMinCoolSetpointLimit;
+    int16_t MaxCoolSetpointLimit = kDefaultMaxCoolSetpointLimit;
+
+    // Attempt to read the setpoint limits
+    // Absmin/max are manufacturer limits
+    // min/max are user imposed min/max
+
+    // Note that the limits are initialized above per the spec limits
+    // if they are not present Get() will not update the value so the defaults are used
+    imcode status;
+
+    // https://github.com/CHIP-Specifications/connectedhomeip-spec/issues/3724
+    // behavior is not specified when Abs * values are not present and user values are present
+    // implemented behavior accepts the user values without regard to default Abs values.
+
+    // Per global matter data model policy
+    // if a attribute is not present then it's default shall be used.
+
+    status = AbsMinCoolSetpointLimit::Get(endpoint, &AbsMinCoolSetpointLimit);
+    if (status != imcode::Success)
+    {
+        ChipLogError(Zcl, "Warning: AbsMinCoolSetpointLimit missing using default");
+    }
+
+    status = AbsMaxCoolSetpointLimit::Get(endpoint, &AbsMaxCoolSetpointLimit);
+    if (status != imcode::Success)
+    {
+        ChipLogError(Zcl, "Warning: AbsMaxCoolSetpointLimit missing using default");
+    }
+
+    status = MinCoolSetpointLimit::Get(endpoint, &MinCoolSetpointLimit);
+    if (status != imcode::Success)
+    {
+        MinCoolSetpointLimit = AbsMinCoolSetpointLimit;
+    }
+
+    status = MaxCoolSetpointLimit::Get(endpoint, &MaxCoolSetpointLimit);
+    if (status != imcode::Success)
+    {
+        MaxCoolSetpointLimit = AbsMaxCoolSetpointLimit;
+    }
+
+    // Make sure the user imposed limits are within the manufacture imposed limits
+    // https://github.com/CHIP-Specifications/connectedhomeip-spec/issues/3725
+    // Spec does not specify the behavior is the requested setpoint exceeds the limit allowed
+    // This implementation clamps at the limit.
+
+    // resolution of 3725 is to clamp.
+
+    if (MinCoolSetpointLimit < AbsMinCoolSetpointLimit)
+        MinCoolSetpointLimit = AbsMinCoolSetpointLimit;
+
+    if (MaxCoolSetpointLimit > AbsMaxCoolSetpointLimit)
+        MaxCoolSetpointLimit = AbsMaxCoolSetpointLimit;
+
+    if (CoolingSetpoint < MinCoolSetpointLimit)
+        CoolingSetpoint = MinCoolSetpointLimit;
+
+    if (CoolingSetpoint > MaxCoolSetpointLimit)
+        CoolingSetpoint = MaxCoolSetpointLimit;
+
+    return CoolingSetpoint;
 }
 
 bool emberAfThermostatClusterSetpointRaiseLowerCallback(app::CommandHandler * commandObj,
@@ -855,9 +701,9 @@ bool emberAfThermostatClusterSetpointRaiseLowerCallback(app::CommandHandler * co
     EndpointId aEndpointId = commandPath.mEndpointId;
 
     int16_t HeatingSetpoint = kDefaultHeatingSetpoint, CoolingSetpoint = kDefaultCoolingSetpoint; // Set to defaults to be safe
-    Status status                     = Status::Failure;
-    Status WriteCoolingSetpointStatus = Status::Failure;
-    Status WriteHeatingSetpointStatus = Status::Failure;
+    imcode status                     = imcode::Failure;
+    imcode WriteCoolingSetpointStatus = imcode::Failure;
+    imcode WriteHeatingSetpointStatus = imcode::Failure;
     int16_t DeadBandTemp              = 0;
     int8_t DeadBand                   = 0;
     uint32_t OurFeatureMap;
@@ -865,7 +711,7 @@ bool emberAfThermostatClusterSetpointRaiseLowerCallback(app::CommandHandler * co
     bool HeatSupported = false;
     bool CoolSupported = false;
 
-    if (FeatureMap::Get(aEndpointId, &OurFeatureMap) != Status::Success)
+    if (FeatureMap::Get(aEndpointId, &OurFeatureMap) != imcode::Success)
         OurFeatureMap = FEATURE_MAP_DEFAULT;
 
     if (OurFeatureMap & 1 << 5) // Bit 5 is Auto Mode supported
@@ -879,7 +725,7 @@ bool emberAfThermostatClusterSetpointRaiseLowerCallback(app::CommandHandler * co
 
     if (AutoSupported)
     {
-        if (MinSetpointDeadBand::Get(aEndpointId, &DeadBand) != Status::Success)
+        if (MinSetpointDeadBand::Get(aEndpointId, &DeadBand) != imcode::Success)
             DeadBand = kDefaultDeadBand;
         DeadBandTemp = static_cast<int16_t>(DeadBand * 10);
     }
@@ -890,13 +736,13 @@ bool emberAfThermostatClusterSetpointRaiseLowerCallback(app::CommandHandler * co
         if (HeatSupported && CoolSupported)
         {
             int16_t DesiredCoolingSetpoint, CoolLimit, DesiredHeatingSetpoint, HeatLimit;
-            if (OccupiedCoolingSetpoint::Get(aEndpointId, &CoolingSetpoint) == Status::Success)
+            if (OccupiedCoolingSetpoint::Get(aEndpointId, &CoolingSetpoint) == imcode::Success)
             {
                 DesiredCoolingSetpoint = static_cast<int16_t>(CoolingSetpoint + amount * 10);
                 CoolLimit              = static_cast<int16_t>(DesiredCoolingSetpoint -
                                                  EnforceCoolingSetpointLimits(DesiredCoolingSetpoint, aEndpointId));
                 {
-                    if (OccupiedHeatingSetpoint::Get(aEndpointId, &HeatingSetpoint) == Status::Success)
+                    if (OccupiedHeatingSetpoint::Get(aEndpointId, &HeatingSetpoint) == imcode::Success)
                     {
                         DesiredHeatingSetpoint = static_cast<int16_t>(HeatingSetpoint + amount * 10);
                         HeatLimit              = static_cast<int16_t>(DesiredHeatingSetpoint -
@@ -918,12 +764,12 @@ bool emberAfThermostatClusterSetpointRaiseLowerCallback(app::CommandHandler * co
                                 }
                             }
                             WriteCoolingSetpointStatus = OccupiedCoolingSetpoint::Set(aEndpointId, DesiredCoolingSetpoint);
-                            if (WriteCoolingSetpointStatus != Status::Success)
+                            if (WriteCoolingSetpointStatus != imcode::Success)
                             {
                                 ChipLogError(Zcl, "Error: SetOccupiedCoolingSetpoint failed!");
                             }
                             WriteHeatingSetpointStatus = OccupiedHeatingSetpoint::Set(aEndpointId, DesiredHeatingSetpoint);
-                            if (WriteHeatingSetpointStatus != Status::Success)
+                            if (WriteHeatingSetpointStatus != imcode::Success)
                             {
                                 ChipLogError(Zcl, "Error: SetOccupiedHeatingSetpoint failed!");
                             }
@@ -935,12 +781,12 @@ bool emberAfThermostatClusterSetpointRaiseLowerCallback(app::CommandHandler * co
 
         if (CoolSupported && !HeatSupported)
         {
-            if (OccupiedCoolingSetpoint::Get(aEndpointId, &CoolingSetpoint) == Status::Success)
+            if (OccupiedCoolingSetpoint::Get(aEndpointId, &CoolingSetpoint) == imcode::Success)
             {
                 CoolingSetpoint            = static_cast<int16_t>(CoolingSetpoint + amount * 10);
                 CoolingSetpoint            = EnforceCoolingSetpointLimits(CoolingSetpoint, aEndpointId);
                 WriteCoolingSetpointStatus = OccupiedCoolingSetpoint::Set(aEndpointId, CoolingSetpoint);
-                if (WriteCoolingSetpointStatus != Status::Success)
+                if (WriteCoolingSetpointStatus != imcode::Success)
                 {
                     ChipLogError(Zcl, "Error: SetOccupiedCoolingSetpoint failed!");
                 }
@@ -949,34 +795,34 @@ bool emberAfThermostatClusterSetpointRaiseLowerCallback(app::CommandHandler * co
 
         if (HeatSupported && !CoolSupported)
         {
-            if (OccupiedHeatingSetpoint::Get(aEndpointId, &HeatingSetpoint) == Status::Success)
+            if (OccupiedHeatingSetpoint::Get(aEndpointId, &HeatingSetpoint) == imcode::Success)
             {
                 HeatingSetpoint            = static_cast<int16_t>(HeatingSetpoint + amount * 10);
                 HeatingSetpoint            = EnforceHeatingSetpointLimits(HeatingSetpoint, aEndpointId);
                 WriteHeatingSetpointStatus = OccupiedHeatingSetpoint::Set(aEndpointId, HeatingSetpoint);
-                if (WriteHeatingSetpointStatus != Status::Success)
+                if (WriteHeatingSetpointStatus != imcode::Success)
                 {
                     ChipLogError(Zcl, "Error: SetOccupiedHeatingSetpoint failed!");
                 }
             }
         }
 
-        if ((!HeatSupported || WriteHeatingSetpointStatus == Status::Success) &&
-            (!CoolSupported || WriteCoolingSetpointStatus == Status::Success))
-            status = Status::Success;
+        if ((!HeatSupported || WriteHeatingSetpointStatus == imcode::Success) &&
+            (!CoolSupported || WriteCoolingSetpointStatus == imcode::Success))
+            status = imcode::Success;
         break;
 
     case SetpointRaiseLowerModeEnum::kCool:
         if (CoolSupported)
         {
-            if (OccupiedCoolingSetpoint::Get(aEndpointId, &CoolingSetpoint) == Status::Success)
+            if (OccupiedCoolingSetpoint::Get(aEndpointId, &CoolingSetpoint) == imcode::Success)
             {
                 CoolingSetpoint = static_cast<int16_t>(CoolingSetpoint + amount * 10);
                 CoolingSetpoint = EnforceCoolingSetpointLimits(CoolingSetpoint, aEndpointId);
                 if (AutoSupported)
                 {
                     // Need to check if we can move the cooling setpoint while maintaining the dead band
-                    if (OccupiedHeatingSetpoint::Get(aEndpointId, &HeatingSetpoint) == Status::Success)
+                    if (OccupiedHeatingSetpoint::Get(aEndpointId, &HeatingSetpoint) == imcode::Success)
                     {
                         if (CoolingSetpoint - HeatingSetpoint < DeadBandTemp)
                         {
@@ -987,10 +833,10 @@ bool emberAfThermostatClusterSetpointRaiseLowerCallback(app::CommandHandler * co
                             {
                                 // Desired cooling setpoint is enforcable
                                 // Set the new cooling and heating setpoints
-                                if (OccupiedHeatingSetpoint::Set(aEndpointId, HeatingSetpoint) == Status::Success)
+                                if (OccupiedHeatingSetpoint::Set(aEndpointId, HeatingSetpoint) == imcode::Success)
                                 {
-                                    if (OccupiedCoolingSetpoint::Set(aEndpointId, CoolingSetpoint) == Status::Success)
-                                        status = Status::Success;
+                                    if (OccupiedCoolingSetpoint::Set(aEndpointId, CoolingSetpoint) == imcode::Success)
+                                        status = imcode::Success;
                                 }
                                 else
                                     ChipLogError(Zcl, "Error: SetOccupiedHeatingSetpoint failed!");
@@ -998,7 +844,7 @@ bool emberAfThermostatClusterSetpointRaiseLowerCallback(app::CommandHandler * co
                             else
                             {
                                 ChipLogError(Zcl, "Error: Could Not adjust heating setpoint to maintain dead band!");
-                                status = Status::InvalidCommand;
+                                status = imcode::InvalidCommand;
                             }
                         }
                         else
@@ -1016,20 +862,20 @@ bool emberAfThermostatClusterSetpointRaiseLowerCallback(app::CommandHandler * co
                 ChipLogError(Zcl, "Error: GetOccupiedCoolingSetpoint failed!");
         }
         else
-            status = Status::InvalidCommand;
+            status = imcode::InvalidCommand;
         break;
 
     case SetpointRaiseLowerModeEnum::kHeat:
         if (HeatSupported)
         {
-            if (OccupiedHeatingSetpoint::Get(aEndpointId, &HeatingSetpoint) == Status::Success)
+            if (OccupiedHeatingSetpoint::Get(aEndpointId, &HeatingSetpoint) == imcode::Success)
             {
                 HeatingSetpoint = static_cast<int16_t>(HeatingSetpoint + amount * 10);
                 HeatingSetpoint = EnforceHeatingSetpointLimits(HeatingSetpoint, aEndpointId);
                 if (AutoSupported)
                 {
                     // Need to check if we can move the cooling setpoint while maintaining the dead band
-                    if (OccupiedCoolingSetpoint::Get(aEndpointId, &CoolingSetpoint) == Status::Success)
+                    if (OccupiedCoolingSetpoint::Get(aEndpointId, &CoolingSetpoint) == imcode::Success)
                     {
                         if (CoolingSetpoint - HeatingSetpoint < DeadBandTemp)
                         {
@@ -1040,10 +886,10 @@ bool emberAfThermostatClusterSetpointRaiseLowerCallback(app::CommandHandler * co
                             {
                                 // Desired cooling setpoint is enforcable
                                 // Set the new cooling and heating setpoints
-                                if (OccupiedCoolingSetpoint::Set(aEndpointId, CoolingSetpoint) == Status::Success)
+                                if (OccupiedCoolingSetpoint::Set(aEndpointId, CoolingSetpoint) == imcode::Success)
                                 {
-                                    if (OccupiedHeatingSetpoint::Set(aEndpointId, HeatingSetpoint) == Status::Success)
-                                        status = Status::Success;
+                                    if (OccupiedHeatingSetpoint::Set(aEndpointId, HeatingSetpoint) == imcode::Success)
+                                        status = imcode::Success;
                                 }
                                 else
                                     ChipLogError(Zcl, "Error: SetOccupiedCoolingSetpoint failed!");
@@ -1051,7 +897,7 @@ bool emberAfThermostatClusterSetpointRaiseLowerCallback(app::CommandHandler * co
                             else
                             {
                                 ChipLogError(Zcl, "Error: Could Not adjust cooling setpoint to maintain dead band!");
-                                status = Status::InvalidCommand;
+                                status = imcode::InvalidCommand;
                             }
                         }
                         else
@@ -1069,11 +915,11 @@ bool emberAfThermostatClusterSetpointRaiseLowerCallback(app::CommandHandler * co
                 ChipLogError(Zcl, "Error: GetOccupiedHeatingSetpoint failed!");
         }
         else
-            status = Status::InvalidCommand;
+            status = imcode::InvalidCommand;
         break;
 
     default:
-        status = Status::InvalidCommand;
+        status = imcode::InvalidCommand;
         break;
     }
 
@@ -1083,6 +929,5 @@ bool emberAfThermostatClusterSetpointRaiseLowerCallback(app::CommandHandler * co
 
 void MatterThermostatPluginServerInitCallback()
 {
-    Server::GetInstance().GetFabricTable().AddFabricDelegate(&gThermostatAttrAccess);
-    AttributeAccessInterfaceRegistry::Instance().Register(&gThermostatAttrAccess);
+    registerAttributeAccessOverride(&gThermostatAttrAccess);
 }

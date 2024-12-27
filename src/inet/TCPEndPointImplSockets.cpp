@@ -127,7 +127,6 @@ CHIP_ERROR TCPEndPointImplSockets::BindImpl(IPAddressType addrType, const IPAddr
 
         if (res == CHIP_NO_ERROR)
         {
-            // NOLINTNEXTLINE(clang-analyzer-unix.StdCLibraryFunctions): GetSocket calls ensure mSocket is valid
             if (bind(mSocket, &sa.any, sockaddrsize) != 0)
             {
                 res = CHIP_ERROR_POSIX(errno);
@@ -249,7 +248,6 @@ CHIP_ERROR TCPEndPointImplSockets::ConnectImpl(const IPAddress & addr, uint16_t 
         return INET_ERROR_WRONG_ADDRESS_TYPE;
     }
 
-    // NOLINTNEXTLINE(clang-analyzer-unix.StdCLibraryFunctions): GetSocket calls ensure mSocket is valid
     int conRes = connect(mSocket, &sa.any, sockaddrsize);
 
     if (conRes == -1 && errno != EINPROGRESS)
@@ -443,7 +441,7 @@ CHIP_ERROR TCPEndPointImplSockets::DisableKeepAlive()
     return CHIP_NO_ERROR;
 }
 
-CHIP_ERROR TCPEndPointImplSockets::AckReceive(size_t len)
+CHIP_ERROR TCPEndPointImplSockets::AckReceive(uint16_t len)
 {
     VerifyOrReturnError(IsConnected(), CHIP_ERROR_INCORRECT_STATE);
 
@@ -485,7 +483,7 @@ CHIP_ERROR TCPEndPointImplSockets::DriveSendingImpl()
 
     while (!mSendQueue.IsNull())
     {
-        size_t bufLen = mSendQueue->DataLength();
+        uint16_t bufLen = mSendQueue->DataLength();
 
         ssize_t lenSentRaw = send(mSocket, mSendQueue->Start(), bufLen, sendFlags);
 
@@ -498,13 +496,14 @@ CHIP_ERROR TCPEndPointImplSockets::DriveSendingImpl()
             break;
         }
 
-        if (lenSentRaw < 0 || bufLen < static_cast<size_t>(lenSentRaw))
+        if (lenSentRaw < 0 || lenSentRaw > bufLen)
         {
             err = CHIP_ERROR_INCORRECT_STATE;
             break;
         }
 
-        size_t lenSent = static_cast<size_t>(lenSentRaw);
+        // Cast is safe because bufLen is uint16_t.
+        uint16_t lenSent = static_cast<uint16_t>(lenSentRaw);
 
         // Mark the connection as being active.
         MarkActive();
@@ -949,9 +948,10 @@ void TCPEndPointImplSockets::ReceiveData()
         {
             VerifyOrDie(rcvLen > 0);
             size_t newDataLength = rcvBuf->DataLength() + static_cast<size_t>(rcvLen);
+            VerifyOrDie(CanCastTo<uint16_t>(newDataLength));
             if (isNewBuf)
             {
-                rcvBuf->SetDataLength(newDataLength);
+                rcvBuf->SetDataLength(static_cast<uint16_t>(newDataLength));
                 rcvBuf.RightSize();
                 if (mRcvQueue.IsNull())
                 {
@@ -964,7 +964,7 @@ void TCPEndPointImplSockets::ReceiveData()
             }
             else
             {
-                rcvBuf->SetDataLength(newDataLength, mRcvQueue);
+                rcvBuf->SetDataLength(static_cast<uint16_t>(newDataLength), mRcvQueue);
             }
         }
     }

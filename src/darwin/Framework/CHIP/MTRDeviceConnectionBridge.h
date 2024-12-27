@@ -19,7 +19,6 @@
 
 #import <Foundation/Foundation.h>
 
-#include <app/OperationalSessionSetup.h>
 #include <controller/CHIPDeviceController.h>
 #include <lib/core/ReferenceCounted.h>
 #include <messaging/ExchangeMgr.h>
@@ -28,12 +27,9 @@
 NS_ASSUME_NONNULL_BEGIN
 
 // Either exchangeManager will be non-nil and session will have a value, or
-// error will be non-nil.  If error is non-nil, retryDelay might be non-nil.  In
-// that case it will contain an NSTimeInterval indicating how long consumers
-// should delay before trying again (e.g. based on the information communicated
-// in a BUSY response).
+// error will be non-nil.
 typedef void (^MTRInternalDeviceConnectionCallback)(chip::Messaging::ExchangeManager * _Nullable exchangeManager,
-    const chip::Optional<chip::SessionHandle> & session, NSError * _Nullable error, NSNumber * _Nullable retryDelay);
+    const chip::Optional<chip::SessionHandle> & session, NSError * _Nullable error);
 
 /**
  * Helper to establish or look up a CASE session and hand its session
@@ -66,11 +62,11 @@ public:
 private:
     MTRInternalDeviceConnectionCallback mCompletionHandler;
     chip::Callback::Callback<chip::OnDeviceConnected> mOnConnected;
-    chip::Callback::Callback<chip::OperationalSessionSetup::OnSetupFailure> mOnConnectFailed;
+    chip::Callback::Callback<chip::OnDeviceConnectionFailure> mOnConnectFailed;
 
     static void OnConnected(
         void * context, chip::Messaging::ExchangeManager & exchangeMgr, const chip::SessionHandle & sessionHandle);
-    static void OnConnectionFailure(void * context, const chip::OperationalSessionSetup::ConnectionFailureInfo & failureInfo);
+    static void OnConnectionFailure(void * context, const chip::ScopedNodeId & peerId, CHIP_ERROR error);
 };
 
 NS_ASSUME_NONNULL_END

@@ -35,14 +35,15 @@
 #include <lib/support/CHIPCounter.h>
 #include <lib/support/CodeUtils.h>
 #include <lib/support/EnforceFormat.h>
+#include <lib/support/UnitTestContext.h>
+#include <lib/support/UnitTestRegistration.h>
 #include <lib/support/logging/Constants.h>
 #include <messaging/ExchangeContext.h>
 #include <messaging/Flags.h>
 #include <platform/CHIPDeviceLayer.h>
 #include <system/TLVPacketBufferBackingStore.h>
 
-#include <lib/core/StringBuilderAdapters.h>
-#include <pw_unit_test/framework.h>
+#include <nlunit-test.h>
 
 namespace {
 
@@ -51,11 +52,11 @@ static uint8_t gInfoEventBuffer[2048];
 static uint8_t gCritEventBuffer[2048];
 static chip::app::CircularEventBuffer gCircularEventBuffer[3];
 
-class TestEventOverflow : public chip::Test::AppContext
+class TestContext : public chip::Test::AppContext
 {
 public:
     // Performs setup for each individual test in the test suite
-    void SetUp() override
+    CHIP_ERROR SetUp() override
     {
         const chip::app::LogStorageResources logStorageResources[] = {
             { &gDebugEventBuffer[0], sizeof(gDebugEventBuffer), chip::app::PriorityLevel::Debug },
@@ -63,19 +64,23 @@ public:
             { &gCritEventBuffer[0], sizeof(gCritEventBuffer), chip::app::PriorityLevel::Critical },
         };
 
-        AppContext::SetUp();
-        VerifyOrReturn(!HasFailure());
+        ReturnErrorOnFailure(chip::Test::AppContext::SetUp());
 
-        ASSERT_EQ(mEventCounter.Init(0), CHIP_NO_ERROR);
+        CHIP_ERROR err = CHIP_NO_ERROR;
+        VerifyOrExit((err = mEventCounter.Init(0)) == CHIP_NO_ERROR,
+                     ChipLogError(AppServer, "Init EventCounter failed: %" CHIP_ERROR_FORMAT, err.Format()));
         chip::app::EventManagement::CreateEventManagement(&GetExchangeManager(), ArraySize(logStorageResources),
                                                           gCircularEventBuffer, logStorageResources, &mEventCounter);
+
+    exit:
+        return err;
     }
 
     // Performs teardown for each individual test in the test suite
     void TearDown() override
     {
         chip::app::EventManagement::DestroyEventManagement();
-        AppContext::TearDown();
+        chip::Test::AppContext::TearDown();
     }
 
 private:
@@ -96,8 +101,9 @@ public:
     }
 };
 
-TEST_F(TestEventOverflow, TestCheckLogEventOverFlow)
+static void CheckLogEventOverFlow(nlTestSuite * apSuite, void * apContext)
 {
+    CHIP_ERROR err           = CHIP_NO_ERROR;
     chip::EventNumber oldEid = 0;
     chip::EventNumber eid    = 0;
     chip::app::EventOptions options;
@@ -148,13 +154,35 @@ TEST_F(TestEventOverflow, TestCheckLogEventOverFlow)
         }
         alternate = i % 10;
 
-        EXPECT_EQ(logMgmt.LogEvent(&testEventGenerator, options, eid), CHIP_NO_ERROR);
+        err = logMgmt.LogEvent(&testEventGenerator, options, eid);
+        NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
         if (eid > 0)
         {
-            EXPECT_EQ(eid, oldEid + 1);
+            NL_TEST_ASSERT(apSuite, eid == oldEid + 1);
             oldEid = eid;
         }
     }
 }
 
+const nlTest sTests[] = { NL_TEST_DEF("CheckLogEventOverFlow", CheckLogEventOverFlow), NL_TEST_SENTINEL() };
+
+// clang-format off
+nlTestSuite sSuite =
+{
+    "TestEventOverflow",
+    &sTests[0],
+    TestContext::nlTestSetUpTestSuite,
+    TestContext::nlTestTearDownTestSuite,
+    TestContext::nlTestSetUp,
+    TestContext::nlTestTearDown,
+};
+// clang-format on
+
 } // namespace
+
+int TestEventOverflow()
+{
+    return chip::ExecuteTestsWithContext<TestContext>(&sSuite);
+}
+
+CHIP_REGISTER_TEST_SUITE(TestEventOverflow)

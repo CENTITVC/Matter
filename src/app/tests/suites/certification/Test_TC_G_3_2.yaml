@@ -17,7 +17,6 @@ name: 125.3.2. [TC-G-3.2] Groups Cluster Commands [DUT-Client]
 
 PICS:
     - G.C
-    - GRPKEY.C
 
 config:
     nodeId: 0x12344321

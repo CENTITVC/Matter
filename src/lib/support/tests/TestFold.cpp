@@ -16,55 +16,67 @@
  *    limitations under the License.
  */
 
+#include <lib/support/Fold.h>
+#include <lib/support/UnitTestRegistration.h>
+
 #include <algorithm>
 #include <cstring>
 #include <initializer_list>
-
-#include <pw_unit_test/framework.h>
-
-#include <lib/core/StringBuilderAdapters.h>
-#include <lib/support/Fold.h>
+#include <nlunit-test.h>
 
 using namespace chip;
 
 namespace {
 
-TEST(TestFold, TestFoldMax)
+void TestFoldMax(nlTestSuite * inSuite, void * inContext)
 {
     using List     = std::initializer_list<int>;
     using Limits   = std::numeric_limits<int>;
     const auto max = [](int left, int right) { return std::max(left, right); };
 
     // Test empty list
-    EXPECT_EQ(Fold(List{}, -1000, max), -1000);
+    NL_TEST_ASSERT(inSuite, Fold(List{}, -1000, max) == -1000);
 
     // Test one-element (less than the initial value)
-    EXPECT_EQ(Fold(List{ -1001 }, -1000, max), -1000);
+    NL_TEST_ASSERT(inSuite, Fold(List{ -1001 }, -1000, max) == -1000);
 
     // Test one-element (greater than the initial value)
-    EXPECT_EQ(Fold(List{ -999 }, -1000, max), -999);
+    NL_TEST_ASSERT(inSuite, Fold(List{ -999 }, -1000, max) == -999);
 
     // Test limits
-    EXPECT_EQ(Fold(List{ 1000, Limits::max(), 0 }, 0, max), Limits::max());
-    EXPECT_EQ(Fold(List{ Limits::max(), 1000, Limits::min() }, Limits::min(), max), Limits::max());
+    NL_TEST_ASSERT(inSuite, Fold(List{ 1000, Limits::max(), 0 }, 0, max) == Limits::max());
+    NL_TEST_ASSERT(inSuite, Fold(List{ Limits::max(), 1000, Limits::min() }, Limits::min(), max) == Limits::max());
 }
 
-TEST(TestFold, TestSum)
+void TestSum(nlTestSuite * inSuite, void * inContext)
 {
     using List   = std::initializer_list<int>;
     using Limits = std::numeric_limits<int>;
 
     // Test empty list
-    EXPECT_FALSE(Sum(List{}));
+    NL_TEST_ASSERT(inSuite, Sum(List{}) == 0);
 
     // Test one-element (min)
-    EXPECT_EQ(Sum(List{ Limits::min() }), Limits::min());
+    NL_TEST_ASSERT(inSuite, Sum(List{ Limits::min() }) == Limits::min());
 
     // Test one-element (max)
-    EXPECT_EQ(Sum(List{ Limits::max() }), Limits::max());
+    NL_TEST_ASSERT(inSuite, Sum(List{ Limits::max() }) == Limits::max());
 
     // Test multiple elements
-    EXPECT_EQ(Sum(List{ 0, 5, 1, 4, 2, 3 }), 15);
+    NL_TEST_ASSERT(inSuite, Sum(List{ 0, 5, 1, 4, 2, 3 }) == 15);
 }
 
+const nlTest sTests[] = { NL_TEST_DEF("Test fold (max)", TestFoldMax), NL_TEST_DEF("Test sum", TestSum), NL_TEST_SENTINEL() };
+
 } // namespace
+
+int TestFold()
+{
+    nlTestSuite theSuite = { "Fold tests", &sTests[0], nullptr, nullptr };
+
+    // Run test suite against one context.
+    nlTestRunner(&theSuite, nullptr);
+    return nlTestRunnerStats(&theSuite);
+}
+
+CHIP_REGISTER_TEST_SUITE(TestFold)

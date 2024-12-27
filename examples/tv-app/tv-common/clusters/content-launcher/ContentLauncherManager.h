@@ -1,4 +1,5 @@
 /*
+ *
  *    Copyright (c) 2021 Project CHIP Authors
  *    All rights reserved.
  *
@@ -14,12 +15,10 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
+
 #pragma once
 
 #include <app/clusters/content-launch-server/content-launch-server.h>
-
-#include <list>
-#include <string>
 #include <vector>
 
 using chip::CharSpan;

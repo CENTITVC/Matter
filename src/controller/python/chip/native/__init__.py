@@ -23,7 +23,7 @@ import typing
 from dataclasses import dataclass
 
 import chip.exceptions
-import construct  # type: ignore
+import construct
 
 
 class Library(enum.Enum):
@@ -69,7 +69,7 @@ class ErrorSDKPart(enum.IntEnum):
 class PyChipError(ctypes.Structure):
     ''' The ChipError for Python library.
 
-    We are using the following struct for passing the information of CHIP_ERROR between C++ and Python:
+    We are using the following struct for passing the infomations of CHIP_ERROR between C++ and Python:
 
     ```c
     struct PyChipError
@@ -84,13 +84,7 @@ class PyChipError(ctypes.Structure):
 
     def raise_on_error(self) -> None:
         if self.code != 0:
-            exception = self.to_exception()
-            if exception is not None:  # Ensure exception is not None to avoid mypy error and only raise valid exceptions
-                raise exception
-
-    @classmethod
-    def from_code(cls, code):
-        return cls(code=code, line=0, file=ctypes.c_void_p())
+            raise self.to_exception()
 
     @property
     def is_success(self) -> bool:
@@ -109,21 +103,20 @@ class PyChipError(ctypes.Structure):
         return (self.code) & 0xFFFFFF
 
     @property
-    def sdk_part(self) -> typing.Optional[ErrorSDKPart]:
+    def sdk_part(self) -> ErrorSDKPart:
         if not self.is_sdk_error:
             return None
         return ErrorSDKPart((self.code >> 8) & 0x07)
 
     @property
-    def sdk_code(self) -> typing.Optional[int]:
+    def sdk_code(self) -> int:
         if not self.is_sdk_error:
             return None
         return self.code & 0xFF
 
-    def to_exception(self) -> typing.Optional[chip.exceptions.ChipStackError]:
+    def to_exception(self) -> typing.Union[None, chip.exceptions.ChipStackError]:
         if not self.is_success:
-            return chip.exceptions.ChipStackError.from_chip_error(self)
-        return None
+            return chip.exceptions.ChipStackError(self.code, str(self))
 
     def __str__(self):
         buf = ctypes.create_string_buffer(256)
@@ -206,19 +199,19 @@ class NativeLibraryHandleMethodArguments:
     def Set(self, methodName: str, resultType, argumentTypes: list):
         method = getattr(self.handle, methodName)
         method.restype = resultType
-        method.argtypes = argumentTypes
+        method.argtype = argumentTypes
 
 
 @dataclass
 class _Handle:
-    dll: ctypes.CDLL
+    dll: ctypes.CDLL = None
     initialized: bool = False
 
 
 _nativeLibraryHandles: typing.Dict[Library, _Handle] = {}
 
 
-def _GetLibraryHandle(lib: Library, expectAlreadyInitialized: bool) -> _Handle:
+def _GetLibraryHandle(lib: Library, expectAlreadyInitialized: bool) -> ctypes.CDLL:
     """Get a memoized _Handle to the chip native code dll."""
 
     global _nativeLibraryHandles
@@ -243,7 +236,7 @@ def _GetLibraryHandle(lib: Library, expectAlreadyInitialized: bool) -> _Handle:
     return handle
 
 
-def Init(bluetoothAdapter: typing.Optional[int] = None):
+def Init(bluetoothAdapter: int = None):
     CommonStackParams = construct.Struct(
         "BluetoothAdapterId" / construct.Int32ul,
     )

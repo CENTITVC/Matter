@@ -18,7 +18,6 @@
 
 #pragma once
 
-#include <app-common/zap-generated/attribute-type.h>
 #include <app/util/af-types.h>
 #include <lib/core/DataModelTypes.h>
 
@@ -29,43 +28,10 @@
 namespace chip {
 namespace Test {
 
-namespace internal {
-
-constexpr uint16_t kDefaultStringSize = 16; // note: this is INCLUDING the length byte(s)
-
-// Determine an appropriate size for the given type.
-// NOTE: this is for test only, not all types are included
-uint16_t SizeForType(EmberAfAttributeType type);
-
-constexpr EmberAfAttributeMetadata DefaultAttributeMetadata(chip::AttributeId id)
-{
-    return EmberAfAttributeMetadata{
-        .defaultValue  = EmberAfDefaultOrMinMaxAttributeValue(static_cast<uint32_t>(0)),
-        .attributeId   = id,
-        .size          = 4,
-        .attributeType = ZCL_INT32U_ATTRIBUTE_TYPE,
-        .mask          = ATTRIBUTE_MASK_WRITABLE | ATTRIBUTE_MASK_NULLABLE,
-    };
-}
-
-} // namespace internal
-
 struct MockAttributeConfig
 {
-    MockAttributeConfig(AttributeId aId) : id(aId), attributeMetaData(internal::DefaultAttributeMetadata(aId)) {}
-    MockAttributeConfig(AttributeId aId, EmberAfAttributeMetadata metadata) : id(aId), attributeMetaData(metadata) {}
-    MockAttributeConfig(AttributeId aId, EmberAfAttributeType type,
-                        EmberAfAttributeMask mask = ATTRIBUTE_MASK_WRITABLE | ATTRIBUTE_MASK_NULLABLE) :
-        id(aId),
-        attributeMetaData(internal::DefaultAttributeMetadata(aId))
-    {
-        attributeMetaData.attributeType = type;
-        attributeMetaData.mask          = mask;
-        attributeMetaData.size          = internal::SizeForType(type);
-    }
-
+    MockAttributeConfig(AttributeId aId) : id(aId) {}
     const AttributeId id;
-    EmberAfAttributeMetadata attributeMetaData;
 };
 
 struct MockEventConfig
@@ -77,12 +43,7 @@ struct MockEventConfig
 struct MockClusterConfig
 {
     MockClusterConfig(ClusterId aId, std::initializer_list<MockAttributeConfig> aAttributes = {},
-                      std::initializer_list<MockEventConfig> aEvents = {}, std::initializer_list<CommandId> aAcceptedCommands = {},
-                      std::initializer_list<CommandId> aGeneratedCommands = {});
-
-    // Cluster-config is self-referential: mEmberCluster.attributes references  mAttributeMetaData.data()
-    MockClusterConfig(const MockClusterConfig & other);
-    MockClusterConfig & operator=(const MockClusterConfig &) = delete;
+                      std::initializer_list<MockEventConfig> aEvents = {});
 
     const MockAttributeConfig * attributeById(AttributeId attributeId, ptrdiff_t * outIndex = nullptr) const;
     const EmberAfCluster * emberCluster() const { return &mEmberCluster; }
@@ -94,33 +55,20 @@ struct MockClusterConfig
 private:
     EmberAfCluster mEmberCluster;
     std::vector<EventId> mEmberEventList;
-    std::vector<EmberAfAttributeMetadata> mAttributeMetaData;
-    std::vector<CommandId> mAcceptedCommands;
-    std::vector<CommandId> mGeneratedCommands;
 };
 
 struct MockEndpointConfig
 {
-    MockEndpointConfig(EndpointId aId, std::initializer_list<MockClusterConfig> aClusters = {},
-                       std::initializer_list<EmberAfDeviceType> aDeviceTypes = {});
-
-    // Endpoint-config is self-referential: mEmberEndpoint.clusters references  mEmberClusters.data()
-    MockEndpointConfig(const MockEndpointConfig & other);
-    MockEndpointConfig & operator=(const MockEndpointConfig &) = delete;
+    MockEndpointConfig(EndpointId aId, std::initializer_list<MockClusterConfig> aClusters = {});
 
     const MockClusterConfig * clusterById(ClusterId clusterId, ptrdiff_t * outIndex = nullptr) const;
     const EmberAfEndpointType * emberEndpoint() const { return &mEmberEndpoint; }
-    Span<const EmberAfDeviceType> deviceTypes() const
-    {
-        return Span<const EmberAfDeviceType>(mDeviceTypes.data(), mDeviceTypes.size());
-    }
 
     const EndpointId id;
     const std::vector<MockClusterConfig> clusters;
 
 private:
     std::vector<EmberAfCluster> mEmberClusters;
-    std::vector<EmberAfDeviceType> mDeviceTypes;
     EmberAfEndpointType mEmberEndpoint;
 };
 

@@ -18,4 +18,4 @@
 /*******************************************************************************/
 #pragma once
 
-void init_psoc6Platform(void);
+void init_p6Platform(void);

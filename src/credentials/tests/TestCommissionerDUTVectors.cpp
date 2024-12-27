@@ -15,9 +15,6 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-
-#include <pw_unit_test/framework.h>
-
 #include <crypto/CHIPCryptoPAL.h>
 
 #include <app/tests/suites/credentials/TestHarnessDACProvider.h>
@@ -30,9 +27,12 @@
 #include <credentials/examples/DeviceAttestationCredsExample.h>
 
 #include <lib/core/CHIPError.h>
-#include <lib/core/StringBuilderAdapters.h>
 #include <lib/support/CHIPMem.h>
 #include <lib/support/Span.h>
+#include <lib/support/UnitTestExtendedAssertions.h>
+#include <lib/support/UnitTestRegistration.h>
+
+#include <nlunit-test.h>
 
 #include <dirent.h>
 #include <stdio.h>
@@ -49,17 +49,10 @@ static void OnAttestationInformationVerificationCallback(void * context, const D
     *pResult                                = result;
 }
 
-struct TestCommissionerDUTVectors : public ::testing::Test
-{
-    static void SetUpTestSuite() { ASSERT_EQ(chip::Platform::MemoryInit(), CHIP_NO_ERROR); }
-
-    static void TearDownTestSuite() { chip::Platform::MemoryShutdown(); }
-};
-
-TEST_F(TestCommissionerDUTVectors, TestCommissionerDUTVectors)
+static void TestCommissionerDUTVectors(nlTestSuite * inSuite, void * inContext)
 {
     DeviceAttestationVerifier * example_dac_verifier = GetDefaultDACVerifier(GetTestAttestationTrustStore());
-    ASSERT_NE(example_dac_verifier, nullptr);
+    NL_TEST_ASSERT(inSuite, example_dac_verifier != nullptr);
 
     std::string dirPath("../../../../../credentials/development/commissioner_dut/");
     DIR * dir = opendir(dirPath.c_str());
@@ -110,16 +103,16 @@ TEST_F(TestCommissionerDUTVectors, TestCommissionerDUTVectors)
         Crypto::DRBG_get_bytes(attestationNonceBuf, sizeof(attestationNonceBuf));
 
         VendorId vid = TestVendor1;
-        uint16_t pid = dacProvider.GetPid();
+        uint16_t pid = strstr(entry->d_name, "_vidpid_fallback_encoding_") ? 0x00B1 : 0x8000;
 
-        EXPECT_EQ(dacProvider.GetCertificationDeclaration(certDeclSpan), CHIP_NO_ERROR);
-        EXPECT_EQ(dacProvider.GetDeviceAttestationCert(dacCertSpan), CHIP_NO_ERROR);
-        EXPECT_EQ(dacProvider.GetProductAttestationIntermediateCert(paiCertSpan), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite, dacProvider.GetCertificationDeclaration(certDeclSpan));
+        NL_TEST_ASSERT_SUCCESS(inSuite, dacProvider.GetDeviceAttestationCert(dacCertSpan));
+        NL_TEST_ASSERT_SUCCESS(inSuite, dacProvider.GetProductAttestationIntermediateCert(paiCertSpan));
 
         size_t attestationElementsLen =
             TLV::EstimateStructOverhead(certDeclSpan.size(), attestationNonceSpan.size(), sizeof(uint64_t) * 8);
         Platform::ScopedMemoryBuffer<uint8_t> attestationElements;
-        EXPECT_TRUE(attestationElements.Alloc(attestationElementsLen + attestationChallengeSpan.size()));
+        NL_TEST_ASSERT(inSuite, attestationElements.Alloc(attestationElementsLen + attestationChallengeSpan.size()));
         MutableByteSpan attestationElementsSpan(attestationElements.Get(), attestationElementsLen);
 
         // Construct attestation elements
@@ -128,9 +121,10 @@ TEST_F(TestCommissionerDUTVectors, TestCommissionerDUTVectors)
             Credentials::DeviceAttestationVendorReservedConstructor emptyVendorReserved(nullptr, 0);
             const ByteSpan kEmptyFirmwareInfo;
 
-            EXPECT_EQ(Credentials::ConstructAttestationElements(certDeclSpan, attestationNonceSpan, timestamp, kEmptyFirmwareInfo,
-                                                                emptyVendorReserved, attestationElementsSpan),
-                      CHIP_NO_ERROR);
+            NL_TEST_ASSERT_SUCCESS(inSuite,
+                                   Credentials::ConstructAttestationElements(certDeclSpan, attestationNonceSpan, timestamp,
+                                                                             kEmptyFirmwareInfo, emptyVendorReserved,
+                                                                             attestationElementsSpan));
         }
 
         // Generate attestation signature
@@ -140,8 +134,8 @@ TEST_F(TestCommissionerDUTVectors, TestCommissionerDUTVectors)
                    attestationChallengeSpan.size());
             ByteSpan tbsSpan(attestationElementsSpan.data(), attestationElementsSpan.size() + attestationChallengeSpan.size());
 
-            EXPECT_EQ(dacProvider.SignWithDeviceAttestationKey(tbsSpan, attestationSignatureSpan), CHIP_NO_ERROR);
-            EXPECT_EQ(attestationSignatureSpan.size(), signature.Capacity());
+            NL_TEST_ASSERT_SUCCESS(inSuite, dacProvider.SignWithDeviceAttestationKey(tbsSpan, attestationSignatureSpan));
+            NL_TEST_ASSERT(inSuite, attestationSignatureSpan.size() == signature.Capacity());
         }
 
         AttestationVerificationResult attestationResult = AttestationVerificationResult::kNotImplemented;
@@ -173,12 +167,63 @@ TEST_F(TestCommissionerDUTVectors, TestCommissionerDUTVectors)
 
         if (isSuccessCase)
         {
-            EXPECT_EQ(attestationResult, AttestationVerificationResult::kSuccess);
+            NL_TEST_ASSERT(inSuite, attestationResult == AttestationVerificationResult::kSuccess);
         }
         else
         {
-            EXPECT_NE(attestationResult, AttestationVerificationResult::kSuccess);
+            NL_TEST_ASSERT(inSuite, attestationResult != AttestationVerificationResult::kSuccess);
         }
     }
     closedir(dir);
 }
+
+/**
+ *  Set up the test suite.
+ */
+int TestCommissionerDUT_Setup(void * inContext)
+{
+    CHIP_ERROR error = chip::Platform::MemoryInit();
+
+    if (error != CHIP_NO_ERROR)
+    {
+        return FAILURE;
+    }
+
+    return SUCCESS;
+}
+
+/**
+ *  Tear down the test suite.
+ */
+int TestCommissionerDUT_Teardown(void * inContext)
+{
+    chip::Platform::MemoryShutdown();
+    return SUCCESS;
+}
+
+/**
+ *   Test Suite. It lists all the test functions.
+ */
+// clang-format off
+static const nlTest sTests[] = {
+    NL_TEST_DEF("Test Device Attestation Credentials Vectors", TestCommissionerDUTVectors),
+    NL_TEST_SENTINEL()
+};
+// clang-format on
+
+int TestCommissionerDUT()
+{
+    // clang-format off
+    nlTestSuite theSuite =
+    {
+        "Device Attestation Credentials Test Vectors",
+        &sTests[0],
+        TestCommissionerDUT_Setup,
+        TestCommissionerDUT_Teardown
+    };
+    // clang-format on
+    nlTestRunner(&theSuite, nullptr);
+    return (nlTestRunnerStats(&theSuite));
+}
+
+CHIP_REGISTER_TEST_SUITE(TestCommissionerDUT);

@@ -13,11 +13,11 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-
-#include <pw_unit_test/framework.h>
-
 #include <lib/address_resolve/AddressResolve_DefaultImpl.h>
-#include <lib/core/StringBuilderAdapters.h>
+
+#include <lib/support/UnitTestRegistration.h>
+
+#include <nlunit-test.h>
 
 using namespace chip;
 using namespace chip::AddressResolve;
@@ -66,7 +66,7 @@ Transport::PeerAddress GetAddressWithHighScore(uint16_t port = CHIP_PORT, Inet::
     return Transport::PeerAddress::UDP(ipAddress, port, interfaceId);
 }
 
-TEST(TestAddressResolveDefaultImpl, TestLookupResult)
+void TestLookupResult(nlTestSuite * inSuite, void * inContext)
 {
     ResolveResult lowResult;
     lowResult.address = GetAddressWithLowScore();
@@ -83,8 +83,8 @@ TEST(TestAddressResolveDefaultImpl, TestLookupResult)
     IpScore mediumScore = ScoreIpAddress(mediumResult.address.GetIPAddress(), Inet::InterfaceId::Null());
     IpScore highScore   = ScoreIpAddress(highResult.address.GetIPAddress(), Inet::InterfaceId::Null());
 
-    EXPECT_LT(to_underlying(lowScore), to_underlying(mediumScore));
-    EXPECT_LT(to_underlying(mediumScore), to_underlying(highScore));
+    NL_TEST_ASSERT(inSuite, to_underlying(lowScore) < to_underlying(mediumScore));
+    NL_TEST_ASSERT(inSuite, to_underlying(mediumScore) < to_underlying(highScore));
 
     ResolveResult outResult;
 
@@ -95,20 +95,20 @@ TEST(TestAddressResolveDefaultImpl, TestLookupResult)
     handle.ResetForLookup(now, request);
 
     // Check that no result exists.
-    EXPECT_FALSE(handle.HasLookupResult());
+    NL_TEST_ASSERT(inSuite, !handle.HasLookupResult());
 
     // Fill a single slot.
     handle.LookupResult(lowResult);
 
     // Check that a result exists.
-    EXPECT_TRUE(handle.HasLookupResult());
+    NL_TEST_ASSERT(inSuite, handle.HasLookupResult());
 
     // Check that the result match what has been inserted.
     outResult = handle.TakeLookupResult();
-    EXPECT_EQ(lowResult.address, outResult.address);
+    NL_TEST_ASSERT(inSuite, lowResult.address == outResult.address);
 
     // Check that the result has been consumed properly
-    EXPECT_FALSE(handle.HasLookupResult());
+    NL_TEST_ASSERT(inSuite, !handle.HasLookupResult());
 
     handle.ResetForLookup(now, request);
 
@@ -121,13 +121,13 @@ TEST(TestAddressResolveDefaultImpl, TestLookupResult)
     // Read back all results and validate that they match the input.
     for (auto i = 0; i < kNumberOfAvailableSlots; i++)
     {
-        EXPECT_TRUE(handle.HasLookupResult());
+        NL_TEST_ASSERT(inSuite, handle.HasLookupResult());
         outResult = handle.TakeLookupResult();
-        EXPECT_EQ(lowResult.address, outResult.address);
+        NL_TEST_ASSERT(inSuite, lowResult.address == outResult.address);
     }
 
     // Check that the results has been consumed properly.
-    EXPECT_FALSE(handle.HasLookupResult());
+    NL_TEST_ASSERT(inSuite, !handle.HasLookupResult());
 
     handle.ResetForLookup(now, request);
 
@@ -140,13 +140,13 @@ TEST(TestAddressResolveDefaultImpl, TestLookupResult)
     // Read back all results and validate that they match the input.
     for (auto i = 0; i < kNumberOfAvailableSlots; i++)
     {
-        EXPECT_TRUE(handle.HasLookupResult());
+        NL_TEST_ASSERT(inSuite, handle.HasLookupResult());
         outResult = handle.TakeLookupResult();
-        EXPECT_EQ(lowResult.address, outResult.address);
+        NL_TEST_ASSERT(inSuite, lowResult.address == outResult.address);
     }
 
     // Check that the results has been consumed properly.
-    EXPECT_FALSE(handle.HasLookupResult());
+    NL_TEST_ASSERT(inSuite, !handle.HasLookupResult());
 
     handle.ResetForLookup(now, request);
 
@@ -158,9 +158,9 @@ TEST(TestAddressResolveDefaultImpl, TestLookupResult)
 
     // Add a result with a medium score and ensure it sits at the top.
     handle.LookupResult(mediumResult);
-    EXPECT_TRUE(handle.HasLookupResult());
+    NL_TEST_ASSERT(inSuite, handle.HasLookupResult());
     outResult = handle.TakeLookupResult();
-    EXPECT_EQ(mediumResult.address, outResult.address);
+    NL_TEST_ASSERT(inSuite, mediumResult.address == outResult.address);
 
     handle.ResetForLookup(now, request);
 
@@ -173,16 +173,16 @@ TEST(TestAddressResolveDefaultImpl, TestLookupResult)
     // Add a result with a medium score and a result with a high score and ensure the result with the high score comes first.
     handle.LookupResult(mediumResult);
     handle.LookupResult(highResult);
-    EXPECT_TRUE(handle.HasLookupResult());
+    NL_TEST_ASSERT(inSuite, handle.HasLookupResult());
     outResult = handle.TakeLookupResult();
-    EXPECT_EQ(highResult.address, outResult.address);
+    NL_TEST_ASSERT(inSuite, highResult.address == outResult.address);
 
     if (kNumberOfAvailableSlots > 1)
     {
         // Ensure the second result is the medium result.
-        EXPECT_TRUE(handle.HasLookupResult());
+        NL_TEST_ASSERT(inSuite, handle.HasLookupResult());
         outResult = handle.TakeLookupResult();
-        EXPECT_EQ(mediumResult.address, outResult.address);
+        NL_TEST_ASSERT(inSuite, mediumResult.address == outResult.address);
     }
 
     if (kNumberOfAvailableSlots > 2)
@@ -190,13 +190,28 @@ TEST(TestAddressResolveDefaultImpl, TestLookupResult)
         // Ensure that all the other results are low results.
         for (auto i = 2; i < kNumberOfAvailableSlots; i++)
         {
-            EXPECT_TRUE(handle.HasLookupResult());
+            NL_TEST_ASSERT(inSuite, handle.HasLookupResult());
             outResult = handle.TakeLookupResult();
-            EXPECT_EQ(lowResult.address, outResult.address);
+            NL_TEST_ASSERT(inSuite, lowResult.address == outResult.address);
         }
     }
 
     // Check that the results has been consumed properly.
-    EXPECT_FALSE(handle.HasLookupResult());
+    NL_TEST_ASSERT(inSuite, !handle.HasLookupResult());
 }
+
+const nlTest sTests[] = {
+    NL_TEST_DEF("TestLookupResult", TestLookupResult), //
+    NL_TEST_SENTINEL()                                 //
+};
+
 } // namespace
+
+int TestAddressResolve_DefaultImpl()
+{
+    nlTestSuite theSuite = { "AddressResolve_DefaultImpl", sTests, nullptr, nullptr };
+    nlTestRunner(&theSuite, nullptr);
+    return nlTestRunnerStats(&theSuite);
+}
+
+CHIP_REGISTER_TEST_SUITE(TestAddressResolve_DefaultImpl)

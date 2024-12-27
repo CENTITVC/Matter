@@ -30,7 +30,7 @@ class ThermostatClusterScheduleStruct(
   val name: Optional<String>,
   val presetHandle: Optional<ByteArray>,
   val transitions: List<ThermostatClusterScheduleTransitionStruct>,
-  val builtIn: Boolean?,
+  val builtIn: Optional<Boolean>?
 ) {
   override fun toString(): String = buildString {
     append("ThermostatClusterScheduleStruct {\n")
@@ -66,7 +66,10 @@ class ThermostatClusterScheduleStruct(
       }
       endArray()
       if (builtIn != null) {
-        put(ContextSpecificTag(TAG_BUILT_IN), builtIn)
+        if (builtIn.isPresent) {
+          val optbuiltIn = builtIn.get()
+          put(ContextSpecificTag(TAG_BUILT_IN), optbuiltIn)
+        }
       } else {
         putNull(ContextSpecificTag(TAG_BUILT_IN))
       }
@@ -114,7 +117,11 @@ class ThermostatClusterScheduleStruct(
         }
       val builtIn =
         if (!tlvReader.isNull()) {
-          tlvReader.getBoolean(ContextSpecificTag(TAG_BUILT_IN))
+          if (tlvReader.isNextTag(ContextSpecificTag(TAG_BUILT_IN))) {
+            Optional.of(tlvReader.getBoolean(ContextSpecificTag(TAG_BUILT_IN)))
+          } else {
+            Optional.empty()
+          }
         } else {
           tlvReader.getNull(ContextSpecificTag(TAG_BUILT_IN))
           null
@@ -128,7 +135,7 @@ class ThermostatClusterScheduleStruct(
         name,
         presetHandle,
         transitions,
-        builtIn,
+        builtIn
       )
     }
   }

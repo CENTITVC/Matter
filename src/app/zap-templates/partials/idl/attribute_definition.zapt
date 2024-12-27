@@ -1,7 +1,4 @@
-{{#if apiMaturity~}}
-    {{apiMaturity}} {{!marker to place a space even with whitespace removal~}}
-{{~/if~}}
-{{~#if mustUseTimedWrite~}}
+{{#if mustUseTimedWrite~}}
     timedwrite {{!marker to place a space even with whitespace removal~}}
 {{~/if~}}
 {{~#unless isWritableAttribute~}}
@@ -38,5 +35,3 @@
         {{~code~}}
      {{/if~}}
   ;
-
-{{~!remove newline at end of file~}}

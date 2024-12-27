@@ -52,12 +52,8 @@ ThreadStackManagerImpl ThreadStackManagerImpl::sInstance;
 
 CHIP_ERROR ThreadStackManagerImpl::_InitThreadStack()
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
     openthread_init_stack();
-    _LockThreadStack();
-    err = GenericThreadStackManagerImpl_OpenThread<ThreadStackManagerImpl>::DoInit(esp_openthread_get_instance());
-    _UnlockThreadStack();
-    return err;
+    return GenericThreadStackManagerImpl_OpenThread<ThreadStackManagerImpl>::DoInit(esp_openthread_get_instance());
 }
 
 CHIP_ERROR ThreadStackManagerImpl::_StartThreadTask()

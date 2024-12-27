@@ -1,18 +1,14 @@
 import Matter
 import XCTest
 
-// This more or less parallels the "no delegate" case in MTRPairingTests, but uses the "normal"
-// all-clusters-app, since it does not do any of the "interesting" VID/PID notification so far.  If
-// it ever starts needing to do that, we should figure out a way to use MTRTestCase+ServerAppRunner from
-// here.
+// This more or less parallels the "no delegate" case in MTRPairingTests
 
 struct PairingConstants {
     static let localPort = 5541
     static let vendorID = 0xFFF1
-    static let onboardingPayload = "MT:-24J0AFN00KA0648G00"
+    static let onboardingPayload = "MT:Y.K90SO527JA0648G00"
     static let deviceID = 0x12344321
     static let timeoutInSeconds : UInt16 = 3
-    static let pairingTimeoutInSeconds : UInt16 = 60
 }
 
 class MTRSwiftPairingTestControllerDelegate : NSObject, MTRDeviceControllerDelegate {
@@ -97,7 +93,7 @@ class MTRSwiftPairingTests : XCTestCase {
             return
         }
 
-        wait(for: [expectation], timeout: TimeInterval(PairingConstants.pairingTimeoutInSeconds))
+        wait(for: [expectation], timeout: TimeInterval(PairingConstants.timeoutInSeconds))
 
         ResetCommissionee(MTRBaseDevice(nodeID: PairingConstants.deviceID as NSNumber, controller: controller), DispatchQueue.main, self, PairingConstants.timeoutInSeconds)
 

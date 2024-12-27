@@ -30,6 +30,10 @@
 #include <system/SystemClock.h>
 #include <system/SystemConfig.h>
 
+#if CHIP_SYSTEM_CONFIG_USE_LWIP
+#include <lwip/opt.h>
+#endif // CHIP_SYSTEM_CONFIG_USE_LWIP
+
 namespace chip {
 
 /**
@@ -52,7 +56,7 @@ namespace chip {
  */
 #ifndef CHIP_CONFIG_MRP_LOCAL_ACTIVE_RETRY_INTERVAL
 #if CHIP_ENABLE_OPENTHREAD && !CHIP_DEVICE_LAYER_TARGET_LINUX
-#define CHIP_CONFIG_MRP_LOCAL_ACTIVE_RETRY_INTERVAL (2000_ms32)
+#define CHIP_CONFIG_MRP_LOCAL_ACTIVE_RETRY_INTERVAL (800_ms32)
 #else
 #define CHIP_CONFIG_MRP_LOCAL_ACTIVE_RETRY_INTERVAL (300_ms32)
 #endif
@@ -78,7 +82,7 @@ namespace chip {
  */
 #ifndef CHIP_CONFIG_MRP_LOCAL_IDLE_RETRY_INTERVAL
 #if CHIP_ENABLE_OPENTHREAD && !CHIP_DEVICE_LAYER_TARGET_LINUX
-#define CHIP_CONFIG_MRP_LOCAL_IDLE_RETRY_INTERVAL (2000_ms32)
+#define CHIP_CONFIG_MRP_LOCAL_IDLE_RETRY_INTERVAL (800_ms32)
 #else
 #define CHIP_CONFIG_MRP_LOCAL_IDLE_RETRY_INTERVAL (500_ms32)
 #endif
@@ -125,23 +129,16 @@ namespace chip {
 #ifndef CHIP_CONFIG_RMP_RETRANS_TABLE_SIZE
 #if CHIP_SYSTEM_CONFIG_USE_LWIP
 
-#if !CHIP_SYSTEM_CONFIG_LWIP_PBUF_FROM_CUSTOM_POOL && PBUF_POOL_SIZE != 0
-// Configure the table size to be less than the number of packet buffers to make sure
-// that not all buffers are held by the retransmission entries, in which case the device
-// is unable to receive an ACK and hence becomes unavailable until a message times out.
-#define CHIP_CONFIG_RMP_RETRANS_TABLE_SIZE std::min(PBUF_POOL_SIZE - 1, CHIP_CONFIG_MAX_EXCHANGE_CONTEXTS)
+#if !LWIP_PBUF_FROM_CUSTOM_POOLS && PBUF_POOL_SIZE != 0
+#define CHIP_CONFIG_RMP_RETRANS_TABLE_SIZE std::min(PBUF_POOL_SIZE, CHIP_CONFIG_MAX_EXCHANGE_CONTEXTS)
 #else
 #define CHIP_CONFIG_RMP_RETRANS_TABLE_SIZE CHIP_CONFIG_MAX_EXCHANGE_CONTEXTS
-#endif // !CHIP_SYSTEM_CONFIG_LWIP_PBUF_FROM_CUSTOM_POOL && PBUF_POOL_SIZE != 0
+#endif // !LWIP_PBUF_FROM_CUSTOM_POOLS && PBUF_POOL_SIZE != 0
 
 #else // CHIP_SYSTEM_CONFIG_USE_LWIP
 
 #if CHIP_SYSTEM_CONFIG_PACKETBUFFER_POOL_SIZE != 0
-// Configure the table size to be less than the number of packet buffers to make sure
-// that not all buffers are held by the retransmission entries, in which case the device
-// is unable to receive an ACK and hence becomes unavailable until a message times out.
-#define CHIP_CONFIG_RMP_RETRANS_TABLE_SIZE                                                                                         \
-    std::min(CHIP_SYSTEM_CONFIG_PACKETBUFFER_POOL_SIZE - 1, CHIP_CONFIG_MAX_EXCHANGE_CONTEXTS)
+#define CHIP_CONFIG_RMP_RETRANS_TABLE_SIZE std::min(CHIP_SYSTEM_CONFIG_PACKETBUFFER_POOL_SIZE, CHIP_CONFIG_MAX_EXCHANGE_CONTEXTS)
 #else
 #define CHIP_CONFIG_RMP_RETRANS_TABLE_SIZE CHIP_CONFIG_MAX_EXCHANGE_CONTEXTS
 #endif // CHIP_SYSTEM_CONFIG_PACKETBUFFER_POOL_SIZE != 0
@@ -177,7 +174,7 @@ namespace chip {
  */
 #ifndef CHIP_CONFIG_MRP_RETRY_INTERVAL_SENDER_BOOST
 #if CHIP_ENABLE_OPENTHREAD && !CHIP_DEVICE_LAYER_TARGET_LINUX
-#define CHIP_CONFIG_MRP_RETRY_INTERVAL_SENDER_BOOST (1500_ms)
+#define CHIP_CONFIG_MRP_RETRY_INTERVAL_SENDER_BOOST (500_ms)
 #else
 #define CHIP_CONFIG_MRP_RETRY_INTERVAL_SENDER_BOOST (0_ms)
 #endif
@@ -260,8 +257,9 @@ Optional<ReliableMessageProtocolConfig> GetLocalMRPConfig();
  *
  * @return The maximum transmission time
  */
-System::Clock::Timeout GetRetransmissionTimeout(System::Clock::Timeout activeInterval, System::Clock::Timeout idleInterval,
-                                                System::Clock::Timeout lastActivityTime, System::Clock::Timeout activityThreshold);
+System::Clock::Timestamp GetRetransmissionTimeout(System::Clock::Timestamp activeInterval, System::Clock::Timestamp idleInterval,
+                                                  System::Clock::Timestamp lastActivityTime,
+                                                  System::Clock::Timestamp activityThreshold);
 
 #if CONFIG_BUILD_FOR_HOST_UNIT_TEST
 

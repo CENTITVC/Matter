@@ -43,7 +43,6 @@ public:
         ChipLogProgress(AppServer, "MatterCallbackJNI::SetUp called");
         VerifyOrReturnError(env != nullptr, CHIP_JNI_ERROR_NO_ENV, ChipLogError(AppServer, "JNIEnv was null!"));
 
-        mCallbackObject.Reset();
         ReturnErrorOnFailure(mCallbackObject.Init(inCallback));
 
         jclass mClazz = env->GetObjectClass(mCallbackObject.ObjectRef());
@@ -54,15 +53,13 @@ public:
         VerifyOrReturnError(mSuperClazz != nullptr, CHIP_JNI_ERROR_TYPE_NOT_FOUND,
                             ChipLogError(AppServer, "Failed to get callback's parent's Java class"));
 
-        mMethod = env->GetMethodID(mSuperClazz, "handleInternal", mMethodSignature);
+        mMethod = env->GetMethodID(mClazz, "handleInternal", mMethodSignature);
         VerifyOrReturnError(
             mMethod != nullptr, CHIP_JNI_ERROR_METHOD_NOT_FOUND,
             ChipLogError(AppServer, "Failed to access 'handleInternal' method with signature %s", mMethodSignature));
 
         return CHIP_NO_ERROR;
     }
-
-    bool IsSetUp() const { return mCallbackObject.HasValidObjectRef() && mMethod != nullptr; }
 
     void Handle(T responseData)
     {

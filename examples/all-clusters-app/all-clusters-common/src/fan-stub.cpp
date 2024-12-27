@@ -20,7 +20,6 @@
 #include <app-common/zap-generated/ids/Attributes.h>
 #include <app-common/zap-generated/ids/Clusters.h>
 #include <app/AttributeAccessInterface.h>
-#include <app/AttributeAccessInterfaceRegistry.h>
 #include <app/clusters/fan-control-server/fan-control-server.h>
 #include <app/util/attribute-storage.h>
 #include <lib/support/CodeUtils.h>
@@ -173,6 +172,6 @@ void emberAfFanControlClusterInitCallback(EndpointId endpoint)
 {
     VerifyOrDie(mFanControlManager == nullptr);
     mFanControlManager = new FanControlManager(endpoint);
-    AttributeAccessInterfaceRegistry::Instance().Register(mFanControlManager);
+    registerAttributeAccessOverride(mFanControlManager);
     FanControl::SetDefaultDelegate(endpoint, mFanControlManager);
 }

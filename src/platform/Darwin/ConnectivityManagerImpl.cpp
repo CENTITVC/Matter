@@ -21,6 +21,8 @@
 #include <platform/ConnectivityManager.h>
 #include <platform/internal/BLEManager.h>
 
+#include <new>
+
 #include <lib/support/CodeUtils.h>
 #include <lib/support/SafeInt.h>
 #include <lib/support/logging/CHIPLogging.h>
@@ -49,6 +51,7 @@
 #endif // TARGET_OS_OSX
 
 using namespace ::chip;
+using namespace ::chip::TLV;
 using namespace ::chip::DeviceLayer::Internal;
 
 namespace chip {

@@ -31,8 +31,7 @@ namespace System {
 CHIP_ERROR TLVPacketBufferBackingStore::OnInit(chip::TLV::TLVReader & reader, const uint8_t *& bufStart, uint32_t & bufLen)
 {
     bufStart = mHeadBuffer->Start();
-    VerifyOrReturnError(CanCastTo<uint32_t>(mHeadBuffer->DataLength()), CHIP_ERROR_INVALID_ARGUMENT);
-    bufLen = static_cast<uint32_t>(mHeadBuffer->DataLength());
+    bufLen   = mHeadBuffer->DataLength();
     return CHIP_NO_ERROR;
 }
 
@@ -55,8 +54,7 @@ CHIP_ERROR TLVPacketBufferBackingStore::GetNextBuffer(chip::TLV::TLVReader & rea
     else
     {
         bufStart = mCurrentBuffer->Start();
-        VerifyOrReturnError(CanCastTo<uint32_t>(mCurrentBuffer->DataLength()), CHIP_ERROR_INVALID_ARGUMENT);
-        bufLen = static_cast<uint32_t>(mCurrentBuffer->DataLength());
+        bufLen   = mCurrentBuffer->DataLength();
     }
 
     return CHIP_NO_ERROR;
@@ -65,8 +63,7 @@ CHIP_ERROR TLVPacketBufferBackingStore::GetNextBuffer(chip::TLV::TLVReader & rea
 CHIP_ERROR TLVPacketBufferBackingStore::OnInit(chip::TLV::TLVWriter & writer, uint8_t *& bufStart, uint32_t & bufLen)
 {
     bufStart = mHeadBuffer->Start() + mHeadBuffer->DataLength();
-    VerifyOrReturnError(CanCastTo<uint32_t>(mHeadBuffer->AvailableDataLength()), CHIP_ERROR_INVALID_ARGUMENT);
-    bufLen = static_cast<uint32_t>(mHeadBuffer->AvailableDataLength());
+    bufLen   = mHeadBuffer->AvailableDataLength();
     return CHIP_NO_ERROR;
 }
 
@@ -75,11 +72,11 @@ CHIP_ERROR TLVPacketBufferBackingStore::FinalizeBuffer(chip::TLV::TLVWriter & wr
     uint8_t * endPtr = bufStart + dataLen;
 
     intptr_t length = endPtr - mCurrentBuffer->Start();
-    if (!CanCastTo<uint32_t>(length))
+    if (!CanCastTo<uint16_t>(length))
     {
         return CHIP_ERROR_INVALID_ARGUMENT;
     }
-    mCurrentBuffer->SetDataLength(static_cast<uint32_t>(length), mHeadBuffer);
+    mCurrentBuffer->SetDataLength(static_cast<uint16_t>(length), mHeadBuffer);
 
     return CHIP_NO_ERROR;
 }
@@ -110,8 +107,7 @@ CHIP_ERROR TLVPacketBufferBackingStore::GetNewBuffer(chip::TLV::TLVWriter & writ
     else
     {
         bufStart = mCurrentBuffer->Start();
-        VerifyOrReturnError(CanCastTo<uint32_t>(mCurrentBuffer->MaxDataLength()), CHIP_ERROR_INVALID_ARGUMENT);
-        bufLen = static_cast<uint32_t>(mCurrentBuffer->MaxDataLength());
+        bufLen   = mCurrentBuffer->MaxDataLength();
     }
 
     return CHIP_NO_ERROR;

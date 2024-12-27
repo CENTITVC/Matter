@@ -21,14 +21,14 @@
  *      This file implements unit tests for the SessionManager implementation.
  */
 
-#include <errno.h>
-#include <vector>
-
-#include <pw_unit_test/framework.h>
-
-#include <lib/core/StringBuilderAdapters.h>
+#include <lib/support/UnitTestRegistration.h>
 #include <transport/MessageCounter.h>
 #include <transport/PeerMessageCounter.h>
+
+#include <errno.h>
+#include <nlbyteorder.h>
+#include <nlunit-test.h>
+#include <vector>
 
 namespace {
 
@@ -36,23 +36,23 @@ using namespace chip;
 
 static uint32_t counterValuesArray[] = { 0, 10, 0x7FFFFFFF, 0x80000000, 0x80000001, 0x80000002, 0xFFFFFFF0, 0xFFFFFFFF };
 
-TEST(TestPeerMessageCounter, GroupRollOverTest)
+void GroupRollOverTest(nlTestSuite * inSuite, void * inContext)
 {
     for (auto n : counterValuesArray)
     {
         for (uint32_t k = 1; k <= 2 * CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE; k++)
         {
             chip::Transport::PeerMessageCounter counter;
-            EXPECT_EQ(counter.VerifyOrTrustFirstGroup(n), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, counter.VerifyOrTrustFirstGroup(n) == CHIP_NO_ERROR);
 
             counter.CommitGroup(n);
 
             // 1. A counter value of N + k comes in, we detect it as valid and commit it.
-            EXPECT_EQ(counter.VerifyOrTrustFirstGroup(n + k), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, counter.VerifyOrTrustFirstGroup(n + k) == CHIP_NO_ERROR);
             counter.CommitGroup(n + k);
 
             // 2. A counter value of N comes in, we detect it as duplicate.
-            EXPECT_EQ(counter.VerifyOrTrustFirstGroup(n), CHIP_ERROR_DUPLICATE_MESSAGE_RECEIVED);
+            NL_TEST_ASSERT(inSuite, counter.VerifyOrTrustFirstGroup(n) == CHIP_ERROR_DUPLICATE_MESSAGE_RECEIVED);
 
             // 3. A counter value between N - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE and
             //    N + k - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE (but not including
@@ -60,45 +60,47 @@ TEST(TestPeerMessageCounter, GroupRollOverTest)
             for (uint32_t i = n - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE; i != (n + k - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE);
                  i++)
             {
-                EXPECT_NE(counter.VerifyOrTrustFirstGroup(i), CHIP_NO_ERROR);
+                NL_TEST_ASSERT(inSuite, counter.VerifyOrTrustFirstGroup(i) != CHIP_NO_ERROR);
             }
 
             // 4. A counter value of N + k - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE comes in, is treated as valid.
             if (k != CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE)
             {
-                EXPECT_EQ(counter.VerifyOrTrustFirstGroup(n + k - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE), CHIP_NO_ERROR);
+                NL_TEST_ASSERT(inSuite,
+                               counter.VerifyOrTrustFirstGroup(n + k - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE) == CHIP_NO_ERROR);
             }
             else
             {
-                EXPECT_NE(counter.VerifyOrTrustFirstGroup(n + k - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE), CHIP_NO_ERROR);
+                NL_TEST_ASSERT(inSuite,
+                               counter.VerifyOrTrustFirstGroup(n + k - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE) != CHIP_NO_ERROR);
             }
         }
     }
 }
 
-TEST(TestPeerMessageCounter, GroupBackTrackTest)
+void GroupBackTrackTest(nlTestSuite * inSuite, void * inContext)
 {
     for (auto n : counterValuesArray)
     {
         chip::Transport::PeerMessageCounter counter;
-        EXPECT_EQ(counter.VerifyOrTrustFirstGroup(n), CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, counter.VerifyOrTrustFirstGroup(n) == CHIP_NO_ERROR);
 
         counter.CommitGroup(n);
         // 1.   Some set of values N - k come in, for 0 < k < CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE.
         //      All of those should be considered valid and committed.
         for (uint32_t k = 1; k * k < CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE; k++)
         {
-            EXPECT_EQ(counter.VerifyOrTrustFirstGroup(n - (k * k)), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, counter.VerifyOrTrustFirstGroup(n - (k * k)) == CHIP_NO_ERROR);
             counter.CommitGroup(n - (k * k));
         }
         // 2. Counter value N + 3 comes in
-        EXPECT_EQ(counter.VerifyOrTrustFirstGroup(n + 3), CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, counter.VerifyOrTrustFirstGroup(n + 3) == CHIP_NO_ERROR);
         counter.CommitGroup(n + 3);
 
         // 3. The same set of values N - k come in as in step (1) and are all considered duplicates/out of window.
         for (uint32_t k = 1; k * k < CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE; k++)
         {
-            EXPECT_NE(counter.VerifyOrTrustFirstGroup(n - (k * k)), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, counter.VerifyOrTrustFirstGroup(n - (k * k)) != CHIP_NO_ERROR);
         }
 
         // 4. The values that were not in the set in step (a) (but are at least N + 3 - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE)
@@ -109,29 +111,29 @@ TEST(TestPeerMessageCounter, GroupBackTrackTest)
             {
                 continue;
             }
-            EXPECT_EQ(counter.VerifyOrTrustFirstGroup(k), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, counter.VerifyOrTrustFirstGroup(k) == CHIP_NO_ERROR);
             counter.CommitGroup(k);
         }
     }
 }
 
-TEST(TestPeerMessageCounter, GroupBigLeapTest)
+void GroupBigLeapTest(nlTestSuite * inSuite, void * inContext)
 {
     for (auto n : counterValuesArray)
     {
         for (uint32_t k = (static_cast<uint32_t>(1 << 31) - 5); k <= (static_cast<uint32_t>(1 << 31) - 1); k++)
         {
             chip::Transport::PeerMessageCounter counter;
-            EXPECT_EQ(counter.VerifyOrTrustFirstGroup(n), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, counter.VerifyOrTrustFirstGroup(n) == CHIP_NO_ERROR);
 
             counter.CommitGroup(n);
 
             // 1. A counter value of N + k comes in, we detect it as valid and commit it.
-            EXPECT_EQ(counter.VerifyOrTrustFirstGroup(n + k), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, counter.VerifyOrTrustFirstGroup(n + k) == CHIP_NO_ERROR);
             counter.CommitGroup(n + k);
 
             // 2. A counter value of N comes in, we detect it as duplicate.
-            EXPECT_NE(counter.VerifyOrTrustFirstGroup(n), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, counter.VerifyOrTrustFirstGroup(n) != CHIP_NO_ERROR);
 
             // 3. A counter value between N and N + k - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE
             //    (but not including N + k - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE) comes in, we treat it as duplicate.
@@ -147,37 +149,38 @@ TEST(TestPeerMessageCounter, GroupBigLeapTest)
             testValues.push_back(static_cast<uint32_t>(n + k - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE - 1));
 
             // Will be inside the valid window of counter + (2^31 -1)
-            EXPECT_EQ(counter.VerifyOrTrustFirstGroup(n - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, counter.VerifyOrTrustFirstGroup(n - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE) == CHIP_NO_ERROR);
 
             for (auto it : testValues)
             {
-                EXPECT_NE(counter.VerifyOrTrustFirstGroup(it), CHIP_NO_ERROR);
+                NL_TEST_ASSERT(inSuite, counter.VerifyOrTrustFirstGroup(it) != CHIP_NO_ERROR);
             }
 
             // 4. A counter value of N + k - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE comes in, is treated as valid.
-            EXPECT_EQ(counter.VerifyOrTrustFirstGroup(n + k - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite,
+                           counter.VerifyOrTrustFirstGroup(n + k - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE) == CHIP_NO_ERROR);
         }
     }
 }
 
-TEST(TestPeerMessageCounter, GroupOutOfWindow)
+void GroupOutOfWindow(nlTestSuite * inSuite, void * inContext)
 {
     for (auto n : counterValuesArray)
     {
         for (uint32_t k = (static_cast<uint32_t>(1 << 31)); k <= (static_cast<uint32_t>(1 << 31) + 2); k++)
         {
             chip::Transport::PeerMessageCounter counter;
-            EXPECT_EQ(counter.VerifyOrTrustFirstGroup(n), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, counter.VerifyOrTrustFirstGroup(n) == CHIP_NO_ERROR);
 
             counter.CommitGroup(n);
 
             // 1. A counter value of N + k comes in, we detect it as duplicate.
-            EXPECT_EQ(counter.VerifyOrTrustFirstGroup(n + k), CHIP_ERROR_DUPLICATE_MESSAGE_RECEIVED);
+            NL_TEST_ASSERT(inSuite, counter.VerifyOrTrustFirstGroup(n + k) == CHIP_ERROR_DUPLICATE_MESSAGE_RECEIVED);
         }
     }
 }
 
-TEST(TestPeerMessageCounter, UnicastSmallStepTest)
+void UnicastSmallStepTest(nlTestSuite * inSuite, void * inContext)
 {
     for (auto n : counterValuesArray)
     {
@@ -198,22 +201,22 @@ TEST(TestPeerMessageCounter, UnicastSmallStepTest)
             }
 
             // A counter value of N comes in, we detect it as duplicate.
-            EXPECT_EQ(counter.VerifyEncryptedUnicast(n), CHIP_ERROR_DUPLICATE_MESSAGE_RECEIVED);
+            NL_TEST_ASSERT(inSuite, counter.VerifyEncryptedUnicast(n) == CHIP_ERROR_DUPLICATE_MESSAGE_RECEIVED);
 
             // A counter value of N + k comes in, we detect it as valid only if it would not
             // overflow, and commit it.
             if (k > UINT32_MAX - n)
             {
-                EXPECT_EQ(counter.VerifyEncryptedUnicast(n + k), CHIP_ERROR_DUPLICATE_MESSAGE_RECEIVED);
+                NL_TEST_ASSERT(inSuite, counter.VerifyEncryptedUnicast(n + k) == CHIP_ERROR_DUPLICATE_MESSAGE_RECEIVED);
                 // The other tests make no sense if we did not commit N+k as the new max counter.
                 continue;
             }
 
-            EXPECT_EQ(counter.VerifyEncryptedUnicast(n + k), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, counter.VerifyEncryptedUnicast(n + k) == CHIP_NO_ERROR);
             counter.CommitEncryptedUnicast(n + k);
 
             // A counter value of N comes in, we detect it as duplicate.
-            EXPECT_EQ(counter.VerifyEncryptedUnicast(n), CHIP_ERROR_DUPLICATE_MESSAGE_RECEIVED);
+            NL_TEST_ASSERT(inSuite, counter.VerifyEncryptedUnicast(n) == CHIP_ERROR_DUPLICATE_MESSAGE_RECEIVED);
 
             // A counter value between N - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE and
             // N + k - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE (but not including
@@ -226,7 +229,7 @@ TEST(TestPeerMessageCounter, UnicastSmallStepTest)
                 (n + k >= CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE) ? (n + k - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE) : 0;
             for (uint32_t i = outOfWindowStart; i < outOfWindowEnd; i++)
             {
-                EXPECT_NE(counter.VerifyEncryptedUnicast(i), CHIP_NO_ERROR);
+                NL_TEST_ASSERT(inSuite, counter.VerifyEncryptedUnicast(i) != CHIP_NO_ERROR);
             }
 
             // A counter value of N + k - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE (if that does not
@@ -236,18 +239,20 @@ TEST(TestPeerMessageCounter, UnicastSmallStepTest)
             {
                 if ((k != CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE) && (n + k != CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE))
                 {
-                    EXPECT_EQ(counter.VerifyEncryptedUnicast(n + k - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE), CHIP_NO_ERROR);
+                    NL_TEST_ASSERT(
+                        inSuite, counter.VerifyEncryptedUnicast(n + k - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE) == CHIP_NO_ERROR);
                 }
                 else
                 {
-                    EXPECT_NE(counter.VerifyEncryptedUnicast(n + k - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE), CHIP_NO_ERROR);
+                    NL_TEST_ASSERT(
+                        inSuite, counter.VerifyEncryptedUnicast(n + k - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE) != CHIP_NO_ERROR);
                 }
             }
         }
     }
 }
 
-TEST(TestPeerMessageCounter, UnicastLargeStepTest)
+void UnicastLargeStepTest(nlTestSuite * inSuite, void * inContext)
 {
     for (auto n : counterValuesArray)
     {
@@ -271,16 +276,16 @@ TEST(TestPeerMessageCounter, UnicastLargeStepTest)
             // if it would not overflow, and commit it.
             if (k > UINT32_MAX - n)
             {
-                EXPECT_EQ(counter.VerifyEncryptedUnicast(n + k), CHIP_ERROR_DUPLICATE_MESSAGE_RECEIVED);
+                NL_TEST_ASSERT(inSuite, counter.VerifyEncryptedUnicast(n + k) == CHIP_ERROR_DUPLICATE_MESSAGE_RECEIVED);
                 // The other tests make no sense if we did not commit N+k as the new max counter.
                 continue;
             }
 
-            EXPECT_EQ(counter.VerifyEncryptedUnicast(n + k), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, counter.VerifyEncryptedUnicast(n + k) == CHIP_NO_ERROR);
             counter.CommitEncryptedUnicast(n + k);
 
             // 2. A counter value of N comes in, we detect it as duplicate.
-            EXPECT_NE(counter.VerifyEncryptedUnicast(n), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, counter.VerifyEncryptedUnicast(n) != CHIP_NO_ERROR);
 
             // 3. A counter value between N and N + k - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE
             //    (but not including N + k - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE) comes in, we treat it as duplicate.
@@ -298,77 +303,81 @@ TEST(TestPeerMessageCounter, UnicastLargeStepTest)
             // n - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE will be smaller than the current allowed counter values.
             if (n >= CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE)
             {
-                EXPECT_NE(counter.VerifyEncryptedUnicast(n - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE), CHIP_NO_ERROR);
+                NL_TEST_ASSERT(inSuite,
+                               counter.VerifyEncryptedUnicast(n - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE) != CHIP_NO_ERROR);
             }
 
             for (auto it : testValues)
             {
-                EXPECT_NE(counter.VerifyEncryptedUnicast(it), CHIP_NO_ERROR);
+                NL_TEST_ASSERT(inSuite, counter.VerifyEncryptedUnicast(it) != CHIP_NO_ERROR);
             }
 
             // 4. A counter value of N + k - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE comes in, is treated as valid.
-            EXPECT_EQ(counter.VerifyEncryptedUnicast(n + k - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite,
+                           counter.VerifyEncryptedUnicast(n + k - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE) == CHIP_NO_ERROR);
         }
     }
 }
 
-TEST(TestPeerMessageCounter, UnencryptedRollOverTest)
+void UnencryptedRollOverTest(nlTestSuite * inSuite, void * inContext)
 {
     for (auto n : counterValuesArray)
     {
         for (uint32_t k = 1; k <= 2 * CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE; k++)
         {
             chip::Transport::PeerMessageCounter counter;
-            EXPECT_EQ(counter.VerifyUnencrypted(n), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, counter.VerifyUnencrypted(n) == CHIP_NO_ERROR);
 
             counter.CommitUnencrypted(n);
 
             // 1. A counter value of N + k comes in, we detect it as valid and commit it.
-            EXPECT_EQ(counter.VerifyUnencrypted(n + k), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, counter.VerifyUnencrypted(n + k) == CHIP_NO_ERROR);
             counter.CommitUnencrypted(n + k);
 
             // 2. A counter value of N comes in, we detect it as duplicate if
             // it's in the window.
             if (k <= CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE)
             {
-                EXPECT_EQ(counter.VerifyUnencrypted(n), CHIP_ERROR_DUPLICATE_MESSAGE_RECEIVED);
+                NL_TEST_ASSERT(inSuite, counter.VerifyUnencrypted(n) == CHIP_ERROR_DUPLICATE_MESSAGE_RECEIVED);
             }
             else
             {
-                EXPECT_EQ(counter.VerifyUnencrypted(n), CHIP_NO_ERROR);
+                NL_TEST_ASSERT(inSuite, counter.VerifyUnencrypted(n) == CHIP_NO_ERROR);
                 // Don't commit here so we change our max counter value.
             }
 
             // 4. A counter value of N + k - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE comes in, is treated as valid.
             if (k != CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE)
             {
-                EXPECT_EQ(counter.VerifyUnencrypted(n + k - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE), CHIP_NO_ERROR);
+                NL_TEST_ASSERT(inSuite,
+                               counter.VerifyUnencrypted(n + k - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE) == CHIP_NO_ERROR);
             }
             else
             {
-                EXPECT_NE(counter.VerifyUnencrypted(n + k - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE), CHIP_NO_ERROR);
+                NL_TEST_ASSERT(inSuite,
+                               counter.VerifyUnencrypted(n + k - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE) != CHIP_NO_ERROR);
             }
         }
     }
 }
 
-TEST(TestPeerMessageCounter, UnencryptedBackTrackTest)
+void UnencryptedBackTrackTest(nlTestSuite * inSuite, void * inContext)
 {
     for (auto n : counterValuesArray)
     {
         chip::Transport::PeerMessageCounter counter;
-        EXPECT_EQ(counter.VerifyUnencrypted(n), CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, counter.VerifyUnencrypted(n) == CHIP_NO_ERROR);
 
         counter.CommitUnencrypted(n);
         // 1.   Some set of values N - k come in, for 0 < k < CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE.
         //      All of those should be considered valid and committed.
         for (uint32_t k = 1; k * k < CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE; k++)
         {
-            EXPECT_EQ(counter.VerifyUnencrypted(n - (k * k)), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, counter.VerifyUnencrypted(n - (k * k)) == CHIP_NO_ERROR);
             counter.CommitUnencrypted(n - (k * k));
         }
         // 2. Counter value N + 3 comes in
-        EXPECT_EQ(counter.VerifyUnencrypted(n + 3), CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, counter.VerifyUnencrypted(n + 3) == CHIP_NO_ERROR);
         counter.CommitUnencrypted(n + 3);
 
         // 3. The same set of values N - k come in as in step (1) and are all considered duplicates.
@@ -376,7 +385,7 @@ TEST(TestPeerMessageCounter, UnencryptedBackTrackTest)
         //    are out of window, and 25 is the biggest k*k value we are dealing with.
         for (uint32_t k = 1; k * k < CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE; k++)
         {
-            EXPECT_NE(counter.VerifyUnencrypted(n - (k * k)), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, counter.VerifyUnencrypted(n - (k * k)) != CHIP_NO_ERROR);
         }
 
         // 4. The values that were not in the set in step (a) (but are at least N + 3 - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE)
@@ -387,30 +396,30 @@ TEST(TestPeerMessageCounter, UnencryptedBackTrackTest)
             {
                 continue;
             }
-            EXPECT_EQ(counter.VerifyUnencrypted(k), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, counter.VerifyUnencrypted(k) == CHIP_NO_ERROR);
             counter.CommitUnencrypted(k);
         }
     }
 }
 
-TEST(TestPeerMessageCounter, UnencryptedBigLeapTest)
+void UnencryptedBigLeapTest(nlTestSuite * inSuite, void * inContext)
 {
     for (auto n : counterValuesArray)
     {
         for (uint32_t k = (static_cast<uint32_t>(1 << 31) - 5); k <= (static_cast<uint32_t>(1 << 31) - 1); k++)
         {
             chip::Transport::PeerMessageCounter counter;
-            EXPECT_EQ(counter.VerifyUnencrypted(n), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, counter.VerifyUnencrypted(n) == CHIP_NO_ERROR);
 
             counter.CommitUnencrypted(n);
 
             // 1. A counter value of N + k comes in, we detect it as valid and commit it.
-            EXPECT_EQ(counter.VerifyUnencrypted(n + k), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, counter.VerifyUnencrypted(n + k) == CHIP_NO_ERROR);
             counter.CommitUnencrypted(n + k);
 
             // 2. A counter value of N comes in, we detect it as valid, since
             // it's out of window.
-            EXPECT_EQ(counter.VerifyUnencrypted(n), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, counter.VerifyUnencrypted(n) == CHIP_NO_ERROR);
             // Don't commit, though.
 
             // 3. A counter value between N and N + k - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE
@@ -428,35 +437,70 @@ TEST(TestPeerMessageCounter, UnencryptedBigLeapTest)
             testValues.push_back(static_cast<uint32_t>(n + k - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE - 1));
 
             // Will be inside the valid window of counter + (2^31 -1)
-            EXPECT_EQ(counter.VerifyUnencrypted(n - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, counter.VerifyUnencrypted(n - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE) == CHIP_NO_ERROR);
 
             for (auto it : testValues)
             {
-                EXPECT_EQ(counter.VerifyUnencrypted(it), CHIP_NO_ERROR);
+                NL_TEST_ASSERT(inSuite, counter.VerifyUnencrypted(it) == CHIP_NO_ERROR);
             }
 
             // 4. A counter value of N + k - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE comes in, is treated as valid.
-            EXPECT_EQ(counter.VerifyUnencrypted(n + k - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, counter.VerifyUnencrypted(n + k - CHIP_CONFIG_MESSAGE_COUNTER_WINDOW_SIZE) == CHIP_NO_ERROR);
         }
     }
 }
 
-TEST(TestPeerMessageCounter, UnencryptedOutOfWindow)
+void UnencryptedOutOfWindow(nlTestSuite * inSuite, void * inContext)
 {
     for (auto n : counterValuesArray)
     {
         for (uint32_t k = (static_cast<uint32_t>(1 << 31)); k <= (static_cast<uint32_t>(1 << 31) + 2); k++)
         {
             chip::Transport::PeerMessageCounter counter;
-            EXPECT_EQ(counter.VerifyUnencrypted(n), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, counter.VerifyUnencrypted(n) == CHIP_NO_ERROR);
 
             counter.CommitUnencrypted(n);
 
             // 1. A counter value of N + k comes in, we treat it as valid, since
             // it's out of window.
-            EXPECT_EQ(counter.VerifyUnencrypted(n + k), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, counter.VerifyUnencrypted(n + k) == CHIP_NO_ERROR);
         }
     }
 }
 
 } // namespace
+
+/**
+ *  Test Suite that lists all the test functions.
+ */
+// clang-format off
+const nlTest sTests[] =
+{
+    NL_TEST_DEF("Group Roll over Test",           GroupRollOverTest),
+    NL_TEST_DEF("Group Backtrack Test",           GroupBackTrackTest),
+    NL_TEST_DEF("Group All value test",           GroupBigLeapTest),
+    NL_TEST_DEF("Group Out of Window Test",       GroupOutOfWindow),
+    NL_TEST_DEF("Unicast small step Test",        UnicastSmallStepTest),
+    NL_TEST_DEF("Unicast large step Test",        UnicastLargeStepTest),
+    NL_TEST_DEF("Unencrypted Roll over Test",     UnencryptedRollOverTest),
+    NL_TEST_DEF("Unencrypted Backtrack Test",     UnencryptedBackTrackTest),
+    NL_TEST_DEF("Unencrypted All value test",     UnencryptedBigLeapTest),
+    NL_TEST_DEF("Unencrypted Out of Window Test", UnencryptedOutOfWindow),
+    NL_TEST_SENTINEL()
+};
+// clang-format on
+
+/**
+ *  Main
+ */
+int TestPeerMessageCounter()
+{
+    // Run test suit against one context
+
+    nlTestSuite theSuite = { "Transport-TestPeerMessageCounter", &sTests[0], nullptr, nullptr };
+    nlTestRunner(&theSuite, nullptr);
+
+    return (nlTestRunnerStats(&theSuite));
+}
+
+CHIP_REGISTER_TEST_SUITE(TestPeerMessageCounter);

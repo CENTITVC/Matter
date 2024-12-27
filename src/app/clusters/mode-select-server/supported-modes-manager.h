@@ -84,8 +84,6 @@ public:
 
 const SupportedModesManager * getSupportedModesManager();
 
-void setSupportedModesManager(SupportedModesManager * aSupportedModesManager);
-
 } // namespace ModeSelect
 } // namespace Clusters
 } // namespace app

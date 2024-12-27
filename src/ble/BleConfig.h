@@ -65,6 +65,9 @@
 #include BLE_PLATFORM_CONFIG_INCLUDE
 #endif
 
+// clang-format off
+
+
 /**
  *  @def BLE_LAYER_NUM_BLE_ENDPOINTS
  *
@@ -99,7 +102,7 @@
  *
  */
 #ifndef BLE_CONNECTION_OBJECT
-#define BLE_CONNECTION_OBJECT void *
+#define BLE_CONNECTION_OBJECT void*
 #endif // BLE_CONNECTION_OBJECT
 
 /**
@@ -126,7 +129,7 @@
  *
  */
 #ifndef BLE_READ_REQUEST_CONTEXT
-#define BLE_READ_REQUEST_CONTEXT void *
+#define BLE_READ_REQUEST_CONTEXT void*
 #endif // BLE_READ_REQUEST_CONTEXT
 
 /**
@@ -194,6 +197,7 @@
 #define BLE_CONFIG_ERROR(e) (BLE_CONFIG_ERROR_MIN + (e))
 #endif // BLE_CONFIG_ERROR
 
+
 /**
  * @def BTP_CONN_RSP_TIMEOUT_MS
  *
@@ -202,7 +206,7 @@
  *   request to wait for connection establishment.
  */
 #ifndef BTP_CONN_RSP_TIMEOUT_MS
-#define BTP_CONN_RSP_TIMEOUT_MS 15000
+#define BTP_CONN_RSP_TIMEOUT_MS 15000 // 15 seconds
 #endif // BTP_CONN_RSP_TIMEOUT_MS
 
 /**
@@ -213,7 +217,9 @@
  *   an acknowledgement. When the ack is not received within this period the BTP session is closed.
  */
 #ifndef BTP_ACK_TIMEOUT_MS
-#define BTP_ACK_TIMEOUT_MS 15000
+#define BTP_ACK_TIMEOUT_MS 15000 // 15 seconds
 #endif // BTP_ACK_TIMEOUT_MS
+
+// clang-format on
 
 #include <lib/core/CHIPConfig.h>

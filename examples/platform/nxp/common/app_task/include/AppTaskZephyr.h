@@ -21,8 +21,9 @@
 
 #include "AppTaskBase.h"
 
-namespace chip::NXP::App {
-
+namespace chip {
+namespace NXP {
+namespace App {
 class AppTaskZephyr : public AppTaskBase
 {
 public:
@@ -42,7 +43,7 @@ public:
      * \brief Send event to the event queue.
      *
      */
-    void PostEvent(const AppEvent & event) override;
+    void PostEvent(const AppEvent & event);
 
     /**
      * \brief Return a pointer to the NXP Wifi Driver instance.
@@ -51,20 +52,11 @@ public:
      */
 #if defined(CONFIG_CHIP_WIFI)
     virtual chip::DeviceLayer::NetworkCommissioning::WiFiDriver * GetWifiDriverInstance(void) override;
-#elif defined(CONFIG_CHIP_ETHERNET)
-    virtual chip::DeviceLayer::NetworkCommissioning::EthernetDriver * GetEthernetDriverInstance(void) override;
 #endif
-
-    /**
-     * \brief This function registers applicative features such as custom CLI commands
-     *
-     * \return CHIP_ERROR
-     *
-     */
-    virtual CHIP_ERROR AppMatter_Register(void) override;
 
 private:
     void DispatchEvent(const AppEvent & event);
 };
-
-} // namespace chip::NXP::App
+} // namespace App
+} // namespace NXP
+} // namespace chip

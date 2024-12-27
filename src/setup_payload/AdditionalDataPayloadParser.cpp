@@ -25,7 +25,6 @@
 
 #include <cstdlib>
 #include <string.h>
-#include <string>
 #include <vector>
 
 #include <lib/core/CHIPError.h>

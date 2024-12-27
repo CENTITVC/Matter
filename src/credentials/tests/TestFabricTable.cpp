@@ -22,12 +22,9 @@
  */
 
 #include <errno.h>
-#include <stdarg.h>
-
-#include <pw_unit_test/framework.h>
+#include <nlunit-test.h>
 
 #include <lib/core/CHIPCore.h>
-#include <lib/core/StringBuilderAdapters.h>
 
 #include <credentials/FabricTable.h>
 
@@ -39,10 +36,13 @@
 #include <lib/asn1/ASN1.h>
 #include <lib/support/CodeUtils.h>
 #include <lib/support/TestPersistentStorageDelegate.h>
-
+#include <lib/support/UnitTestExtendedAssertions.h>
+#include <lib/support/UnitTestRegistration.h>
 #include <platform/ConfigurationManager.h>
 
 #include <lib/support/BytesToHex.h>
+
+#include <stdarg.h>
 
 using namespace chip;
 using namespace chip::Credentials;
@@ -83,7 +83,7 @@ private:
 /**
  * Load a single test fabric with with the Root01:ICA01:Node01_01 identity.
  */
-static CHIP_ERROR LoadTestFabric_Node01_01(FabricTable & fabricTable, bool doCommit)
+static CHIP_ERROR LoadTestFabric_Node01_01(nlTestSuite * inSuite, FabricTable & fabricTable, bool doCommit)
 {
     Crypto::P256SerializedKeypair opKeysSerialized;
     static Crypto::P256Keypair opKey_Node01_01;
@@ -114,7 +114,7 @@ static CHIP_ERROR LoadTestFabric_Node01_01(FabricTable & fabricTable, bool doCom
     return CHIP_NO_ERROR;
 }
 
-static CHIP_ERROR LoadTestFabric_Node01_02(FabricTable & fabricTable, bool doCommit)
+static CHIP_ERROR LoadTestFabric_Node01_02(nlTestSuite * inSuite, FabricTable & fabricTable, bool doCommit)
 {
     Crypto::P256SerializedKeypair opKeysSerialized;
     FabricIndex fabricIndex;
@@ -147,7 +147,7 @@ static CHIP_ERROR LoadTestFabric_Node01_02(FabricTable & fabricTable, bool doCom
 /**
  * Load a single test fabric with with the Root02:ICA02:Node02_01 identity.
  */
-static CHIP_ERROR LoadTestFabric_Node02_01(FabricTable & fabricTable, bool doCommit,
+static CHIP_ERROR LoadTestFabric_Node02_01(nlTestSuite * inSuite, FabricTable & fabricTable, bool doCommit,
                                            FabricTable::AdvertiseIdentity advertiseIdentity = FabricTable::AdvertiseIdentity::Yes)
 {
     Crypto::P256SerializedKeypair opKeysSerialized;
@@ -163,79 +163,55 @@ static CHIP_ERROR LoadTestFabric_Node02_01(FabricTable & fabricTable, bool doCom
     ByteSpan icacSpan(TestCerts::sTestCert_ICA02_Chip);
     ByteSpan nocSpan(TestCerts::sTestCert_Node02_01_Chip);
 
-    EXPECT_EQ(opKeysSerialized.SetLength(TestCerts::sTestCert_Node02_01_PublicKey.size() +
-                                         TestCerts::sTestCert_Node02_01_PrivateKey.size()),
-              CHIP_NO_ERROR);
-    EXPECT_EQ(opKey_Node02_01.Deserialize(opKeysSerialized), CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite,
+                   opKeysSerialized.SetLength(TestCerts::sTestCert_Node02_01_PublicKey.size() +
+                                              TestCerts::sTestCert_Node02_01_PrivateKey.size()) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, opKey_Node02_01.Deserialize(opKeysSerialized) == CHIP_NO_ERROR);
 
-    EXPECT_EQ(fabricTable.AddNewPendingTrustedRootCert(rcacSpan), CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, fabricTable.AddNewPendingTrustedRootCert(rcacSpan) == CHIP_NO_ERROR);
 
     CHIP_ERROR err =
         fabricTable.AddNewPendingFabricWithProvidedOpKey(nocSpan, icacSpan, VendorId::TestVendor1, &opKey_Node02_01,
                                                          /*isExistingOpKeyExternallyOwned =*/true, &fabricIndex, advertiseIdentity);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
     if (doCommit)
     {
         err = fabricTable.CommitPendingFabricData();
-        EXPECT_EQ(err, CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
     }
 
     return err;
 }
-
-const FabricInfo * FindFabric(FabricTable & fabricTable, ByteSpan rootPublicKey, FabricId fabricId)
-{
-    Crypto::P256PublicKey key;
-    EXPECT_GE(key.Length(), rootPublicKey.size());
-    if (key.Length() < rootPublicKey.size())
-    {
-        return nullptr;
-    }
-    memcpy(key.Bytes(), rootPublicKey.data(), rootPublicKey.size());
-    return fabricTable.FindFabric(key, fabricId);
-}
-
-struct TestFabricTable : public ::testing::Test
-{
-
-    static void SetUpTestSuite()
-    {
-        DeviceLayer::SetConfigurationMgr(&DeviceLayer::ConfigurationManagerImpl::GetDefaultInstance());
-        ASSERT_EQ(chip::Platform::MemoryInit(), CHIP_NO_ERROR);
-    }
-    static void TearDownTestSuite() { chip::Platform::MemoryShutdown(); }
-};
-
-TEST_F(TestFabricTable, TestLastKnownGoodTimeInit)
+void TestLastKnownGoodTimeInit(nlTestSuite * inSuite, void * inContext)
 {
     // Fabric table init should init Last Known Good Time to the firmware build time.
     chip::TestPersistentStorageDelegate testStorage;
     ScopedFabricTable fabricTableHolder;
 
-    EXPECT_EQ(fabricTableHolder.Init(&testStorage), CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, fabricTableHolder.Init(&testStorage) == CHIP_NO_ERROR);
     System::Clock::Seconds32 lastKnownGoodChipEpochTime;
 
     FabricTable & fabricTable = fabricTableHolder.GetFabricTable();
-    EXPECT_EQ(fabricTable.GetLastKnownGoodChipEpochTime(lastKnownGoodChipEpochTime), CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, fabricTable.GetLastKnownGoodChipEpochTime(lastKnownGoodChipEpochTime) == CHIP_NO_ERROR);
     System::Clock::Seconds32 firmwareBuildTime;
-    EXPECT_EQ(DeviceLayer::ConfigurationMgr().GetFirmwareBuildChipEpochTime(firmwareBuildTime), CHIP_NO_ERROR);
-    EXPECT_EQ(lastKnownGoodChipEpochTime, firmwareBuildTime);
+    NL_TEST_ASSERT(inSuite, DeviceLayer::ConfigurationMgr().GetFirmwareBuildChipEpochTime(firmwareBuildTime) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, lastKnownGoodChipEpochTime == firmwareBuildTime);
 }
 
-TEST_F(TestFabricTable, TestCollidingFabrics)
+void TestCollidingFabrics(nlTestSuite * inSuite, void * inContext)
 {
     chip::TestPersistentStorageDelegate testStorage;
     ScopedFabricTable fabricTableHolder;
-    EXPECT_EQ(fabricTableHolder.Init(&testStorage), CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, fabricTableHolder.Init(&testStorage) == CHIP_NO_ERROR);
     FabricTable & fabricTable = fabricTableHolder.GetFabricTable();
 
     //
     // Start by loading NOCs for two nodes on the same fabric. The second one should fail since the FabricTable by default
     // doesn't permit colliding fabrics.
     //
-    EXPECT_EQ(LoadTestFabric_Node01_01(fabricTable, /* doCommit = */ true), CHIP_NO_ERROR);
-    EXPECT_NE(LoadTestFabric_Node01_02(fabricTable, /* doCommit = */ true), CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, LoadTestFabric_Node01_01(inSuite, fabricTable, /* doCommit = */ true) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, LoadTestFabric_Node01_02(inSuite, fabricTable, /* doCommit = */ true) != CHIP_NO_ERROR);
 
     //
     // Revert the partially added NOC from the last call, permit colliding fabrics in the FabricTable and try again.
@@ -243,12 +219,12 @@ TEST_F(TestFabricTable, TestCollidingFabrics)
     //
     fabricTable.RevertPendingFabricData();
     fabricTable.PermitCollidingFabrics();
-    EXPECT_EQ(LoadTestFabric_Node01_02(fabricTable, /* doCommit = */ true), CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, LoadTestFabric_Node01_02(inSuite, fabricTable, /* doCommit = */ true) == CHIP_NO_ERROR);
 
     ByteSpan rcacSpan(TestCerts::sTestCert_Root01_Chip);
     Credentials::P256PublicKeySpan rootPublicKeySpan;
 
-    EXPECT_EQ(Credentials::ExtractPublicKeyFromChipCert(rcacSpan, rootPublicKeySpan), CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, Credentials::ExtractPublicKeyFromChipCert(rcacSpan, rootPublicKeySpan) == CHIP_NO_ERROR);
 
     //
     // Ensure we can find both node identities in the FabricTable.
@@ -259,8 +235,8 @@ TEST_F(TestFabricTable, TestCollidingFabrics)
         NodeId nodeId;
         FabricId fabricId;
 
-        EXPECT_EQ(ExtractNodeIdFabricIdFromOpCert(origNocSpan, &nodeId, &fabricId), CHIP_NO_ERROR);
-        EXPECT_NE(fabricTable.FindIdentity(rootPublicKeySpan, fabricId, nodeId), nullptr);
+        NL_TEST_ASSERT(inSuite, ExtractNodeIdFabricIdFromOpCert(origNocSpan, &nodeId, &fabricId) == CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, fabricTable.FindIdentity(rootPublicKeySpan, fabricId, nodeId) != nullptr);
     }
 
     {
@@ -269,12 +245,12 @@ TEST_F(TestFabricTable, TestCollidingFabrics)
         NodeId nodeId;
         FabricId fabricId;
 
-        EXPECT_EQ(ExtractNodeIdFabricIdFromOpCert(origNocSpan, &nodeId, &fabricId), CHIP_NO_ERROR);
-        EXPECT_NE(fabricTable.FindIdentity(rootPublicKeySpan, fabricId, nodeId), nullptr);
+        NL_TEST_ASSERT(inSuite, ExtractNodeIdFabricIdFromOpCert(origNocSpan, &nodeId, &fabricId) == CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, fabricTable.FindIdentity(rootPublicKeySpan, fabricId, nodeId) != nullptr);
     }
 }
 
-TEST_F(TestFabricTable, TestUpdateLastKnownGoodTime)
+void TestUpdateLastKnownGoodTime(nlTestSuite * inSuite, void * inContext)
 {
     // Adding a fabric should advance Last Known Good Time if any certificate's
     // NotBefore time is later than the build time, and else should leave it
@@ -283,7 +259,7 @@ TEST_F(TestFabricTable, TestUpdateLastKnownGoodTime)
     // Test certs all have this NotBefore: Oct 15 14:23:43 2020 GMT
     const ASN1::ASN1UniversalTime asn1Expected = { 2020, 10, 15, 14, 23, 43 };
     uint32_t testCertNotBeforeSeconds;
-    EXPECT_EQ(Credentials::ASN1ToChipEpochTime(asn1Expected, testCertNotBeforeSeconds), CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, Credentials::ASN1ToChipEpochTime(asn1Expected, testCertNotBeforeSeconds) == CHIP_NO_ERROR);
     System::Clock::Seconds32 testCertNotBeforeTime = System::Clock::Seconds32(testCertNotBeforeSeconds);
 
     // Test that certificate NotBefore times that are before the Firmware build time
@@ -294,22 +270,22 @@ TEST_F(TestFabricTable, TestUpdateLastKnownGoodTime)
     for (auto buildTime : afterNotBeforeBuildTimes)
     {
         // Set build time to the desired value.
-        EXPECT_EQ(DeviceLayer::ConfigurationMgr().SetFirmwareBuildChipEpochTime(buildTime), CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, DeviceLayer::ConfigurationMgr().SetFirmwareBuildChipEpochTime(buildTime) == CHIP_NO_ERROR);
         chip::TestPersistentStorageDelegate testStorage;
 
         {
             // Initialize a fabric table.
             ScopedFabricTable fabricTableHolder;
-            EXPECT_EQ(fabricTableHolder.Init(&testStorage), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, fabricTableHolder.Init(&testStorage) == CHIP_NO_ERROR);
             FabricTable & fabricTable = fabricTableHolder.GetFabricTable();
 
             // Read back Last Known Good Time, which will have been initialized to firmware build time.
             System::Clock::Seconds32 lastKnownGoodTime;
-            EXPECT_EQ(fabricTable.GetLastKnownGoodChipEpochTime(lastKnownGoodTime), CHIP_NO_ERROR);
-            EXPECT_EQ(lastKnownGoodTime, buildTime);
+            NL_TEST_ASSERT(inSuite, fabricTable.GetLastKnownGoodChipEpochTime(lastKnownGoodTime) == CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, lastKnownGoodTime == buildTime);
 
             // Load a test fabric, but do not commit.
-            EXPECT_EQ(LoadTestFabric_Node01_01(fabricTable, /* doCommit = */ false), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, LoadTestFabric_Node01_01(inSuite, fabricTable, /* doCommit = */ false) == CHIP_NO_ERROR);
 
             // Read Last Known Good Time and verify that it hasn't moved forward.
             // This test case was written after the test certs' NotBefore time and we
@@ -317,17 +293,17 @@ TEST_F(TestFabricTable, TestUpdateLastKnownGoodTime)
             // Therefore, we expect that build time is after NotBefore and so Last
             // Known Good Time will be set to the later of these, build time, even
             // after installing the new fabric.
-            EXPECT_EQ(fabricTable.GetLastKnownGoodChipEpochTime(lastKnownGoodTime), CHIP_NO_ERROR);
-            EXPECT_EQ(lastKnownGoodTime, buildTime);
+            NL_TEST_ASSERT(inSuite, fabricTable.GetLastKnownGoodChipEpochTime(lastKnownGoodTime) == CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, lastKnownGoodTime == buildTime);
 
             // Verify that calling the fail-safe roll back interface does not change
             // last known good time, as it hadn't been updated in the first place.
             fabricTable.RevertPendingFabricData();
-            EXPECT_EQ(fabricTable.GetLastKnownGoodChipEpochTime(lastKnownGoodTime), CHIP_NO_ERROR);
-            EXPECT_EQ(lastKnownGoodTime, buildTime);
+            NL_TEST_ASSERT(inSuite, fabricTable.GetLastKnownGoodChipEpochTime(lastKnownGoodTime) == CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, lastKnownGoodTime == buildTime);
 
             // Now reload the test fabric and commit this time.
-            EXPECT_EQ(LoadTestFabric_Node01_01(fabricTable, /* doCommit = */ true), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, LoadTestFabric_Node01_01(inSuite, fabricTable, /* doCommit = */ true) == CHIP_NO_ERROR);
 
             // Read Last Known Good Time and verify that it hasn't moved forward.
             // This test case was written after the test certs' NotBefore time and we
@@ -335,25 +311,25 @@ TEST_F(TestFabricTable, TestUpdateLastKnownGoodTime)
             // Therefore, we expect that build time is after NotBefore and so Last
             // Known Good Time will be set to the later of these, build time, even
             // after installing the new fabric.
-            EXPECT_EQ(fabricTable.GetLastKnownGoodChipEpochTime(lastKnownGoodTime), CHIP_NO_ERROR);
-            EXPECT_EQ(lastKnownGoodTime, buildTime);
+            NL_TEST_ASSERT(inSuite, fabricTable.GetLastKnownGoodChipEpochTime(lastKnownGoodTime) == CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, lastKnownGoodTime == buildTime);
 
             // Call revert again.  Since we've committed, this is a no-op.
             // Last known good time should again be unchanged.
             fabricTable.RevertPendingFabricData();
-            EXPECT_EQ(fabricTable.GetLastKnownGoodChipEpochTime(lastKnownGoodTime), CHIP_NO_ERROR);
-            EXPECT_EQ(lastKnownGoodTime, buildTime);
+            NL_TEST_ASSERT(inSuite, fabricTable.GetLastKnownGoodChipEpochTime(lastKnownGoodTime) == CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, lastKnownGoodTime == buildTime);
         }
         {
             // Test reloading last known good time from persistence.
             ScopedFabricTable fabricTableHolder;
-            EXPECT_EQ(fabricTableHolder.Init(&testStorage), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, fabricTableHolder.Init(&testStorage) == CHIP_NO_ERROR);
             FabricTable & fabricTable = fabricTableHolder.GetFabricTable();
 
             // Verify that last known good time was retained.
             System::Clock::Seconds32 lastKnownGoodTime;
-            EXPECT_EQ(fabricTable.GetLastKnownGoodChipEpochTime(lastKnownGoodTime), CHIP_NO_ERROR);
-            EXPECT_EQ(lastKnownGoodTime, buildTime);
+            NL_TEST_ASSERT(inSuite, fabricTable.GetLastKnownGoodChipEpochTime(lastKnownGoodTime) == CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, lastKnownGoodTime == buildTime);
         }
     }
 
@@ -367,75 +343,75 @@ TEST_F(TestFabricTable, TestUpdateLastKnownGoodTime)
     for (auto buildTime : beforeNotBeforeBuildTimes)
     {
         // Set build time to the desired value.
-        EXPECT_EQ(DeviceLayer::ConfigurationMgr().SetFirmwareBuildChipEpochTime(buildTime), CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, DeviceLayer::ConfigurationMgr().SetFirmwareBuildChipEpochTime(buildTime) == CHIP_NO_ERROR);
         chip::TestPersistentStorageDelegate testStorage;
         {
             // Initialize a fabric table.
             ScopedFabricTable fabricTableHolder;
-            EXPECT_EQ(fabricTableHolder.Init(&testStorage), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, fabricTableHolder.Init(&testStorage) == CHIP_NO_ERROR);
             FabricTable & fabricTable = fabricTableHolder.GetFabricTable();
 
             // Load a test fabric, but do not commit.
-            EXPECT_EQ(LoadTestFabric_Node01_01(fabricTable, /* doCommit = */ false), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, LoadTestFabric_Node01_01(inSuite, fabricTable, /* doCommit = */ false) == CHIP_NO_ERROR);
 
             // Read Last Known Good Time and verify that it is now set to the certificate
             // NotBefore time, as this should be at or after firmware build time.
             System::Clock::Seconds32 lastKnownGoodTime;
-            EXPECT_EQ(fabricTable.GetLastKnownGoodChipEpochTime(lastKnownGoodTime), CHIP_NO_ERROR);
-            EXPECT_EQ(lastKnownGoodTime, testCertNotBeforeTime);
+            NL_TEST_ASSERT(inSuite, fabricTable.GetLastKnownGoodChipEpochTime(lastKnownGoodTime) == CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, lastKnownGoodTime == testCertNotBeforeTime);
 
             // Now test revert.  Last known good time should change back to the
             // previous value.
             fabricTable.RevertPendingFabricData();
-            EXPECT_EQ(fabricTable.GetLastKnownGoodChipEpochTime(lastKnownGoodTime), CHIP_NO_ERROR);
-            EXPECT_EQ(lastKnownGoodTime, buildTime);
+            NL_TEST_ASSERT(inSuite, fabricTable.GetLastKnownGoodChipEpochTime(lastKnownGoodTime) == CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, lastKnownGoodTime == buildTime);
         }
         {
             // Test reloading last known good time from persistence.
             ScopedFabricTable fabricTableHolder;
-            EXPECT_EQ(fabricTableHolder.Init(&testStorage), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, fabricTableHolder.Init(&testStorage) == CHIP_NO_ERROR);
             FabricTable & fabricTable = fabricTableHolder.GetFabricTable();
 
             // Verify that the original last known good time was retained, since
             // we reverted before.
             System::Clock::Seconds32 lastKnownGoodTime;
-            EXPECT_EQ(fabricTable.GetLastKnownGoodChipEpochTime(lastKnownGoodTime), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, fabricTable.GetLastKnownGoodChipEpochTime(lastKnownGoodTime) == CHIP_NO_ERROR);
         }
         {
             // Now test loading a fabric and committing.
             ScopedFabricTable fabricTableHolder;
-            EXPECT_EQ(fabricTableHolder.Init(&testStorage), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, fabricTableHolder.Init(&testStorage) == CHIP_NO_ERROR);
             FabricTable & fabricTable = fabricTableHolder.GetFabricTable();
-            EXPECT_EQ(LoadTestFabric_Node01_01(fabricTable, /* doCommit = */ true), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, LoadTestFabric_Node01_01(inSuite, fabricTable, /* doCommit = */ true) == CHIP_NO_ERROR);
 
             // Read Last Known Good Time and verify that it is now set to the certificate
             // NotBefore time, as this should be at or after firmware build time.
             System::Clock::Seconds32 lastKnownGoodTime;
-            EXPECT_EQ(fabricTable.GetLastKnownGoodChipEpochTime(lastKnownGoodTime), CHIP_NO_ERROR);
-            EXPECT_EQ(lastKnownGoodTime, testCertNotBeforeTime);
+            NL_TEST_ASSERT(inSuite, fabricTable.GetLastKnownGoodChipEpochTime(lastKnownGoodTime) == CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, lastKnownGoodTime == testCertNotBeforeTime);
 
             // Now test revert, which will be a no-op because we already
             // committed.  Verify that Last Known Good time is retained.
             fabricTable.RevertPendingFabricData();
-            EXPECT_EQ(fabricTable.GetLastKnownGoodChipEpochTime(lastKnownGoodTime), CHIP_NO_ERROR);
-            EXPECT_EQ(lastKnownGoodTime, testCertNotBeforeTime);
+            NL_TEST_ASSERT(inSuite, fabricTable.GetLastKnownGoodChipEpochTime(lastKnownGoodTime) == CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, lastKnownGoodTime == testCertNotBeforeTime);
         }
         {
             // Test reloading last known good time from persistence.
             ScopedFabricTable fabricTableHolder;
-            EXPECT_EQ(fabricTableHolder.Init(&testStorage), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, fabricTableHolder.Init(&testStorage) == CHIP_NO_ERROR);
             FabricTable & fabricTable = fabricTableHolder.GetFabricTable();
 
             // Verify that the new last known good time was retained, since
             // we committed.
             System::Clock::Seconds32 lastKnownGoodTime;
-            EXPECT_EQ(fabricTable.GetLastKnownGoodChipEpochTime(lastKnownGoodTime), CHIP_NO_ERROR);
-            EXPECT_EQ(lastKnownGoodTime, testCertNotBeforeTime);
+            NL_TEST_ASSERT(inSuite, fabricTable.GetLastKnownGoodChipEpochTime(lastKnownGoodTime) == CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, lastKnownGoodTime == testCertNotBeforeTime);
         }
     }
 }
 
-TEST_F(TestFabricTable, TestSetLastKnownGoodTime)
+void TestSetLastKnownGoodTime(nlTestSuite * inSuite, void * inContext)
 {
     // It is desirable for nodes to set Last Known Good Time whenever a good
     // time source is available, including cases where this would set the time
@@ -446,7 +422,7 @@ TEST_F(TestFabricTable, TestSetLastKnownGoodTime)
     // Test certs all have this NotBefore: Oct 15 14:23:43 2020 GMT
     const ASN1::ASN1UniversalTime asn1Expected = { 2020, 10, 15, 14, 23, 43 };
     uint32_t testCertNotBeforeSeconds;
-    EXPECT_EQ(Credentials::ASN1ToChipEpochTime(asn1Expected, testCertNotBeforeSeconds), CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, Credentials::ASN1ToChipEpochTime(asn1Expected, testCertNotBeforeSeconds) == CHIP_NO_ERROR);
     System::Clock::Seconds32 testCertNotBeforeTime = System::Clock::Seconds32(testCertNotBeforeSeconds);
 
     // Iterate over two cases: one with build time prior to our certificates' NotBefore, one with build time after.
@@ -456,77 +432,77 @@ TEST_F(TestFabricTable, TestSetLastKnownGoodTime)
     for (auto buildTime : testCaseFirmwareBuildTimes)
     {
         // Set build time to the desired value.
-        EXPECT_EQ(DeviceLayer::ConfigurationMgr().SetFirmwareBuildChipEpochTime(buildTime), CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, DeviceLayer::ConfigurationMgr().SetFirmwareBuildChipEpochTime(buildTime) == CHIP_NO_ERROR);
         chip::TestPersistentStorageDelegate testStorage;
         System::Clock::Seconds32 newTime;
         {
             // Initialize a fabric table.
             ScopedFabricTable fabricTableHolder;
-            EXPECT_EQ(fabricTableHolder.Init(&testStorage), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, fabricTableHolder.Init(&testStorage) == CHIP_NO_ERROR);
             FabricTable & fabricTable = fabricTableHolder.GetFabricTable();
 
             // Load a test fabric
-            EXPECT_EQ(LoadTestFabric_Node01_01(fabricTable, /* doCommit= */ true), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, LoadTestFabric_Node01_01(inSuite, fabricTable, /* doCommit= */ true) == CHIP_NO_ERROR);
 
             // Verify the Last Known Good Time matches our expected initial value.
             System::Clock::Seconds32 initialLastKnownGoodTime =
                 buildTime > testCertNotBeforeTime ? buildTime : testCertNotBeforeTime;
             System::Clock::Seconds32 lastKnownGoodTime;
-            EXPECT_EQ(fabricTable.GetLastKnownGoodChipEpochTime(lastKnownGoodTime), CHIP_NO_ERROR);
-            EXPECT_EQ(lastKnownGoodTime, initialLastKnownGoodTime);
+            NL_TEST_ASSERT(inSuite, fabricTable.GetLastKnownGoodChipEpochTime(lastKnownGoodTime) == CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, lastKnownGoodTime == initialLastKnownGoodTime);
 
             // Read Last Known Good Time and verify that it hasn't moved forward, since
             // build time is later than the test certs' NotBefore times.
-            EXPECT_EQ(fabricTable.GetLastKnownGoodChipEpochTime(lastKnownGoodTime), CHIP_NO_ERROR);
-            EXPECT_EQ(lastKnownGoodTime, initialLastKnownGoodTime);
+            NL_TEST_ASSERT(inSuite, fabricTable.GetLastKnownGoodChipEpochTime(lastKnownGoodTime) == CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, lastKnownGoodTime == initialLastKnownGoodTime);
 
             // Attempt to set a Last Known Good Time that is before the firmware build time.  This should fail.
             newTime = System::Clock::Seconds32(buildTime.count() - 1000);
-            EXPECT_NE(fabricTable.SetLastKnownGoodChipEpochTime(newTime), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, fabricTable.SetLastKnownGoodChipEpochTime(newTime) != CHIP_NO_ERROR);
 
             // Verify Last Known Good Time is unchanged.
-            EXPECT_EQ(fabricTable.GetLastKnownGoodChipEpochTime(lastKnownGoodTime), CHIP_NO_ERROR);
-            EXPECT_EQ(lastKnownGoodTime, initialLastKnownGoodTime);
+            NL_TEST_ASSERT(inSuite, fabricTable.GetLastKnownGoodChipEpochTime(lastKnownGoodTime) == CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, lastKnownGoodTime == initialLastKnownGoodTime);
 
             // Attempt to set a Last Known Good Time that is before our certificates' NotBefore times.  This should fail.
             newTime = System::Clock::Seconds32(testCertNotBeforeTime.count() - 1000);
-            EXPECT_NE(fabricTable.SetLastKnownGoodChipEpochTime(newTime), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, fabricTable.SetLastKnownGoodChipEpochTime(newTime) != CHIP_NO_ERROR);
 
             // Verify Last Known Good Time is unchanged.
-            EXPECT_EQ(fabricTable.GetLastKnownGoodChipEpochTime(lastKnownGoodTime), CHIP_NO_ERROR);
-            EXPECT_EQ(lastKnownGoodTime, initialLastKnownGoodTime);
+            NL_TEST_ASSERT(inSuite, fabricTable.GetLastKnownGoodChipEpochTime(lastKnownGoodTime) == CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, lastKnownGoodTime == initialLastKnownGoodTime);
 
             // Attempt to set a Last Known Good Time that at our current value.
-            EXPECT_EQ(fabricTable.SetLastKnownGoodChipEpochTime(lastKnownGoodTime), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, fabricTable.SetLastKnownGoodChipEpochTime(lastKnownGoodTime) == CHIP_NO_ERROR);
 
             // Verify Last Known Good Time is unchanged.
-            EXPECT_EQ(fabricTable.GetLastKnownGoodChipEpochTime(lastKnownGoodTime), CHIP_NO_ERROR);
-            EXPECT_EQ(lastKnownGoodTime, initialLastKnownGoodTime);
+            NL_TEST_ASSERT(inSuite, fabricTable.GetLastKnownGoodChipEpochTime(lastKnownGoodTime) == CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, lastKnownGoodTime == initialLastKnownGoodTime);
 
             // Attempt to set Last Known Good Times that is after our current value.
             newTime = System::Clock::Seconds32(initialLastKnownGoodTime.count() + 1000);
-            EXPECT_EQ(fabricTable.SetLastKnownGoodChipEpochTime(newTime), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, fabricTable.SetLastKnownGoodChipEpochTime(newTime) == CHIP_NO_ERROR);
 
             // Verify Last Known Good Time is updated.
-            EXPECT_EQ(fabricTable.GetLastKnownGoodChipEpochTime(lastKnownGoodTime), CHIP_NO_ERROR);
-            EXPECT_EQ(lastKnownGoodTime, newTime);
+            NL_TEST_ASSERT(inSuite, fabricTable.GetLastKnownGoodChipEpochTime(lastKnownGoodTime) == CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, lastKnownGoodTime == newTime);
         }
         {
             // Verify that Last Known Good Time was persisted.
 
             ScopedFabricTable fabricTableHolder;
-            EXPECT_EQ(fabricTableHolder.Init(&testStorage), CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, fabricTableHolder.Init(&testStorage) == CHIP_NO_ERROR);
             FabricTable & fabricTable = fabricTableHolder.GetFabricTable();
 
             System::Clock::Seconds32 lastKnownGoodTime;
-            EXPECT_EQ(fabricTable.GetLastKnownGoodChipEpochTime(lastKnownGoodTime), CHIP_NO_ERROR);
-            EXPECT_EQ(lastKnownGoodTime, newTime);
+            NL_TEST_ASSERT(inSuite, fabricTable.GetLastKnownGoodChipEpochTime(lastKnownGoodTime) == CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, lastKnownGoodTime == newTime);
         }
     }
 }
 
 // Test adding 2 fabrics, updating 1, removing 1
-TEST_F(TestFabricTable, TestBasicAddNocUpdateNocFlow)
+void TestBasicAddNocUpdateNocFlow(nlTestSuite * inSuite, void * inContext)
 {
     Credentials::TestOnlyLocalCertificateAuthority fabric11CertAuthority;
     Credentials::TestOnlyLocalCertificateAuthority fabric44CertAuthority;
@@ -537,26 +513,25 @@ TEST_F(TestFabricTable, TestBasicAddNocUpdateNocFlow)
     // storage.SetLoggingLevel(chip::TestPersistentStorageDelegate::LoggingLevel::kLogMutation);
 
     // Initialize test CA and a Fabric 11 externally owned key
-    EXPECT_TRUE(fabric11CertAuthority.Init().IsSuccess());
-    EXPECT_TRUE(fabric44CertAuthority.Init().IsSuccess());
+    NL_TEST_ASSERT(inSuite, fabric11CertAuthority.Init().IsSuccess());
+    NL_TEST_ASSERT(inSuite, fabric44CertAuthority.Init().IsSuccess());
 
     constexpr uint16_t kVendorId = 0xFFF1u;
 
     chip::Crypto::P256Keypair fabric11Node55Keypair; // Fabric ID 11,
-    EXPECT_EQ(fabric11Node55Keypair.Initialize(Crypto::ECPKeyTarget::ECDSA), CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, fabric11Node55Keypair.Initialize(Crypto::ECPKeyTarget::ECDSA) == CHIP_NO_ERROR);
 
     // Initialize a fabric table.
     ScopedFabricTable fabricTableHolder;
-    EXPECT_EQ(fabricTableHolder.Init(&storage), CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, fabricTableHolder.Init(&storage) == CHIP_NO_ERROR);
     FabricTable & fabricTable = fabricTableHolder.GetFabricTable();
 
-    EXPECT_EQ(fabricTable.FabricCount(), 0);
-    EXPECT_EQ(fabricTable.GetPendingNewFabricIndex(), kUndefinedFabricIndex);
+    NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 0);
 
     {
         FabricIndex nextFabricIndex = kUndefinedFabricIndex;
-        EXPECT_EQ(fabricTable.PeekFabricIndexForNextAddition(nextFabricIndex), CHIP_NO_ERROR);
-        EXPECT_EQ(nextFabricIndex, 1);
+        NL_TEST_ASSERT(inSuite, fabricTable.PeekFabricIndexForNextAddition(nextFabricIndex) == CHIP_NO_ERROR);
+        NL_TEST_ASSERT_EQUALS(inSuite, nextFabricIndex, 1);
     }
 
     size_t numFabricsIterated = 0;
@@ -567,10 +542,10 @@ TEST_F(TestFabricTable, TestBasicAddNocUpdateNocFlow)
     {
         FabricId fabricId = 11;
         NodeId nodeId     = 55;
-        EXPECT_EQ(fabric11CertAuthority.SetIncludeIcac(false)
-                      .GenerateNocChain(fabricId, nodeId, fabric11Node55Keypair.Pubkey())
-                      .GetStatus(),
-                  CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite,
+                               fabric11CertAuthority.SetIncludeIcac(false)
+                                   .GenerateNocChain(fabricId, nodeId, fabric11Node55Keypair.Pubkey())
+                                   .GetStatus());
         ByteSpan rcac = fabric11CertAuthority.GetRcac();
         ByteSpan noc  = fabric11CertAuthority.GetNoc();
 
@@ -587,54 +562,48 @@ TEST_F(TestFabricTable, TestBasicAddNocUpdateNocFlow)
                 }
             }
 
-            EXPECT_EQ(numFabricsIterated, 0u);
-            EXPECT_FALSE(saw1);
+            NL_TEST_ASSERT(inSuite, numFabricsIterated == 0);
+            NL_TEST_ASSERT(inSuite, saw1 == false);
         }
 
         uint8_t rcacBuf[Credentials::kMaxCHIPCertLength];
         {
             // No pending root cert yet.
             MutableByteSpan fetchedSpan{ rcacBuf };
-            EXPECT_EQ(fabricTable.FetchPendingNonFabricAssociatedRootCert(fetchedSpan), CHIP_ERROR_NOT_FOUND);
+            NL_TEST_ASSERT(inSuite, fabricTable.FetchPendingNonFabricAssociatedRootCert(fetchedSpan) == CHIP_ERROR_NOT_FOUND);
         }
 
-        EXPECT_EQ(fabricTable.AddNewPendingTrustedRootCert(rcac), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.AddNewPendingTrustedRootCert(rcac));
         {
             // Now have a pending root cert.
             MutableByteSpan fetchedSpan{ rcacBuf };
-            EXPECT_EQ(fabricTable.FetchPendingNonFabricAssociatedRootCert(fetchedSpan), CHIP_NO_ERROR);
-            EXPECT_TRUE(fetchedSpan.data_equal(rcac));
+            NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.FetchPendingNonFabricAssociatedRootCert(fetchedSpan));
+            NL_TEST_ASSERT(inSuite, fetchedSpan.data_equal(rcac));
         }
-        EXPECT_EQ(fabricTable.GetPendingNewFabricIndex(), kUndefinedFabricIndex);
 
         FabricIndex newFabricIndex = kUndefinedFabricIndex;
         bool keyIsExternallyOwned  = true;
 
-        EXPECT_EQ(fabricTable.FabricCount(), 0);
-        EXPECT_EQ(fabricTable.AddNewPendingFabricWithProvidedOpKey(noc, ByteSpan{}, kVendorId, &fabric11Node55Keypair,
-                                                                   keyIsExternallyOwned, &newFabricIndex),
-                  CHIP_NO_ERROR);
-        EXPECT_EQ(newFabricIndex, 1);
-        EXPECT_EQ(fabricTable.FabricCount(), 1);
-
-        // After adding the pending new fabric (equivalent of AddNOC processing), the new
-        // fabric must be pending.
-        EXPECT_EQ(fabricTable.GetPendingNewFabricIndex(), 1);
-
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 0);
+        NL_TEST_ASSERT_SUCCESS(inSuite,
+                               fabricTable.AddNewPendingFabricWithProvidedOpKey(noc, ByteSpan{}, kVendorId, &fabric11Node55Keypair,
+                                                                                keyIsExternallyOwned, &newFabricIndex));
+        NL_TEST_ASSERT(inSuite, newFabricIndex == 1);
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 1);
         {
             // No more pending root cert; it's associated with a fabric now.
             MutableByteSpan fetchedSpan{ rcacBuf };
-            EXPECT_EQ(fabricTable.FetchPendingNonFabricAssociatedRootCert(fetchedSpan), CHIP_ERROR_NOT_FOUND);
+            NL_TEST_ASSERT(inSuite, fabricTable.FetchPendingNonFabricAssociatedRootCert(fetchedSpan) == CHIP_ERROR_NOT_FOUND);
         }
 
         // No storage yet
-        EXPECT_EQ(storage.GetNumKeys(), numStorageKeysAtStart);
+        NL_TEST_ASSERT(inSuite, storage.GetNumKeys() == numStorageKeysAtStart);
 
         // Next fabric index has not been updated yet.
         {
             FabricIndex nextFabricIndex = kUndefinedFabricIndex;
-            EXPECT_EQ(fabricTable.PeekFabricIndexForNextAddition(nextFabricIndex), CHIP_NO_ERROR);
-            EXPECT_EQ(nextFabricIndex, 1);
+            NL_TEST_ASSERT(inSuite, fabricTable.PeekFabricIndexForNextAddition(nextFabricIndex) == CHIP_NO_ERROR);
+            NL_TEST_ASSERT_EQUALS(inSuite, nextFabricIndex, 1);
         }
 
         // Validate iterator sees pending
@@ -646,54 +615,56 @@ TEST_F(TestFabricTable, TestBasicAddNocUpdateNocFlow)
                 ++numFabricsIterated;
                 if (iterFabricInfo.GetFabricIndex() == 1)
                 {
-                    EXPECT_EQ(iterFabricInfo.GetNodeId(), nodeId);
-                    EXPECT_EQ(iterFabricInfo.GetFabricId(), fabricId);
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetNodeId() == nodeId);
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetFabricId() == fabricId);
                     saw1 = true;
                 }
             }
 
-            EXPECT_EQ(numFabricsIterated, 1u);
-            EXPECT_TRUE(saw1);
+            NL_TEST_ASSERT(inSuite, numFabricsIterated == 1);
+            NL_TEST_ASSERT(inSuite, saw1 == true);
         }
 
         // Commit, now storage should have keys
-        EXPECT_EQ(fabricTable.CommitPendingFabricData(), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.CommitPendingFabricData());
 
-        EXPECT_EQ(storage.GetNumKeys(), (numStorageKeysAtStart + 4)); // 2 opcerts + fabric metadata + index
+        NL_TEST_ASSERT(inSuite, storage.GetNumKeys() == (numStorageKeysAtStart + 4)); // 2 opcerts + fabric metadata + index
 
         // Next fabric index has been updated.
         {
             FabricIndex nextFabricIndex = kUndefinedFabricIndex;
-            EXPECT_EQ(fabricTable.PeekFabricIndexForNextAddition(nextFabricIndex), CHIP_NO_ERROR);
-            EXPECT_EQ(nextFabricIndex, 2);
+            NL_TEST_ASSERT(inSuite, fabricTable.PeekFabricIndexForNextAddition(nextFabricIndex) == CHIP_NO_ERROR);
+            NL_TEST_ASSERT_EQUALS(inSuite, nextFabricIndex, 2);
         }
-
-        // Fabric can't be pending anymore.
-        EXPECT_EQ(fabricTable.GetPendingNewFabricIndex(), kUndefinedFabricIndex);
 
         // Validate contents
         const auto * fabricInfo = fabricTable.FindFabricWithIndex(1);
-        ASSERT_NE(fabricInfo, nullptr);
-        Credentials::ChipCertificateSet certificates;
-        EXPECT_EQ(certificates.Init(1), CHIP_NO_ERROR);
-        EXPECT_EQ(certificates.LoadCert(rcac, BitFlags<CertDecodeFlags>(CertDecodeFlags::kIsTrustAnchor)), CHIP_NO_ERROR);
-        Crypto::P256PublicKey rcacPublicKey(certificates.GetCertSet()[0].mPublicKey);
+        NL_TEST_ASSERT(inSuite, fabricInfo != nullptr);
+        if (fabricInfo != nullptr)
+        {
+            Credentials::ChipCertificateSet certificates;
+            NL_TEST_ASSERT_SUCCESS(inSuite, certificates.Init(1));
+            NL_TEST_ASSERT_SUCCESS(inSuite,
+                                   certificates.LoadCert(rcac, BitFlags<CertDecodeFlags>(CertDecodeFlags::kIsTrustAnchor)));
+            Crypto::P256PublicKey rcacPublicKey(certificates.GetCertSet()[0].mPublicKey);
 
-        EXPECT_EQ(fabricInfo->GetFabricIndex(), newFabricIndex);
-        EXPECT_EQ(fabricInfo->GetNodeId(), nodeId);
-        EXPECT_EQ(fabricInfo->GetFabricId(), fabricId);
-        EXPECT_EQ(fabricInfo->GetVendorId(), kVendorId);
-        EXPECT_EQ(fabricInfo->GetFabricLabel().size(), 0u);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricIndex() == newFabricIndex);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetNodeId() == nodeId);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricId() == fabricId);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetVendorId() == kVendorId);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricLabel().size() == 0);
 
-        Crypto::P256PublicKey rootPublicKeyOfFabric;
-        EXPECT_EQ(fabricTable.FetchRootPubkey(newFabricIndex, rootPublicKeyOfFabric), CHIP_NO_ERROR);
-        EXPECT_TRUE(rootPublicKeyOfFabric.Matches(rcacPublicKey));
+            Crypto::P256PublicKey rootPublicKeyOfFabric;
+            NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.FetchRootPubkey(newFabricIndex, rootPublicKeyOfFabric));
+            NL_TEST_ASSERT(inSuite, rootPublicKeyOfFabric.Matches(rcacPublicKey));
+        }
 
         // Validate that fabric has the correct operational key by verifying a signature
         Crypto::P256ECDSASignature sig;
         uint8_t message[] = { 'm', 's', 'g' };
-        EXPECT_EQ(fabricTable.SignWithOpKeypair(newFabricIndex, ByteSpan{ message }, sig), CHIP_NO_ERROR);
-        EXPECT_EQ(fabric11Node55Keypair.Pubkey().ECDSA_validate_msg_signature(&message[0], sizeof(message), sig), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.SignWithOpKeypair(newFabricIndex, ByteSpan{ message }, sig));
+        NL_TEST_ASSERT_SUCCESS(inSuite,
+                               fabric11Node55Keypair.Pubkey().ECDSA_validate_msg_signature(&message[0], sizeof(message), sig));
 
         // Validate iterator sees committed
         {
@@ -704,15 +675,14 @@ TEST_F(TestFabricTable, TestBasicAddNocUpdateNocFlow)
                 ++numFabricsIterated;
                 if (iterFabricInfo.GetFabricIndex() == 1)
                 {
-                    EXPECT_EQ(iterFabricInfo.GetNodeId(), nodeId);
-                    EXPECT_EQ(iterFabricInfo.GetFabricId(), fabricId);
-                    EXPECT_TRUE(iterFabricInfo.ShouldAdvertiseIdentity());
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetNodeId() == nodeId);
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetFabricId() == fabricId);
                     saw1 = true;
                 }
             }
 
-            EXPECT_EQ(numFabricsIterated, 1u);
-            EXPECT_TRUE(saw1);
+            NL_TEST_ASSERT(inSuite, numFabricsIterated == 1);
+            NL_TEST_ASSERT(inSuite, saw1 == true);
         }
     }
 
@@ -725,74 +695,75 @@ TEST_F(TestFabricTable, TestBasicAddNocUpdateNocFlow)
 
         uint8_t csrBuf[chip::Crypto::kMIN_CSR_Buffer_Size];
         MutableByteSpan csrSpan{ csrBuf };
-        EXPECT_EQ(fabricTable.AllocatePendingOperationalKey(chip::NullOptional, csrSpan), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.AllocatePendingOperationalKey(chip::NullOptional, csrSpan));
 
-        EXPECT_EQ(fabric44CertAuthority.SetIncludeIcac(true).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus(),
-                  CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite,
+                               fabric44CertAuthority.SetIncludeIcac(true).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus());
         ByteSpan rcac = fabric44CertAuthority.GetRcac();
         ByteSpan icac = fabric44CertAuthority.GetIcac();
         ByteSpan noc  = fabric44CertAuthority.GetNoc();
 
-        EXPECT_EQ(fabricTable.FabricCount(), 1);
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 1);
 
         // Next fabric index should still be the same as before.
         {
             FabricIndex nextFabricIndex = kUndefinedFabricIndex;
-            EXPECT_EQ(fabricTable.PeekFabricIndexForNextAddition(nextFabricIndex), CHIP_NO_ERROR);
-            EXPECT_EQ(nextFabricIndex, 2);
+            NL_TEST_ASSERT(inSuite, fabricTable.PeekFabricIndexForNextAddition(nextFabricIndex) == CHIP_NO_ERROR);
+            NL_TEST_ASSERT_EQUALS(inSuite, nextFabricIndex, 2);
         }
 
-        EXPECT_EQ(fabricTable.AddNewPendingTrustedRootCert(rcac), CHIP_NO_ERROR);
-        EXPECT_EQ(fabricTable.GetPendingNewFabricIndex(), kUndefinedFabricIndex);
-
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.AddNewPendingTrustedRootCert(rcac));
         FabricIndex newFabricIndex = kUndefinedFabricIndex;
 
-        EXPECT_EQ(fabricTable.FabricCount(), 1);
-        EXPECT_EQ(fabricTable.AddNewPendingFabricWithOperationalKeystore(noc, icac, kVendorId, &newFabricIndex), CHIP_NO_ERROR);
-        EXPECT_EQ(fabricTable.FabricCount(), 2);
-        EXPECT_EQ(newFabricIndex, 2);
-        EXPECT_EQ(fabricTable.GetPendingNewFabricIndex(), 2);
-
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 1);
+        NL_TEST_ASSERT_SUCCESS(inSuite,
+                               fabricTable.AddNewPendingFabricWithOperationalKeystore(noc, icac, kVendorId, &newFabricIndex));
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 2);
+        NL_TEST_ASSERT(inSuite, newFabricIndex == 2);
         // No storage yet
-        EXPECT_EQ(storage.GetNumKeys(), numStorageAfterFirstAdd);
+        NL_TEST_ASSERT(inSuite, storage.GetNumKeys() == numStorageAfterFirstAdd);
         // Next fabric index has not been updated yet.
         {
             FabricIndex nextFabricIndex = kUndefinedFabricIndex;
-            EXPECT_EQ(fabricTable.PeekFabricIndexForNextAddition(nextFabricIndex), CHIP_NO_ERROR);
-            EXPECT_EQ(nextFabricIndex, 2);
+            NL_TEST_ASSERT(inSuite, fabricTable.PeekFabricIndexForNextAddition(nextFabricIndex) == CHIP_NO_ERROR);
+            NL_TEST_ASSERT_EQUALS(inSuite, nextFabricIndex, 2);
         }
 
         // Commit, now storage should have keys
-        EXPECT_EQ(fabricTable.CommitPendingFabricData(), CHIP_NO_ERROR);
-        EXPECT_EQ(fabricTable.FabricCount(), 2);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.CommitPendingFabricData());
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 2);
 
-        EXPECT_EQ(storage.GetNumKeys(),
-                  (numStorageAfterFirstAdd + 5)); // 3 opcerts + fabric metadata + 1 operational key
+        NL_TEST_ASSERT_EQUALS(inSuite, storage.GetNumKeys(),
+                              (numStorageAfterFirstAdd + 5)); // 3 opcerts + fabric metadata + 1 operational key
 
         // Next fabric index has been updated.
         {
             FabricIndex nextFabricIndex = kUndefinedFabricIndex;
-            EXPECT_EQ(fabricTable.PeekFabricIndexForNextAddition(nextFabricIndex), CHIP_NO_ERROR);
-            EXPECT_EQ(nextFabricIndex, 3);
+            NL_TEST_ASSERT(inSuite, fabricTable.PeekFabricIndexForNextAddition(nextFabricIndex) == CHIP_NO_ERROR);
+            NL_TEST_ASSERT_EQUALS(inSuite, nextFabricIndex, 3);
         }
 
         // Validate contents
         const auto * fabricInfo = fabricTable.FindFabricWithIndex(2);
-        ASSERT_NE(fabricInfo, nullptr);
-        Credentials::ChipCertificateSet certificates;
-        EXPECT_EQ(certificates.Init(1), CHIP_NO_ERROR);
-        EXPECT_EQ(certificates.LoadCert(rcac, BitFlags<CertDecodeFlags>(CertDecodeFlags::kIsTrustAnchor)), CHIP_NO_ERROR);
-        Crypto::P256PublicKey rcacPublicKey(certificates.GetCertSet()[0].mPublicKey);
+        NL_TEST_ASSERT(inSuite, fabricInfo != nullptr);
+        if (fabricInfo != nullptr)
+        {
+            Credentials::ChipCertificateSet certificates;
+            NL_TEST_ASSERT_SUCCESS(inSuite, certificates.Init(1));
+            NL_TEST_ASSERT_SUCCESS(inSuite,
+                                   certificates.LoadCert(rcac, BitFlags<CertDecodeFlags>(CertDecodeFlags::kIsTrustAnchor)));
+            Crypto::P256PublicKey rcacPublicKey(certificates.GetCertSet()[0].mPublicKey);
 
-        EXPECT_EQ(fabricInfo->GetFabricIndex(), newFabricIndex);
-        EXPECT_EQ(fabricInfo->GetNodeId(), nodeId);
-        EXPECT_EQ(fabricInfo->GetFabricId(), fabricId);
-        EXPECT_EQ(fabricInfo->GetVendorId(), kVendorId);
-        EXPECT_EQ(fabricInfo->GetFabricLabel().size(), 0u);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricIndex() == newFabricIndex);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetNodeId() == nodeId);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricId() == fabricId);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetVendorId() == kVendorId);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricLabel().size() == 0);
 
-        Crypto::P256PublicKey rootPublicKeyOfFabric;
-        EXPECT_EQ(fabricTable.FetchRootPubkey(newFabricIndex, rootPublicKeyOfFabric), CHIP_NO_ERROR);
-        EXPECT_TRUE(rootPublicKeyOfFabric.Matches(rcacPublicKey));
+            Crypto::P256PublicKey rootPublicKeyOfFabric;
+            NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.FetchRootPubkey(newFabricIndex, rootPublicKeyOfFabric));
+            NL_TEST_ASSERT(inSuite, rootPublicKeyOfFabric.Matches(rcacPublicKey));
+        }
 
         // Validate that fabric has the correct operational key by verifying a signature
         {
@@ -800,10 +771,10 @@ TEST_F(TestFabricTable, TestBasicAddNocUpdateNocFlow)
             uint8_t message[] = { 'm', 's', 'g' };
 
             Crypto::P256PublicKey nocPubKey;
-            EXPECT_EQ(VerifyCertificateSigningRequest(csrSpan.data(), csrSpan.size(), nocPubKey), CHIP_NO_ERROR);
+            NL_TEST_ASSERT_SUCCESS(inSuite, VerifyCertificateSigningRequest(csrSpan.data(), csrSpan.size(), nocPubKey));
 
-            EXPECT_EQ(fabricTable.SignWithOpKeypair(newFabricIndex, ByteSpan{ message }, sig), CHIP_NO_ERROR);
-            EXPECT_EQ(nocPubKey.ECDSA_validate_msg_signature(&message[0], sizeof(message), sig), CHIP_NO_ERROR);
+            NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.SignWithOpKeypair(newFabricIndex, ByteSpan{ message }, sig));
+            NL_TEST_ASSERT_SUCCESS(inSuite, nocPubKey.ECDSA_validate_msg_signature(&message[0], sizeof(message), sig));
         }
 
         // Verify we can now see 2 fabrics with the iterator
@@ -816,23 +787,21 @@ TEST_F(TestFabricTable, TestBasicAddNocUpdateNocFlow)
                 ++numFabricsIterated;
                 if (iterFabricInfo.GetFabricIndex() == 1)
                 {
-                    EXPECT_EQ(iterFabricInfo.GetNodeId(), 55u);
-                    EXPECT_EQ(iterFabricInfo.GetFabricId(), 11u);
-                    EXPECT_TRUE(iterFabricInfo.ShouldAdvertiseIdentity());
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetNodeId() == 55);
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetFabricId() == 11);
                     saw1 = true;
                 }
                 if (iterFabricInfo.GetFabricIndex() == 2)
                 {
-                    EXPECT_EQ(iterFabricInfo.GetNodeId(), 999u);
-                    EXPECT_EQ(iterFabricInfo.GetFabricId(), 44u);
-                    EXPECT_TRUE(iterFabricInfo.ShouldAdvertiseIdentity());
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetNodeId() == 999);
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetFabricId() == 44);
                     saw2 = true;
                 }
             }
 
-            EXPECT_EQ(numFabricsIterated, 2u);
-            EXPECT_TRUE(saw1);
-            EXPECT_TRUE(saw2);
+            NL_TEST_ASSERT(inSuite, numFabricsIterated == 2);
+            NL_TEST_ASSERT(inSuite, saw1 == true);
+            NL_TEST_ASSERT(inSuite, saw2 == true);
         }
     }
 
@@ -848,21 +817,22 @@ TEST_F(TestFabricTable, TestBasicAddNocUpdateNocFlow)
         MutableByteSpan csrSpan{ csrBuf };
 
         // Make sure to tag fabric index to pending opkey: otherwise the UpdateNOC fails
-        EXPECT_EQ(fabricTable.AllocatePendingOperationalKey(chip::MakeOptional(static_cast<FabricIndex>(2)), csrSpan),
-                  CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite,
+                               fabricTable.AllocatePendingOperationalKey(chip::MakeOptional(static_cast<FabricIndex>(2)), csrSpan));
 
-        EXPECT_EQ(fabric44CertAuthority.SetIncludeIcac(false).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus(),
-                  CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite,
+                               fabric44CertAuthority.SetIncludeIcac(false).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus());
         ByteSpan rcac = fabric44CertAuthority.GetRcac();
         ByteSpan noc  = fabric44CertAuthority.GetNoc();
 
-        EXPECT_EQ(fabricTable.FabricCount(), 2);
-        EXPECT_EQ(fabricTable.UpdatePendingFabricWithOperationalKeystore(2, noc, ByteSpan{}, FabricTable::AdvertiseIdentity::No),
-                  CHIP_NO_ERROR);
-        EXPECT_EQ(fabricTable.FabricCount(), 2);
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 2);
+        NL_TEST_ASSERT_SUCCESS(
+            inSuite,
+            fabricTable.UpdatePendingFabricWithOperationalKeystore(2, noc, ByteSpan{}, FabricTable::AdvertiseIdentity::No));
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 2);
 
         // No storage yet
-        EXPECT_EQ(storage.GetNumKeys(), numStorageAfterSecondAdd);
+        NL_TEST_ASSERT(inSuite, storage.GetNumKeys() == numStorageAfterSecondAdd);
 
         // Validate iterator sees the pending data
         {
@@ -874,48 +844,52 @@ TEST_F(TestFabricTable, TestBasicAddNocUpdateNocFlow)
                 ++numFabricsIterated;
                 if (iterFabricInfo.GetFabricIndex() == 1)
                 {
-                    EXPECT_EQ(iterFabricInfo.GetNodeId(), 55u);
-                    EXPECT_EQ(iterFabricInfo.GetFabricId(), 11u);
-                    EXPECT_TRUE(iterFabricInfo.ShouldAdvertiseIdentity());
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetNodeId() == 55);
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetFabricId() == 11);
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.ShouldAdvertiseIdentity());
                     saw1 = true;
                 }
                 if (iterFabricInfo.GetFabricIndex() == 2)
                 {
-                    EXPECT_EQ(iterFabricInfo.GetNodeId(), 1000u);
-                    EXPECT_EQ(iterFabricInfo.GetFabricId(), 44u);
-                    EXPECT_FALSE(iterFabricInfo.ShouldAdvertiseIdentity());
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetNodeId() == 1000);
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetFabricId() == 44);
+                    NL_TEST_ASSERT(inSuite, !iterFabricInfo.ShouldAdvertiseIdentity());
                     saw2 = true;
                 }
             }
 
-            EXPECT_EQ(numFabricsIterated, 2u);
-            EXPECT_TRUE(saw1);
-            EXPECT_TRUE(saw2);
+            NL_TEST_ASSERT(inSuite, numFabricsIterated == 2);
+            NL_TEST_ASSERT(inSuite, saw1 == true);
+            NL_TEST_ASSERT(inSuite, saw2 == true);
         }
 
         // Commit, now storage should have keys
-        EXPECT_EQ(fabricTable.CommitPendingFabricData(), CHIP_NO_ERROR);
-        EXPECT_EQ(fabricTable.FabricCount(), 2);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.CommitPendingFabricData());
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 2);
 
-        EXPECT_EQ(storage.GetNumKeys(), (numStorageAfterSecondAdd - 1)); // ICAC got deleted
+        NL_TEST_ASSERT_EQUALS(inSuite, storage.GetNumKeys(), (numStorageAfterSecondAdd - 1)); // ICAC got deleted
 
         // Validate contents
         const auto * fabricInfo = fabricTable.FindFabricWithIndex(2);
-        ASSERT_NE(fabricInfo, nullptr);
-        Credentials::ChipCertificateSet certificates;
-        EXPECT_EQ(certificates.Init(1), CHIP_NO_ERROR);
-        EXPECT_EQ(certificates.LoadCert(rcac, BitFlags<CertDecodeFlags>(CertDecodeFlags::kIsTrustAnchor)), CHIP_NO_ERROR);
-        Crypto::P256PublicKey rcacPublicKey(certificates.GetCertSet()[0].mPublicKey);
+        NL_TEST_ASSERT(inSuite, fabricInfo != nullptr);
+        if (fabricInfo != nullptr)
+        {
+            Credentials::ChipCertificateSet certificates;
+            NL_TEST_ASSERT_SUCCESS(inSuite, certificates.Init(1));
+            NL_TEST_ASSERT_SUCCESS(inSuite,
+                                   certificates.LoadCert(rcac, BitFlags<CertDecodeFlags>(CertDecodeFlags::kIsTrustAnchor)));
+            Crypto::P256PublicKey rcacPublicKey(certificates.GetCertSet()[0].mPublicKey);
 
-        EXPECT_EQ(fabricInfo->GetFabricIndex(), fabricIndex);
-        EXPECT_EQ(fabricInfo->GetNodeId(), nodeId);
-        EXPECT_EQ(fabricInfo->GetFabricId(), fabricId);
-        EXPECT_EQ(fabricInfo->GetVendorId(), kVendorId);
-        EXPECT_EQ(fabricInfo->GetFabricLabel().size(), 0u);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricIndex() == fabricIndex);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetNodeId() == nodeId);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricId() == fabricId);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetVendorId() == kVendorId);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricLabel().size() == 0);
 
-        Crypto::P256PublicKey rootPublicKeyOfFabric;
-        EXPECT_EQ(fabricTable.FetchRootPubkey(fabricIndex, rootPublicKeyOfFabric), CHIP_NO_ERROR);
-        EXPECT_TRUE(rootPublicKeyOfFabric.Matches(rcacPublicKey));
+            Crypto::P256PublicKey rootPublicKeyOfFabric;
+            NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.FetchRootPubkey(fabricIndex, rootPublicKeyOfFabric));
+            NL_TEST_ASSERT(inSuite, rootPublicKeyOfFabric.Matches(rcacPublicKey));
+        }
 
         // Validate that fabric has the correct operational key by verifying a signature
         {
@@ -923,10 +897,10 @@ TEST_F(TestFabricTable, TestBasicAddNocUpdateNocFlow)
             uint8_t message[] = { 'm', 's', 'g' };
 
             Crypto::P256PublicKey nocPubKey;
-            EXPECT_EQ(VerifyCertificateSigningRequest(csrSpan.data(), csrSpan.size(), nocPubKey), CHIP_NO_ERROR);
+            NL_TEST_ASSERT_SUCCESS(inSuite, VerifyCertificateSigningRequest(csrSpan.data(), csrSpan.size(), nocPubKey));
 
-            EXPECT_EQ(fabricTable.SignWithOpKeypair(fabricIndex, ByteSpan{ message }, sig), CHIP_NO_ERROR);
-            EXPECT_EQ(nocPubKey.ECDSA_validate_msg_signature(&message[0], sizeof(message), sig), CHIP_NO_ERROR);
+            NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.SignWithOpKeypair(fabricIndex, ByteSpan{ message }, sig));
+            NL_TEST_ASSERT_SUCCESS(inSuite, nocPubKey.ECDSA_validate_msg_signature(&message[0], sizeof(message), sig));
         }
 
         // Validate iterator sees the committed update
@@ -939,28 +913,28 @@ TEST_F(TestFabricTable, TestBasicAddNocUpdateNocFlow)
                 ++numFabricsIterated;
                 if (iterFabricInfo.GetFabricIndex() == 1)
                 {
-                    EXPECT_EQ(iterFabricInfo.GetNodeId(), 55u);
-                    EXPECT_EQ(iterFabricInfo.GetFabricId(), 11u);
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetNodeId() == 55);
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetFabricId() == 11);
                     saw1 = true;
                 }
                 if (iterFabricInfo.GetFabricIndex() == 2)
                 {
-                    EXPECT_EQ(iterFabricInfo.GetNodeId(), 1000u);
-                    EXPECT_EQ(iterFabricInfo.GetFabricId(), 44u);
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetNodeId() == 1000);
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetFabricId() == 44);
                     saw2 = true;
                 }
             }
 
-            EXPECT_EQ(numFabricsIterated, 2u);
-            EXPECT_TRUE(saw1);
-            EXPECT_TRUE(saw2);
+            NL_TEST_ASSERT(inSuite, numFabricsIterated == 2);
+            NL_TEST_ASSERT(inSuite, saw1 == true);
+            NL_TEST_ASSERT(inSuite, saw2 == true);
         }
 
         // Next fabric index has stayed the same.
         {
             FabricIndex nextFabricIndex = kUndefinedFabricIndex;
-            EXPECT_EQ(fabricTable.PeekFabricIndexForNextAddition(nextFabricIndex), CHIP_NO_ERROR);
-            EXPECT_EQ(nextFabricIndex, 3);
+            NL_TEST_ASSERT(inSuite, fabricTable.PeekFabricIndexForNextAddition(nextFabricIndex) == CHIP_NO_ERROR);
+            NL_TEST_ASSERT_EQUALS(inSuite, nextFabricIndex, 3);
         }
     }
 
@@ -968,28 +942,31 @@ TEST_F(TestFabricTable, TestBasicAddNocUpdateNocFlow)
 
     // Sequence 4: Rename fabric index 2, applies immediately when nothing pending
     {
-        EXPECT_EQ(fabricTable.FabricCount(), 2);
-        EXPECT_EQ(fabricTable.SetFabricLabel(2, "roboto"_span), CHIP_NO_ERROR);
-        EXPECT_EQ(fabricTable.FabricCount(), 2);
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 2);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.SetFabricLabel(2, "roboto"_span));
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 2);
 
-        EXPECT_EQ(storage.GetNumKeys(), numStorageAfterUpdate); // Number of keys unchanged
+        NL_TEST_ASSERT_EQUALS(inSuite, storage.GetNumKeys(), numStorageAfterUpdate); // Number of keys unchanged
 
         // Validate basic contents
         {
             const auto * fabricInfo = fabricTable.FindFabricWithIndex(2);
-            ASSERT_NE(fabricInfo, nullptr);
-            EXPECT_EQ(fabricInfo->GetFabricIndex(), 2);
-            EXPECT_EQ(fabricInfo->GetNodeId(), 1000u);
-            EXPECT_EQ(fabricInfo->GetFabricId(), 44u);
-            EXPECT_EQ(fabricInfo->GetVendorId(), kVendorId);
-            EXPECT_TRUE(fabricInfo->GetFabricLabel().data_equal(CharSpan{ "roboto", strlen("roboto") }));
+            NL_TEST_ASSERT(inSuite, fabricInfo != nullptr);
+            if (fabricInfo != nullptr)
+            {
+                NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricIndex() == 2);
+                NL_TEST_ASSERT(inSuite, fabricInfo->GetNodeId() == 1000);
+                NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricId() == 44);
+                NL_TEST_ASSERT(inSuite, fabricInfo->GetVendorId() == kVendorId);
+                NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricLabel().data_equal(CharSpan{ "roboto", strlen("roboto") }));
+            }
         }
 
         // Next fabric index has stayed the same.
         {
             FabricIndex nextFabricIndex = kUndefinedFabricIndex;
-            EXPECT_EQ(fabricTable.PeekFabricIndexForNextAddition(nextFabricIndex), CHIP_NO_ERROR);
-            EXPECT_EQ(nextFabricIndex, 3);
+            NL_TEST_ASSERT(inSuite, fabricTable.PeekFabricIndexForNextAddition(nextFabricIndex) == CHIP_NO_ERROR);
+            NL_TEST_ASSERT_EQUALS(inSuite, nextFabricIndex, 3);
         }
     }
 
@@ -997,48 +974,52 @@ TEST_F(TestFabricTable, TestBasicAddNocUpdateNocFlow)
     {
         // Remove the fabric: no commit needed
         {
-            EXPECT_EQ(fabricTable.FabricCount(), 2);
-            EXPECT_EQ(fabricTable.Delete(1), CHIP_NO_ERROR);
-            EXPECT_EQ(fabricTable.FabricCount(), 1);
+            NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 2);
+            NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.Delete(1));
+            NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 1);
 
-            EXPECT_EQ(storage.GetNumKeys(), (numStorageAfterUpdate - 3)); // Deleted NOC, RCAC, Metadata
+            NL_TEST_ASSERT_EQUALS(inSuite, storage.GetNumKeys(), (numStorageAfterUpdate - 3)); // Deleted NOC, RCAC, Metadata
         }
 
         // Next fabric index has stayed the same.
         {
             FabricIndex nextFabricIndex = kUndefinedFabricIndex;
-            EXPECT_EQ(fabricTable.PeekFabricIndexForNextAddition(nextFabricIndex), CHIP_NO_ERROR);
-            EXPECT_EQ(nextFabricIndex, 3);
+            NL_TEST_ASSERT(inSuite, fabricTable.PeekFabricIndexForNextAddition(nextFabricIndex) == CHIP_NO_ERROR);
+            NL_TEST_ASSERT_EQUALS(inSuite, nextFabricIndex, 3);
         }
 
         // Validate contents of Fabric Index 2 is still OK
         const auto * fabricInfo = fabricTable.FindFabricWithIndex(2);
-        ASSERT_NE(fabricInfo, nullptr);
-        EXPECT_EQ(fabricInfo->GetFabricIndex(), 2);
-        EXPECT_EQ(fabricInfo->GetNodeId(), 1000u);
-        EXPECT_EQ(fabricInfo->GetFabricId(), 44u);
-        EXPECT_EQ(fabricInfo->GetVendorId(), kVendorId);
-        EXPECT_TRUE(fabricInfo->GetFabricLabel().data_equal(CharSpan{ "roboto", strlen("roboto") }));
+        NL_TEST_ASSERT(inSuite, fabricInfo != nullptr);
+        if (fabricInfo != nullptr)
+        {
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricIndex() == 2);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetNodeId() == 1000);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricId() == 44);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetVendorId() == kVendorId);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricLabel().data_equal(CharSpan{ "roboto", strlen("roboto") }));
 
-        Crypto::P256PublicKey rootPublicKeyOfFabric;
-        EXPECT_EQ(fabricTable.FetchRootPubkey(2, rootPublicKeyOfFabric), CHIP_NO_ERROR);
+            Crypto::P256PublicKey rootPublicKeyOfFabric;
+            NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.FetchRootPubkey(2, rootPublicKeyOfFabric));
+        }
 
         // Validate that fabric has the correct operational key by verifying a signature
         {
             uint8_t nocBuf[Credentials::kMaxCHIPCertLength];
             MutableByteSpan nocSpan{ nocBuf };
-            EXPECT_EQ(fabricTable.FetchNOCCert(2, nocSpan), CHIP_NO_ERROR);
+            NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.FetchNOCCert(2, nocSpan));
 
             Credentials::ChipCertificateSet certificates;
-            EXPECT_EQ(certificates.Init(1), CHIP_NO_ERROR);
-            EXPECT_EQ(certificates.LoadCert(nocSpan, BitFlags<CertDecodeFlags>(CertDecodeFlags::kIsTrustAnchor)), CHIP_NO_ERROR);
+            NL_TEST_ASSERT_SUCCESS(inSuite, certificates.Init(1));
+            NL_TEST_ASSERT_SUCCESS(inSuite,
+                                   certificates.LoadCert(nocSpan, BitFlags<CertDecodeFlags>(CertDecodeFlags::kIsTrustAnchor)));
             Crypto::P256PublicKey nocPubKey(certificates.GetCertSet()[0].mPublicKey);
 
             Crypto::P256ECDSASignature sig;
             uint8_t message[] = { 'm', 's', 'g' };
 
-            EXPECT_EQ(fabricTable.SignWithOpKeypair(2, ByteSpan{ message }, sig), CHIP_NO_ERROR);
-            EXPECT_EQ(nocPubKey.ECDSA_validate_msg_signature(&message[0], sizeof(message), sig), CHIP_NO_ERROR);
+            NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.SignWithOpKeypair(2, ByteSpan{ message }, sig));
+            NL_TEST_ASSERT_SUCCESS(inSuite, nocPubKey.ECDSA_validate_msg_signature(&message[0], sizeof(message), sig));
         }
 
         // Validate iterator only sees the remaining fabric
@@ -1055,34 +1036,34 @@ TEST_F(TestFabricTable, TestBasicAddNocUpdateNocFlow)
                 }
                 if (iterFabricInfo.GetFabricIndex() == 2)
                 {
-                    EXPECT_EQ(iterFabricInfo.GetNodeId(), 1000u);
-                    EXPECT_EQ(iterFabricInfo.GetFabricId(), 44u);
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetNodeId() == 1000);
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetFabricId() == 44);
                     saw2 = true;
                 }
             }
 
-            EXPECT_EQ(numFabricsIterated, 1u);
-            EXPECT_FALSE(saw1);
-            EXPECT_TRUE(saw2);
+            NL_TEST_ASSERT(inSuite, numFabricsIterated == 1);
+            NL_TEST_ASSERT(inSuite, saw1 == false);
+            NL_TEST_ASSERT(inSuite, saw2 == true);
         }
     }
 }
 
-TEST_F(TestFabricTable, TestAddMultipleSameRootDifferentFabricId)
+void TestAddMultipleSameRootDifferentFabricId(nlTestSuite * inSuite, void * inContext)
 {
     Credentials::TestOnlyLocalCertificateAuthority fabricCertAuthority;
 
     chip::TestPersistentStorageDelegate storage;
-    EXPECT_TRUE(fabricCertAuthority.Init().IsSuccess());
+    NL_TEST_ASSERT(inSuite, fabricCertAuthority.Init().IsSuccess());
 
     constexpr uint16_t kVendorId = 0xFFF1u;
 
     // Initialize a fabric table.
     ScopedFabricTable fabricTableHolder;
-    EXPECT_EQ(fabricTableHolder.Init(&storage), CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, fabricTableHolder.Init(&storage) == CHIP_NO_ERROR);
     FabricTable & fabricTable = fabricTableHolder.GetFabricTable();
 
-    EXPECT_EQ(fabricTable.FabricCount(), 0);
+    NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 0);
 
     uint8_t rcac1Buf[kMaxCHIPCertLength];
     MutableByteSpan rcac1Span{ rcac1Buf };
@@ -1094,9 +1075,10 @@ TEST_F(TestFabricTable, TestAddMultipleSameRootDifferentFabricId)
 
         uint8_t csrBuf[chip::Crypto::kMIN_CSR_Buffer_Size];
         MutableByteSpan csrSpan{ csrBuf };
-        EXPECT_EQ(fabricTable.AllocatePendingOperationalKey(chip::NullOptional, csrSpan), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.AllocatePendingOperationalKey(chip::NullOptional, csrSpan));
 
-        EXPECT_EQ(fabricCertAuthority.SetIncludeIcac(true).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus(), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite,
+                               fabricCertAuthority.SetIncludeIcac(true).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus());
         ByteSpan rcac = fabricCertAuthority.GetRcac();
         // Keep a copy for second scope check
         CopySpanToMutableSpan(rcac, rcac1Span);
@@ -1104,45 +1086,30 @@ TEST_F(TestFabricTable, TestAddMultipleSameRootDifferentFabricId)
         ByteSpan icac = fabricCertAuthority.GetIcac();
         ByteSpan noc  = fabricCertAuthority.GetNoc();
 
-        EXPECT_EQ(fabricTable.FabricCount(), 0);
-        EXPECT_EQ(fabricTable.AddNewPendingTrustedRootCert(rcac), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 0);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.AddNewPendingTrustedRootCert(rcac));
         FabricIndex newFabricIndex = kUndefinedFabricIndex;
-        EXPECT_EQ(fabricTable.AddNewPendingFabricWithOperationalKeystore(noc, icac, kVendorId, &newFabricIndex,
-                                                                         FabricTable::AdvertiseIdentity::No),
-                  CHIP_NO_ERROR);
-        EXPECT_EQ(fabricTable.FabricCount(), 1);
-        EXPECT_EQ(newFabricIndex, 1);
+        NL_TEST_ASSERT_SUCCESS(inSuite,
+                               fabricTable.AddNewPendingFabricWithOperationalKeystore(noc, icac, kVendorId, &newFabricIndex));
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 1);
+        NL_TEST_ASSERT(inSuite, newFabricIndex == 1);
 
-        EXPECT_EQ(fabricTable.CommitPendingFabricData(), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.CommitPendingFabricData());
 
         // Validate contents
         const auto * fabricInfo = fabricTable.FindFabricWithIndex(1);
-        ASSERT_NE(fabricInfo, nullptr);
-        EXPECT_EQ(fabricInfo->GetFabricIndex(), 1);
-        EXPECT_EQ(fabricInfo->GetNodeId(), 55u);
-        EXPECT_EQ(fabricInfo->GetFabricId(), 1111u);
-        EXPECT_EQ(fabricInfo->GetVendorId(), kVendorId);
-        EXPECT_EQ(fabricInfo->GetFabricLabel().size(), 0u);
-        EXPECT_FALSE(fabricInfo->ShouldAdvertiseIdentity());
-
-        EXPECT_EQ(fabricTable.SetShouldAdvertiseIdentity(newFabricIndex, FabricTable::AdvertiseIdentity::Yes), CHIP_NO_ERROR);
-        EXPECT_TRUE(fabricInfo->ShouldAdvertiseIdentity());
-
-        // Check that for indices we don't have a fabric for, SetShouldAdvertiseIdentity fails.
-        EXPECT_EQ(fabricTable.SetShouldAdvertiseIdentity(kUndefinedFabricIndex, FabricTable::AdvertiseIdentity::No),
-                  CHIP_ERROR_INVALID_FABRIC_INDEX);
-        EXPECT_EQ(fabricTable.SetShouldAdvertiseIdentity(kUndefinedFabricIndex, FabricTable::AdvertiseIdentity::Yes),
-                  CHIP_ERROR_INVALID_FABRIC_INDEX);
-        EXPECT_EQ(fabricTable.SetShouldAdvertiseIdentity(2, FabricTable::AdvertiseIdentity::Yes), CHIP_ERROR_INVALID_FABRIC_INDEX);
-        EXPECT_EQ(fabricTable.SetShouldAdvertiseIdentity(2, FabricTable::AdvertiseIdentity::No), CHIP_ERROR_INVALID_FABRIC_INDEX);
-
-        EXPECT_TRUE(fabricInfo->ShouldAdvertiseIdentity());
-
-        EXPECT_EQ(fabricTable.SetShouldAdvertiseIdentity(newFabricIndex, FabricTable::AdvertiseIdentity::No), CHIP_NO_ERROR);
-        EXPECT_FALSE(fabricInfo->ShouldAdvertiseIdentity());
+        NL_TEST_ASSERT(inSuite, fabricInfo != nullptr);
+        if (fabricInfo != nullptr)
+        {
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricIndex() == 1);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetNodeId() == 55);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricId() == 1111);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetVendorId() == kVendorId);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricLabel().size() == 0);
+        }
     }
     size_t numStorageKeysAfterFirstAdd = storage.GetNumKeys();
-    EXPECT_EQ(numStorageKeysAfterFirstAdd, 7u); // Metadata, index, 3 certs, 1 opkey, last known good time
+    NL_TEST_ASSERT(inSuite, numStorageKeysAfterFirstAdd == 7); // Metadata, index, 3 certs, 1 opkey, last known good time
 
     // Second scope: add FabricID 2222, node ID 66, same root as first
     {
@@ -1151,62 +1118,59 @@ TEST_F(TestFabricTable, TestAddMultipleSameRootDifferentFabricId)
 
         uint8_t csrBuf[chip::Crypto::kMIN_CSR_Buffer_Size];
         MutableByteSpan csrSpan{ csrBuf };
-        EXPECT_EQ(fabricTable.AllocatePendingOperationalKey(chip::NullOptional, csrSpan), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.AllocatePendingOperationalKey(chip::NullOptional, csrSpan));
 
-        EXPECT_EQ(fabricCertAuthority.SetIncludeIcac(true).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus(), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite,
+                               fabricCertAuthority.SetIncludeIcac(true).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus());
         ByteSpan rcac2 = fabricCertAuthority.GetRcac();
-        EXPECT_TRUE(rcac2.data_equal(rcac1Span));
+        NL_TEST_ASSERT(inSuite, rcac2.data_equal(rcac1Span));
 
         ByteSpan icac = fabricCertAuthority.GetIcac();
         ByteSpan noc  = fabricCertAuthority.GetNoc();
 
-        EXPECT_EQ(fabricTable.FabricCount(), 1);
-        EXPECT_EQ(fabricTable.AddNewPendingTrustedRootCert(rcac2), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 1);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.AddNewPendingTrustedRootCert(rcac2));
         FabricIndex newFabricIndex = kUndefinedFabricIndex;
-        EXPECT_EQ(fabricTable.AddNewPendingFabricWithOperationalKeystore(noc, icac, kVendorId, &newFabricIndex), CHIP_NO_ERROR);
-        EXPECT_EQ(fabricTable.FabricCount(), 2);
-        EXPECT_EQ(newFabricIndex, 2);
+        NL_TEST_ASSERT_SUCCESS(inSuite,
+                               fabricTable.AddNewPendingFabricWithOperationalKeystore(noc, icac, kVendorId, &newFabricIndex));
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 2);
+        NL_TEST_ASSERT(inSuite, newFabricIndex == 2);
 
-        EXPECT_EQ(fabricTable.CommitPendingFabricData(), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.CommitPendingFabricData());
 
         // Validate contents
         const auto * fabricInfo = fabricTable.FindFabricWithIndex(2);
-        ASSERT_NE(fabricInfo, nullptr);
-        EXPECT_EQ(fabricInfo->GetFabricIndex(), 2);
-        EXPECT_EQ(fabricInfo->GetNodeId(), 66u);
-        EXPECT_EQ(fabricInfo->GetFabricId(), 2222u);
-        EXPECT_EQ(fabricInfo->GetVendorId(), kVendorId);
-        EXPECT_EQ(fabricInfo->GetFabricLabel().size(), 0u);
-
-        EXPECT_TRUE(fabricInfo->ShouldAdvertiseIdentity());
-
-        EXPECT_EQ(fabricTable.SetShouldAdvertiseIdentity(newFabricIndex, FabricTable::AdvertiseIdentity::No), CHIP_NO_ERROR);
-        EXPECT_FALSE(fabricInfo->ShouldAdvertiseIdentity());
-
-        EXPECT_EQ(fabricTable.SetShouldAdvertiseIdentity(newFabricIndex, FabricTable::AdvertiseIdentity::Yes), CHIP_NO_ERROR);
-        EXPECT_TRUE(fabricInfo->ShouldAdvertiseIdentity());
+        NL_TEST_ASSERT(inSuite, fabricInfo != nullptr);
+        if (fabricInfo != nullptr)
+        {
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricIndex() == 2);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetNodeId() == 66);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricId() == 2222);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetVendorId() == kVendorId);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricLabel().size() == 0);
+        }
     }
     size_t numStorageKeysAfterSecondAdd = storage.GetNumKeys();
-    EXPECT_EQ(numStorageKeysAfterSecondAdd, (numStorageKeysAfterFirstAdd + 5)); // Add 3 certs, 1 metadata, 1 opkey
+    NL_TEST_ASSERT(inSuite, numStorageKeysAfterSecondAdd == (numStorageKeysAfterFirstAdd + 5)); // Add 3 certs, 1 metadata, 1 opkey
 }
 
-TEST_F(TestFabricTable, TestAddMultipleSameFabricIdDifferentRoot)
+void TestAddMultipleSameFabricIdDifferentRoot(nlTestSuite * inSuite, void * inContext)
 {
     Credentials::TestOnlyLocalCertificateAuthority fabricCertAuthority1;
     Credentials::TestOnlyLocalCertificateAuthority fabricCertAuthority2;
 
     chip::TestPersistentStorageDelegate storage;
-    EXPECT_TRUE(fabricCertAuthority1.Init().IsSuccess());
-    EXPECT_TRUE(fabricCertAuthority2.Init().IsSuccess());
+    NL_TEST_ASSERT(inSuite, fabricCertAuthority1.Init().IsSuccess());
+    NL_TEST_ASSERT(inSuite, fabricCertAuthority2.Init().IsSuccess());
 
     constexpr uint16_t kVendorId = 0xFFF1u;
 
     // Initialize a fabric table.
     ScopedFabricTable fabricTableHolder;
-    EXPECT_EQ(fabricTableHolder.Init(&storage), CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, fabricTableHolder.Init(&storage) == CHIP_NO_ERROR);
     FabricTable & fabricTable = fabricTableHolder.GetFabricTable();
 
-    EXPECT_EQ(fabricTable.FabricCount(), 0);
+    NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 0);
 
     uint8_t rcac1Buf[kMaxCHIPCertLength];
     MutableByteSpan rcac1Span{ rcac1Buf };
@@ -1218,9 +1182,10 @@ TEST_F(TestFabricTable, TestAddMultipleSameFabricIdDifferentRoot)
 
         uint8_t csrBuf[chip::Crypto::kMIN_CSR_Buffer_Size];
         MutableByteSpan csrSpan{ csrBuf };
-        EXPECT_EQ(fabricTable.AllocatePendingOperationalKey(chip::NullOptional, csrSpan), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.AllocatePendingOperationalKey(chip::NullOptional, csrSpan));
 
-        EXPECT_EQ(fabricCertAuthority1.SetIncludeIcac(true).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus(), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite,
+                               fabricCertAuthority1.SetIncludeIcac(true).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus());
         ByteSpan rcac = fabricCertAuthority1.GetRcac();
         // Keep a copy for second scope check
         CopySpanToMutableSpan(rcac, rcac1Span);
@@ -1228,26 +1193,30 @@ TEST_F(TestFabricTable, TestAddMultipleSameFabricIdDifferentRoot)
         ByteSpan icac = fabricCertAuthority1.GetIcac();
         ByteSpan noc  = fabricCertAuthority1.GetNoc();
 
-        EXPECT_EQ(fabricTable.FabricCount(), 0);
-        EXPECT_EQ(fabricTable.AddNewPendingTrustedRootCert(rcac), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 0);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.AddNewPendingTrustedRootCert(rcac));
         FabricIndex newFabricIndex = kUndefinedFabricIndex;
-        EXPECT_EQ(fabricTable.AddNewPendingFabricWithOperationalKeystore(noc, icac, kVendorId, &newFabricIndex), CHIP_NO_ERROR);
-        EXPECT_EQ(fabricTable.FabricCount(), 1);
-        EXPECT_EQ(newFabricIndex, 1);
+        NL_TEST_ASSERT_SUCCESS(inSuite,
+                               fabricTable.AddNewPendingFabricWithOperationalKeystore(noc, icac, kVendorId, &newFabricIndex));
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 1);
+        NL_TEST_ASSERT(inSuite, newFabricIndex == 1);
 
-        EXPECT_EQ(fabricTable.CommitPendingFabricData(), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.CommitPendingFabricData());
 
         // Validate contents
         const auto * fabricInfo = fabricTable.FindFabricWithIndex(1);
-        ASSERT_NE(fabricInfo, nullptr);
-        EXPECT_EQ(fabricInfo->GetFabricIndex(), 1);
-        EXPECT_EQ(fabricInfo->GetNodeId(), 55u);
-        EXPECT_EQ(fabricInfo->GetFabricId(), 1111u);
-        EXPECT_EQ(fabricInfo->GetVendorId(), kVendorId);
-        EXPECT_EQ(fabricInfo->GetFabricLabel().size(), 0u);
+        NL_TEST_ASSERT(inSuite, fabricInfo != nullptr);
+        if (fabricInfo != nullptr)
+        {
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricIndex() == 1);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetNodeId() == 55);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricId() == 1111);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetVendorId() == kVendorId);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricLabel().size() == 0);
+        }
     }
     size_t numStorageKeysAfterFirstAdd = storage.GetNumKeys();
-    EXPECT_EQ(numStorageKeysAfterFirstAdd, 7u); // Metadata, index, 3 certs, 1 opkey, last known good time
+    NL_TEST_ASSERT(inSuite, numStorageKeysAfterFirstAdd == 7); // Metadata, index, 3 certs, 1 opkey, last known good time
 
     // Second scope: add FabricID 1111, node ID 66, different root from first
     {
@@ -1256,38 +1225,43 @@ TEST_F(TestFabricTable, TestAddMultipleSameFabricIdDifferentRoot)
 
         uint8_t csrBuf[chip::Crypto::kMIN_CSR_Buffer_Size];
         MutableByteSpan csrSpan{ csrBuf };
-        EXPECT_EQ(fabricTable.AllocatePendingOperationalKey(chip::NullOptional, csrSpan), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.AllocatePendingOperationalKey(chip::NullOptional, csrSpan));
 
-        EXPECT_EQ(fabricCertAuthority2.SetIncludeIcac(true).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus(), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite,
+                               fabricCertAuthority2.SetIncludeIcac(true).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus());
         ByteSpan rcac2 = fabricCertAuthority2.GetRcac();
-        EXPECT_FALSE(rcac2.data_equal(rcac1Span));
+        NL_TEST_ASSERT(inSuite, !rcac2.data_equal(rcac1Span));
 
         ByteSpan icac = fabricCertAuthority2.GetIcac();
         ByteSpan noc  = fabricCertAuthority2.GetNoc();
 
-        EXPECT_EQ(fabricTable.FabricCount(), 1);
-        EXPECT_EQ(fabricTable.AddNewPendingTrustedRootCert(rcac2), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 1);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.AddNewPendingTrustedRootCert(rcac2));
         FabricIndex newFabricIndex = kUndefinedFabricIndex;
-        EXPECT_EQ(fabricTable.AddNewPendingFabricWithOperationalKeystore(noc, icac, kVendorId, &newFabricIndex), CHIP_NO_ERROR);
-        EXPECT_EQ(fabricTable.FabricCount(), 2);
-        EXPECT_EQ(newFabricIndex, 2);
+        NL_TEST_ASSERT_SUCCESS(inSuite,
+                               fabricTable.AddNewPendingFabricWithOperationalKeystore(noc, icac, kVendorId, &newFabricIndex));
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 2);
+        NL_TEST_ASSERT(inSuite, newFabricIndex == 2);
 
-        EXPECT_EQ(fabricTable.CommitPendingFabricData(), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.CommitPendingFabricData());
 
         // Validate contents
         const auto * fabricInfo = fabricTable.FindFabricWithIndex(2);
-        ASSERT_NE(fabricInfo, nullptr);
-        EXPECT_EQ(fabricInfo->GetFabricIndex(), 2);
-        EXPECT_EQ(fabricInfo->GetNodeId(), 66u);
-        EXPECT_EQ(fabricInfo->GetFabricId(), 1111u);
-        EXPECT_EQ(fabricInfo->GetVendorId(), kVendorId);
-        EXPECT_EQ(fabricInfo->GetFabricLabel().size(), 0u);
+        NL_TEST_ASSERT(inSuite, fabricInfo != nullptr);
+        if (fabricInfo != nullptr)
+        {
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricIndex() == 2);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetNodeId() == 66);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricId() == 1111);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetVendorId() == kVendorId);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricLabel().size() == 0);
+        }
     }
     size_t numStorageKeysAfterSecondAdd = storage.GetNumKeys();
-    EXPECT_EQ(numStorageKeysAfterSecondAdd, (numStorageKeysAfterFirstAdd + 5)); // Add 3 certs, 1 metadata, 1 opkey
+    NL_TEST_ASSERT(inSuite, numStorageKeysAfterSecondAdd == (numStorageKeysAfterFirstAdd + 5)); // Add 3 certs, 1 metadata, 1 opkey
 }
 
-TEST_F(TestFabricTable, TestPersistence)
+void TestPersistence(nlTestSuite * inSuite, void * inContext)
 {
     /**
      *
@@ -1313,7 +1287,7 @@ TEST_F(TestFabricTable, TestPersistence)
 
     chip::TestPersistentStorageDelegate storage;
 
-    EXPECT_TRUE(fabricCertAuthority.Init().IsSuccess());
+    NL_TEST_ASSERT(inSuite, fabricCertAuthority.Init().IsSuccess());
 
     constexpr uint16_t kVendorId = 0xFFF1u;
 
@@ -1321,10 +1295,10 @@ TEST_F(TestFabricTable, TestPersistence)
     {
         // Initialize a FabricTable
         ScopedFabricTable fabricTableHolder;
-        EXPECT_EQ(fabricTableHolder.Init(&storage), CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, fabricTableHolder.Init(&storage) == CHIP_NO_ERROR);
         FabricTable & fabricTable = fabricTableHolder.GetFabricTable();
 
-        EXPECT_EQ(fabricTable.FabricCount(), 0);
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 0);
 
         // Add Fabric 1111 Node Id 55
         {
@@ -1333,50 +1307,55 @@ TEST_F(TestFabricTable, TestPersistence)
 
             uint8_t csrBuf[chip::Crypto::kMIN_CSR_Buffer_Size];
             MutableByteSpan csrSpan{ csrBuf };
-            EXPECT_EQ(fabricTable.AllocatePendingOperationalKey(chip::NullOptional, csrSpan), CHIP_NO_ERROR);
+            NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.AllocatePendingOperationalKey(chip::NullOptional, csrSpan));
 
-            EXPECT_EQ(fabricCertAuthority.SetIncludeIcac(true).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus(),
-                      CHIP_NO_ERROR);
+            NL_TEST_ASSERT_SUCCESS(
+                inSuite, fabricCertAuthority.SetIncludeIcac(true).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus());
             ByteSpan rcac = fabricCertAuthority.GetRcac();
             ByteSpan icac = fabricCertAuthority.GetIcac();
             ByteSpan noc  = fabricCertAuthority.GetNoc();
 
-            EXPECT_EQ(fabricTable.FabricCount(), 0);
-            EXPECT_EQ(fabricTable.AddNewPendingTrustedRootCert(rcac), CHIP_NO_ERROR);
+            NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 0);
+            NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.AddNewPendingTrustedRootCert(rcac));
             FabricIndex newFabricIndex = kUndefinedFabricIndex;
-            EXPECT_EQ(fabricTable.AddNewPendingFabricWithOperationalKeystore(noc, icac, kVendorId, &newFabricIndex), CHIP_NO_ERROR);
-            EXPECT_EQ(fabricTable.FabricCount(), 1);
-            EXPECT_EQ(newFabricIndex, 1);
+            NL_TEST_ASSERT_SUCCESS(inSuite,
+                                   fabricTable.AddNewPendingFabricWithOperationalKeystore(noc, icac, kVendorId, &newFabricIndex));
+            NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 1);
+            NL_TEST_ASSERT(inSuite, newFabricIndex == 1);
 
-            EXPECT_EQ(fabricTable.CommitPendingFabricData(), CHIP_NO_ERROR);
+            NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.CommitPendingFabricData());
 
             // Validate contents
             const auto * fabricInfo = fabricTable.FindFabricWithIndex(1);
-            ASSERT_NE(fabricInfo, nullptr);
-            Credentials::ChipCertificateSet certificates;
-            EXPECT_EQ(certificates.Init(1), CHIP_NO_ERROR);
-            EXPECT_EQ(certificates.LoadCert(rcac, BitFlags<CertDecodeFlags>(CertDecodeFlags::kIsTrustAnchor)), CHIP_NO_ERROR);
-            Crypto::P256PublicKey rcacPublicKey(certificates.GetCertSet()[0].mPublicKey);
+            NL_TEST_ASSERT(inSuite, fabricInfo != nullptr);
+            if (fabricInfo != nullptr)
+            {
+                Credentials::ChipCertificateSet certificates;
+                NL_TEST_ASSERT_SUCCESS(inSuite, certificates.Init(1));
+                NL_TEST_ASSERT_SUCCESS(inSuite,
+                                       certificates.LoadCert(rcac, BitFlags<CertDecodeFlags>(CertDecodeFlags::kIsTrustAnchor)));
+                Crypto::P256PublicKey rcacPublicKey(certificates.GetCertSet()[0].mPublicKey);
 
-            EXPECT_EQ(fabricInfo->GetFabricIndex(), 1);
-            EXPECT_EQ(fabricInfo->GetNodeId(), 55u);
-            EXPECT_EQ(fabricInfo->GetFabricId(), 1111u);
-            EXPECT_EQ(fabricInfo->GetVendorId(), kVendorId);
-            EXPECT_EQ(fabricInfo->GetFabricLabel().size(), 0u);
+                NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricIndex() == 1);
+                NL_TEST_ASSERT(inSuite, fabricInfo->GetNodeId() == 55);
+                NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricId() == 1111);
+                NL_TEST_ASSERT(inSuite, fabricInfo->GetVendorId() == kVendorId);
+                NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricLabel().size() == 0);
 
-            Crypto::P256PublicKey rootPublicKeyOfFabric;
-            EXPECT_EQ(fabricTable.FetchRootPubkey(newFabricIndex, rootPublicKeyOfFabric), CHIP_NO_ERROR);
-            EXPECT_TRUE(rootPublicKeyOfFabric.Matches(rcacPublicKey));
+                Crypto::P256PublicKey rootPublicKeyOfFabric;
+                NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.FetchRootPubkey(newFabricIndex, rootPublicKeyOfFabric));
+                NL_TEST_ASSERT(inSuite, rootPublicKeyOfFabric.Matches(rcacPublicKey));
+            }
 
             // Validate that fabric has the correct operational key by verifying a signature
             {
                 Crypto::P256ECDSASignature sig;
                 uint8_t message[] = { 'm', 's', 'g' };
 
-                EXPECT_EQ(VerifyCertificateSigningRequest(csrSpan.data(), csrSpan.size(), fIdx1PublicKey), CHIP_NO_ERROR);
+                NL_TEST_ASSERT_SUCCESS(inSuite, VerifyCertificateSigningRequest(csrSpan.data(), csrSpan.size(), fIdx1PublicKey));
 
-                EXPECT_EQ(fabricTable.SignWithOpKeypair(newFabricIndex, ByteSpan{ message }, sig), CHIP_NO_ERROR);
-                EXPECT_EQ(fIdx1PublicKey.ECDSA_validate_msg_signature(&message[0], sizeof(message), sig), CHIP_NO_ERROR);
+                NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.SignWithOpKeypair(newFabricIndex, ByteSpan{ message }, sig));
+                NL_TEST_ASSERT_SUCCESS(inSuite, fIdx1PublicKey.ECDSA_validate_msg_signature(&message[0], sizeof(message), sig));
             }
         }
 
@@ -1387,54 +1366,58 @@ TEST_F(TestFabricTable, TestPersistence)
 
             uint8_t csrBuf[chip::Crypto::kMIN_CSR_Buffer_Size];
             MutableByteSpan csrSpan{ csrBuf };
-            EXPECT_EQ(fabricTable.AllocatePendingOperationalKey(chip::NullOptional, csrSpan), CHIP_NO_ERROR);
+            NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.AllocatePendingOperationalKey(chip::NullOptional, csrSpan));
 
-            EXPECT_EQ(fabricCertAuthority.SetIncludeIcac(false).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus(),
-                      CHIP_NO_ERROR);
+            NL_TEST_ASSERT_SUCCESS(
+                inSuite, fabricCertAuthority.SetIncludeIcac(false).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus());
             ByteSpan rcac = fabricCertAuthority.GetRcac();
             ByteSpan noc  = fabricCertAuthority.GetNoc();
 
-            EXPECT_EQ(fabricTable.FabricCount(), 1);
-            EXPECT_EQ(fabricTable.AddNewPendingTrustedRootCert(rcac), CHIP_NO_ERROR);
+            NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 1);
+            NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.AddNewPendingTrustedRootCert(rcac));
             FabricIndex newFabricIndex = kUndefinedFabricIndex;
-            EXPECT_EQ(fabricTable.AddNewPendingFabricWithOperationalKeystore(noc, ByteSpan{}, kVendorId, &newFabricIndex),
-                      CHIP_NO_ERROR);
-            EXPECT_EQ(fabricTable.FabricCount(), 2);
-            EXPECT_EQ(newFabricIndex, 2);
+            NL_TEST_ASSERT_SUCCESS(
+                inSuite, fabricTable.AddNewPendingFabricWithOperationalKeystore(noc, ByteSpan{}, kVendorId, &newFabricIndex));
+            NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 2);
+            NL_TEST_ASSERT(inSuite, newFabricIndex == 2);
 
-            EXPECT_EQ(fabricTable.CommitPendingFabricData(), CHIP_NO_ERROR);
+            NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.CommitPendingFabricData());
 
             // Validate contents
             const auto * fabricInfo = fabricTable.FindFabricWithIndex(2);
-            ASSERT_NE(fabricInfo, nullptr);
-            Credentials::ChipCertificateSet certificates;
-            EXPECT_EQ(certificates.Init(1), CHIP_NO_ERROR);
-            EXPECT_EQ(certificates.LoadCert(rcac, BitFlags<CertDecodeFlags>(CertDecodeFlags::kIsTrustAnchor)), CHIP_NO_ERROR);
-            Crypto::P256PublicKey rcacPublicKey(certificates.GetCertSet()[0].mPublicKey);
+            NL_TEST_ASSERT(inSuite, fabricInfo != nullptr);
+            if (fabricInfo != nullptr)
+            {
+                Credentials::ChipCertificateSet certificates;
+                NL_TEST_ASSERT_SUCCESS(inSuite, certificates.Init(1));
+                NL_TEST_ASSERT_SUCCESS(inSuite,
+                                       certificates.LoadCert(rcac, BitFlags<CertDecodeFlags>(CertDecodeFlags::kIsTrustAnchor)));
+                Crypto::P256PublicKey rcacPublicKey(certificates.GetCertSet()[0].mPublicKey);
 
-            EXPECT_EQ(fabricInfo->GetFabricIndex(), 2);
-            EXPECT_EQ(fabricInfo->GetNodeId(), 66u);
-            EXPECT_EQ(fabricInfo->GetFabricId(), 2222u);
-            EXPECT_EQ(fabricInfo->GetVendorId(), kVendorId);
-            EXPECT_EQ(fabricInfo->GetFabricLabel().size(), 0u);
+                NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricIndex() == 2);
+                NL_TEST_ASSERT(inSuite, fabricInfo->GetNodeId() == 66);
+                NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricId() == 2222);
+                NL_TEST_ASSERT(inSuite, fabricInfo->GetVendorId() == kVendorId);
+                NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricLabel().size() == 0);
 
-            Crypto::P256PublicKey rootPublicKeyOfFabric;
-            EXPECT_EQ(fabricTable.FetchRootPubkey(newFabricIndex, rootPublicKeyOfFabric), CHIP_NO_ERROR);
-            EXPECT_TRUE(rootPublicKeyOfFabric.Matches(rcacPublicKey));
+                Crypto::P256PublicKey rootPublicKeyOfFabric;
+                NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.FetchRootPubkey(newFabricIndex, rootPublicKeyOfFabric));
+                NL_TEST_ASSERT(inSuite, rootPublicKeyOfFabric.Matches(rcacPublicKey));
+            }
 
             // Validate that fabric has the correct operational key by verifying a signature
             {
                 Crypto::P256ECDSASignature sig;
                 uint8_t message[] = { 'm', 's', 'g' };
 
-                EXPECT_EQ(VerifyCertificateSigningRequest(csrSpan.data(), csrSpan.size(), fIdx2PublicKey), CHIP_NO_ERROR);
+                NL_TEST_ASSERT_SUCCESS(inSuite, VerifyCertificateSigningRequest(csrSpan.data(), csrSpan.size(), fIdx2PublicKey));
 
-                EXPECT_EQ(fabricTable.SignWithOpKeypair(newFabricIndex, ByteSpan{ message }, sig), CHIP_NO_ERROR);
-                EXPECT_EQ(fIdx2PublicKey.ECDSA_validate_msg_signature(&message[0], sizeof(message), sig), CHIP_NO_ERROR);
+                NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.SignWithOpKeypair(newFabricIndex, ByteSpan{ message }, sig));
+                NL_TEST_ASSERT_SUCCESS(inSuite, fIdx2PublicKey.ECDSA_validate_msg_signature(&message[0], sizeof(message), sig));
             }
         }
 
-        EXPECT_EQ(fabricTable.FabricCount(), 2);
+        NL_TEST_ASSERT(inSuite, fabricTable.FabricCount() == 2);
 
         // Verify we can now see 2 fabrics with the iterator
         {
@@ -1446,44 +1429,44 @@ TEST_F(TestFabricTable, TestPersistence)
                 ++numFabricsIterated;
                 if (iterFabricInfo.GetFabricIndex() == 1)
                 {
-                    EXPECT_EQ(iterFabricInfo.GetNodeId(), 55u);
-                    EXPECT_EQ(iterFabricInfo.GetFabricId(), 1111u);
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetNodeId() == 55);
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetFabricId() == 1111);
                     saw1 = true;
                 }
                 if (iterFabricInfo.GetFabricIndex() == 2)
                 {
-                    EXPECT_EQ(iterFabricInfo.GetNodeId(), 66u);
-                    EXPECT_EQ(iterFabricInfo.GetFabricId(), 2222u);
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetNodeId() == 66);
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetFabricId() == 2222);
                     saw2 = true;
                 }
             }
 
-            EXPECT_EQ(numFabricsIterated, 2u);
-            EXPECT_TRUE(saw1);
-            EXPECT_TRUE(saw2);
+            NL_TEST_ASSERT(inSuite, numFabricsIterated == 2);
+            NL_TEST_ASSERT(inSuite, saw1 == true);
+            NL_TEST_ASSERT(inSuite, saw2 == true);
         }
 
         // Next fabric index should now be 3, since we added 1 and 2 above.
         {
             FabricIndex nextFabricIndex = kUndefinedFabricIndex;
-            EXPECT_EQ(fabricTable.PeekFabricIndexForNextAddition(nextFabricIndex), CHIP_NO_ERROR);
-            EXPECT_EQ(nextFabricIndex, 3);
+            NL_TEST_ASSERT(inSuite, fabricTable.PeekFabricIndexForNextAddition(nextFabricIndex) == CHIP_NO_ERROR);
+            NL_TEST_ASSERT_EQUALS(inSuite, nextFabricIndex, 3);
         }
     }
 
     // Global: Last known good time + fabric index = 2
     // Fabric 1111: Metadata, 1 opkey, RCAC/ICAC/NOC = 5
     // Fabric 2222: Metadata, 1 opkey, RCAC/NOC = 4
-    EXPECT_EQ(storage.GetNumKeys(), (2u + 5u + 4u));
+    NL_TEST_ASSERT(inSuite, storage.GetNumKeys() == (2 + 5 + 4));
 
     // Second scope: Validate that a fresh FabricTable loads the previously committed fabrics on Init.
     {
         // Initialize a FabricTable
         ScopedFabricTable fabricTableHolder;
-        EXPECT_EQ(fabricTableHolder.Init(&storage), CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, fabricTableHolder.Init(&storage) == CHIP_NO_ERROR);
         FabricTable & fabricTable = fabricTableHolder.GetFabricTable();
 
-        EXPECT_EQ(fabricTable.FabricCount(), 2);
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 2);
 
         // Verify we can see 2 fabrics with the iterator
         {
@@ -1495,53 +1478,57 @@ TEST_F(TestFabricTable, TestPersistence)
                 ++numFabricsIterated;
                 if (iterFabricInfo.GetFabricIndex() == 1)
                 {
-                    EXPECT_EQ(iterFabricInfo.GetNodeId(), 55u);
-                    EXPECT_EQ(iterFabricInfo.GetFabricId(), 1111u);
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetNodeId() == 55);
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetFabricId() == 1111);
                     saw1 = true;
                 }
                 if (iterFabricInfo.GetFabricIndex() == 2)
                 {
-                    EXPECT_EQ(iterFabricInfo.GetNodeId(), 66u);
-                    EXPECT_EQ(iterFabricInfo.GetFabricId(), 2222u);
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetNodeId() == 66);
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetFabricId() == 2222);
                     saw2 = true;
                 }
             }
 
-            EXPECT_EQ(numFabricsIterated, 2u);
-            EXPECT_TRUE(saw1);
-            EXPECT_TRUE(saw2);
+            NL_TEST_ASSERT(inSuite, numFabricsIterated == 2);
+            NL_TEST_ASSERT(inSuite, saw1 == true);
+            NL_TEST_ASSERT(inSuite, saw2 == true);
         }
 
         // Validate contents of Fabric 2222
         {
             uint8_t rcacBuf[Credentials::kMaxCHIPCertLength];
             MutableByteSpan rcacSpan{ rcacBuf };
-            EXPECT_EQ(fabricTable.FetchRootCert(2, rcacSpan), CHIP_NO_ERROR);
+            NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.FetchRootCert(2, rcacSpan));
 
             const auto * fabricInfo = fabricTable.FindFabricWithIndex(2);
-            ASSERT_NE(fabricInfo, nullptr);
-            Credentials::ChipCertificateSet certificates;
-            EXPECT_EQ(certificates.Init(1), CHIP_NO_ERROR);
-            EXPECT_EQ(certificates.LoadCert(rcacSpan, BitFlags<CertDecodeFlags>(CertDecodeFlags::kIsTrustAnchor)), CHIP_NO_ERROR);
-            Crypto::P256PublicKey rcacPublicKey(certificates.GetCertSet()[0].mPublicKey);
+            NL_TEST_ASSERT(inSuite, fabricInfo != nullptr);
+            if (fabricInfo != nullptr)
+            {
+                Credentials::ChipCertificateSet certificates;
+                NL_TEST_ASSERT_SUCCESS(inSuite, certificates.Init(1));
+                NL_TEST_ASSERT_SUCCESS(inSuite,
+                                       certificates.LoadCert(rcacSpan, BitFlags<CertDecodeFlags>(CertDecodeFlags::kIsTrustAnchor)));
+                Crypto::P256PublicKey rcacPublicKey(certificates.GetCertSet()[0].mPublicKey);
 
-            EXPECT_EQ(fabricInfo->GetFabricIndex(), 2);
-            EXPECT_EQ(fabricInfo->GetNodeId(), 66u);
-            EXPECT_EQ(fabricInfo->GetFabricId(), 2222u);
-            EXPECT_EQ(fabricInfo->GetVendorId(), kVendorId);
-            EXPECT_EQ(fabricInfo->GetFabricLabel().size(), 0u);
+                NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricIndex() == 2);
+                NL_TEST_ASSERT(inSuite, fabricInfo->GetNodeId() == 66);
+                NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricId() == 2222);
+                NL_TEST_ASSERT(inSuite, fabricInfo->GetVendorId() == kVendorId);
+                NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricLabel().size() == 0);
 
-            Crypto::P256PublicKey rootPublicKeyOfFabric;
-            EXPECT_EQ(fabricTable.FetchRootPubkey(2, rootPublicKeyOfFabric), CHIP_NO_ERROR);
-            EXPECT_TRUE(rootPublicKeyOfFabric.Matches(rcacPublicKey));
+                Crypto::P256PublicKey rootPublicKeyOfFabric;
+                NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.FetchRootPubkey(2, rootPublicKeyOfFabric));
+                NL_TEST_ASSERT(inSuite, rootPublicKeyOfFabric.Matches(rcacPublicKey));
+            }
 
             // Validate that fabric has the correct operational key by verifying a signature
             {
                 Crypto::P256ECDSASignature sig;
                 uint8_t message[] = { 'm', 's', 'g' };
 
-                EXPECT_EQ(fabricTable.SignWithOpKeypair(2, ByteSpan{ message }, sig), CHIP_NO_ERROR);
-                EXPECT_EQ(fIdx2PublicKey.ECDSA_validate_msg_signature(&message[0], sizeof(message), sig), CHIP_NO_ERROR);
+                NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.SignWithOpKeypair(2, ByteSpan{ message }, sig));
+                NL_TEST_ASSERT_SUCCESS(inSuite, fIdx2PublicKey.ECDSA_validate_msg_signature(&message[0], sizeof(message), sig));
             }
         }
 
@@ -1549,32 +1536,36 @@ TEST_F(TestFabricTable, TestPersistence)
         {
             uint8_t rcacBuf[Credentials::kMaxCHIPCertLength];
             MutableByteSpan rcacSpan{ rcacBuf };
-            EXPECT_EQ(fabricTable.FetchRootCert(1, rcacSpan), CHIP_NO_ERROR);
+            NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.FetchRootCert(1, rcacSpan));
 
             const auto * fabricInfo = fabricTable.FindFabricWithIndex(1);
-            ASSERT_NE(fabricInfo, nullptr);
-            Credentials::ChipCertificateSet certificates;
-            EXPECT_EQ(certificates.Init(1), CHIP_NO_ERROR);
-            EXPECT_EQ(certificates.LoadCert(rcacSpan, BitFlags<CertDecodeFlags>(CertDecodeFlags::kIsTrustAnchor)), CHIP_NO_ERROR);
-            Crypto::P256PublicKey rcacPublicKey(certificates.GetCertSet()[0].mPublicKey);
+            NL_TEST_ASSERT(inSuite, fabricInfo != nullptr);
+            if (fabricInfo != nullptr)
+            {
+                Credentials::ChipCertificateSet certificates;
+                NL_TEST_ASSERT_SUCCESS(inSuite, certificates.Init(1));
+                NL_TEST_ASSERT_SUCCESS(inSuite,
+                                       certificates.LoadCert(rcacSpan, BitFlags<CertDecodeFlags>(CertDecodeFlags::kIsTrustAnchor)));
+                Crypto::P256PublicKey rcacPublicKey(certificates.GetCertSet()[0].mPublicKey);
 
-            EXPECT_EQ(fabricInfo->GetFabricIndex(), 1);
-            EXPECT_EQ(fabricInfo->GetNodeId(), 55u);
-            EXPECT_EQ(fabricInfo->GetFabricId(), 1111u);
-            EXPECT_EQ(fabricInfo->GetVendorId(), kVendorId);
-            EXPECT_EQ(fabricInfo->GetFabricLabel().size(), 0u);
+                NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricIndex() == 1);
+                NL_TEST_ASSERT(inSuite, fabricInfo->GetNodeId() == 55);
+                NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricId() == 1111);
+                NL_TEST_ASSERT(inSuite, fabricInfo->GetVendorId() == kVendorId);
+                NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricLabel().size() == 0);
 
-            Crypto::P256PublicKey rootPublicKeyOfFabric;
-            EXPECT_EQ(fabricTable.FetchRootPubkey(1, rootPublicKeyOfFabric), CHIP_NO_ERROR);
-            EXPECT_TRUE(rootPublicKeyOfFabric.Matches(rcacPublicKey));
+                Crypto::P256PublicKey rootPublicKeyOfFabric;
+                NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.FetchRootPubkey(1, rootPublicKeyOfFabric));
+                NL_TEST_ASSERT(inSuite, rootPublicKeyOfFabric.Matches(rcacPublicKey));
+            }
 
             // Validate that fabric has the correct operational key by verifying a signature
             {
                 Crypto::P256ECDSASignature sig;
                 uint8_t message[] = { 'm', 's', 'g' };
 
-                EXPECT_EQ(fabricTable.SignWithOpKeypair(1, ByteSpan{ message }, sig), CHIP_NO_ERROR);
-                EXPECT_EQ(fIdx1PublicKey.ECDSA_validate_msg_signature(&message[0], sizeof(message), sig), CHIP_NO_ERROR);
+                NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.SignWithOpKeypair(1, ByteSpan{ message }, sig));
+                NL_TEST_ASSERT_SUCCESS(inSuite, fIdx1PublicKey.ECDSA_validate_msg_signature(&message[0], sizeof(message), sig));
             }
 
             // Validate that signing with Fabric index 2 fails to verify with fabric index 1
@@ -1582,39 +1573,40 @@ TEST_F(TestFabricTable, TestPersistence)
                 Crypto::P256ECDSASignature sig;
                 uint8_t message[] = { 'm', 's', 'g' };
 
-                EXPECT_EQ(fabricTable.SignWithOpKeypair(2, ByteSpan{ message }, sig), CHIP_NO_ERROR);
-                EXPECT_EQ(fIdx1PublicKey.ECDSA_validate_msg_signature(&message[0], sizeof(message), sig),
-                          CHIP_ERROR_INVALID_SIGNATURE);
+                NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.SignWithOpKeypair(2, ByteSpan{ message }, sig));
+                NL_TEST_ASSERT(inSuite,
+                               fIdx1PublicKey.ECDSA_validate_msg_signature(&message[0], sizeof(message), sig) ==
+                                   CHIP_ERROR_INVALID_SIGNATURE);
             }
         }
 
         // Validate that next fabric index is still 3;
         {
             FabricIndex nextFabricIndex = kUndefinedFabricIndex;
-            EXPECT_EQ(fabricTable.PeekFabricIndexForNextAddition(nextFabricIndex), CHIP_NO_ERROR);
-            EXPECT_EQ(nextFabricIndex, 3);
+            NL_TEST_ASSERT(inSuite, fabricTable.PeekFabricIndexForNextAddition(nextFabricIndex) == CHIP_NO_ERROR);
+            NL_TEST_ASSERT_EQUALS(inSuite, nextFabricIndex, 3);
         }
     }
 }
 
-TEST_F(TestFabricTable, TestAddNocFailSafe)
+void TestAddNocFailSafe(nlTestSuite * inSuite, void * inContext)
 {
     Credentials::TestOnlyLocalCertificateAuthority fabric11CertAuthority;
     Credentials::TestOnlyLocalCertificateAuthority fabric44CertAuthority;
 
     chip::TestPersistentStorageDelegate storage;
 
-    EXPECT_TRUE(fabric11CertAuthority.Init().IsSuccess());
-    EXPECT_TRUE(fabric44CertAuthority.Init().IsSuccess());
+    NL_TEST_ASSERT(inSuite, fabric11CertAuthority.Init().IsSuccess());
+    NL_TEST_ASSERT(inSuite, fabric44CertAuthority.Init().IsSuccess());
 
     constexpr uint16_t kVendorId = 0xFFF1u;
 
     // Initialize a fabric table.
     ScopedFabricTable fabricTableHolder;
-    EXPECT_EQ(fabricTableHolder.Init(&storage), CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, fabricTableHolder.Init(&storage) == CHIP_NO_ERROR);
     FabricTable & fabricTable = fabricTableHolder.GetFabricTable();
 
-    EXPECT_EQ(fabricTable.FabricCount(), 0);
+    NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 0);
 
     size_t numFabricsIterated = 0;
 
@@ -1627,30 +1619,30 @@ TEST_F(TestFabricTable, TestAddNocFailSafe)
 
         uint8_t csrBuf[chip::Crypto::kMIN_CSR_Buffer_Size];
         MutableByteSpan csrSpan{ csrBuf };
-        EXPECT_EQ(fabricTable.AllocatePendingOperationalKey(chip::NullOptional, csrSpan), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.AllocatePendingOperationalKey(chip::NullOptional, csrSpan));
 
-        EXPECT_EQ(fabric11CertAuthority.SetIncludeIcac(false).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus(),
-                  CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite,
+                               fabric11CertAuthority.SetIncludeIcac(false).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus());
         ByteSpan rcac = fabric11CertAuthority.GetRcac();
         ByteSpan noc  = fabric11CertAuthority.GetNoc();
 
-        EXPECT_EQ(fabricTable.AddNewPendingTrustedRootCert(rcac), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.AddNewPendingTrustedRootCert(rcac));
         FabricIndex newFabricIndex = kUndefinedFabricIndex;
 
         {
             FabricIndex nextFabricIndex = kUndefinedFabricIndex;
-            EXPECT_EQ(fabricTable.PeekFabricIndexForNextAddition(nextFabricIndex), CHIP_NO_ERROR);
-            EXPECT_EQ(nextFabricIndex, 1);
+            NL_TEST_ASSERT(inSuite, fabricTable.PeekFabricIndexForNextAddition(nextFabricIndex) == CHIP_NO_ERROR);
+            NL_TEST_ASSERT_EQUALS(inSuite, nextFabricIndex, 1);
         }
 
-        EXPECT_EQ(fabricTable.FabricCount(), 0);
-        EXPECT_EQ(fabricTable.AddNewPendingFabricWithOperationalKeystore(noc, ByteSpan{}, kVendorId, &newFabricIndex),
-                  CHIP_NO_ERROR);
-        EXPECT_EQ(newFabricIndex, 1);
-        EXPECT_EQ(fabricTable.FabricCount(), 1);
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 0);
+        NL_TEST_ASSERT_SUCCESS(inSuite,
+                               fabricTable.AddNewPendingFabricWithOperationalKeystore(noc, ByteSpan{}, kVendorId, &newFabricIndex));
+        NL_TEST_ASSERT(inSuite, newFabricIndex == 1);
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 1);
 
         // No storage yet
-        EXPECT_EQ(storage.GetNumKeys(), numStorageKeysAtStart); // Nothing yet
+        NL_TEST_ASSERT(inSuite, storage.GetNumKeys() == numStorageKeysAtStart); // Nothing yet
 
         // Validate iterator sees pending
         {
@@ -1661,23 +1653,23 @@ TEST_F(TestFabricTable, TestAddNocFailSafe)
                 ++numFabricsIterated;
                 if (iterFabricInfo.GetFabricIndex() == 1)
                 {
-                    EXPECT_EQ(iterFabricInfo.GetNodeId(), nodeId);
-                    EXPECT_EQ(iterFabricInfo.GetFabricId(), fabricId);
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetNodeId() == nodeId);
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetFabricId() == fabricId);
                     saw1 = true;
                 }
             }
 
-            EXPECT_EQ(numFabricsIterated, 1u);
-            EXPECT_TRUE(saw1);
+            NL_TEST_ASSERT(inSuite, numFabricsIterated == 1);
+            NL_TEST_ASSERT(inSuite, saw1 == true);
         }
 
         // Revert, should see nothing yet
         fabricTable.RevertPendingFabricData();
 
-        EXPECT_EQ(fabricTable.FabricCount(), 0);
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 0);
 
         // No started except fabric index metadata
-        EXPECT_EQ(storage.GetNumKeys(), (numStorageKeysAtStart + 1));
+        NL_TEST_ASSERT(inSuite, storage.GetNumKeys() == (numStorageKeysAtStart + 1));
 
         // Validate iterator sees nothing
         {
@@ -1692,15 +1684,15 @@ TEST_F(TestFabricTable, TestAddNocFailSafe)
                 }
             }
 
-            EXPECT_EQ(numFabricsIterated, 0u);
-            EXPECT_FALSE(saw1);
+            NL_TEST_ASSERT(inSuite, numFabricsIterated == 0);
+            NL_TEST_ASSERT(inSuite, saw1 == false);
         }
 
         // Validate next fabric index has not changed.
         {
             FabricIndex nextFabricIndex = kUndefinedFabricIndex;
-            EXPECT_EQ(fabricTable.PeekFabricIndexForNextAddition(nextFabricIndex), CHIP_NO_ERROR);
-            EXPECT_EQ(nextFabricIndex, 1);
+            NL_TEST_ASSERT(inSuite, fabricTable.PeekFabricIndexForNextAddition(nextFabricIndex) == CHIP_NO_ERROR);
+            NL_TEST_ASSERT_EQUALS(inSuite, nextFabricIndex, 1);
         }
     }
 
@@ -1713,49 +1705,54 @@ TEST_F(TestFabricTable, TestAddNocFailSafe)
 
         uint8_t csrBuf[chip::Crypto::kMIN_CSR_Buffer_Size];
         MutableByteSpan csrSpan{ csrBuf };
-        EXPECT_EQ(fabricTable.AllocatePendingOperationalKey(chip::NullOptional, csrSpan), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.AllocatePendingOperationalKey(chip::NullOptional, csrSpan));
 
-        EXPECT_EQ(fabric44CertAuthority.SetIncludeIcac(true).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus(),
-                  CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite,
+                               fabric44CertAuthority.SetIncludeIcac(true).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus());
         ByteSpan rcac = fabric44CertAuthority.GetRcac();
         ByteSpan icac = fabric44CertAuthority.GetIcac();
         ByteSpan noc  = fabric44CertAuthority.GetNoc();
 
-        EXPECT_EQ(fabricTable.FabricCount(), 0);
-        EXPECT_EQ(fabricTable.AddNewPendingTrustedRootCert(rcac), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 0);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.AddNewPendingTrustedRootCert(rcac));
         FabricIndex newFabricIndex = kUndefinedFabricIndex;
 
-        EXPECT_EQ(fabricTable.FabricCount(), 0);
-        EXPECT_EQ(fabricTable.AddNewPendingFabricWithOperationalKeystore(noc, icac, kVendorId, &newFabricIndex), CHIP_NO_ERROR);
-        EXPECT_EQ(fabricTable.FabricCount(), 1);
-        EXPECT_EQ(newFabricIndex, 1);
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 0);
+        NL_TEST_ASSERT_SUCCESS(inSuite,
+                               fabricTable.AddNewPendingFabricWithOperationalKeystore(noc, icac, kVendorId, &newFabricIndex));
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 1);
+        NL_TEST_ASSERT(inSuite, newFabricIndex == 1);
         // No storage yet
-        EXPECT_EQ(storage.GetNumKeys(), numStorageAfterRevert);
+        NL_TEST_ASSERT(inSuite, storage.GetNumKeys() == numStorageAfterRevert);
 
         // Commit, now storage should have keys
-        EXPECT_EQ(fabricTable.CommitPendingFabricData(), CHIP_NO_ERROR);
-        EXPECT_EQ(fabricTable.FabricCount(), 1);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.CommitPendingFabricData());
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 1);
 
-        EXPECT_EQ(storage.GetNumKeys(),
-                  (numStorageAfterRevert + 5)); // 3 opcerts + fabric metadata + 1 operational key
+        NL_TEST_ASSERT_EQUALS(inSuite, storage.GetNumKeys(),
+                              (numStorageAfterRevert + 5)); // 3 opcerts + fabric metadata + 1 operational key
 
         // Validate contents
         const auto * fabricInfo = fabricTable.FindFabricWithIndex(1);
-        ASSERT_NE(fabricInfo, nullptr);
-        Credentials::ChipCertificateSet certificates;
-        EXPECT_EQ(certificates.Init(1), CHIP_NO_ERROR);
-        EXPECT_EQ(certificates.LoadCert(rcac, BitFlags<CertDecodeFlags>(CertDecodeFlags::kIsTrustAnchor)), CHIP_NO_ERROR);
-        Crypto::P256PublicKey rcacPublicKey(certificates.GetCertSet()[0].mPublicKey);
+        NL_TEST_ASSERT(inSuite, fabricInfo != nullptr);
+        if (fabricInfo != nullptr)
+        {
+            Credentials::ChipCertificateSet certificates;
+            NL_TEST_ASSERT_SUCCESS(inSuite, certificates.Init(1));
+            NL_TEST_ASSERT_SUCCESS(inSuite,
+                                   certificates.LoadCert(rcac, BitFlags<CertDecodeFlags>(CertDecodeFlags::kIsTrustAnchor)));
+            Crypto::P256PublicKey rcacPublicKey(certificates.GetCertSet()[0].mPublicKey);
 
-        EXPECT_EQ(fabricInfo->GetFabricIndex(), newFabricIndex);
-        EXPECT_EQ(fabricInfo->GetNodeId(), nodeId);
-        EXPECT_EQ(fabricInfo->GetFabricId(), fabricId);
-        EXPECT_EQ(fabricInfo->GetVendorId(), kVendorId);
-        EXPECT_EQ(fabricInfo->GetFabricLabel().size(), 0u);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricIndex() == newFabricIndex);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetNodeId() == nodeId);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricId() == fabricId);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetVendorId() == kVendorId);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricLabel().size() == 0);
 
-        Crypto::P256PublicKey rootPublicKeyOfFabric;
-        EXPECT_EQ(fabricTable.FetchRootPubkey(newFabricIndex, rootPublicKeyOfFabric), CHIP_NO_ERROR);
-        EXPECT_TRUE(rootPublicKeyOfFabric.Matches(rcacPublicKey));
+            Crypto::P256PublicKey rootPublicKeyOfFabric;
+            NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.FetchRootPubkey(newFabricIndex, rootPublicKeyOfFabric));
+            NL_TEST_ASSERT(inSuite, rootPublicKeyOfFabric.Matches(rcacPublicKey));
+        }
 
         // Validate that fabric has the correct operational key by verifying a signature
         {
@@ -1763,10 +1760,10 @@ TEST_F(TestFabricTable, TestAddNocFailSafe)
             uint8_t message[] = { 'm', 's', 'g' };
 
             Crypto::P256PublicKey nocPubKey;
-            EXPECT_EQ(VerifyCertificateSigningRequest(csrSpan.data(), csrSpan.size(), nocPubKey), CHIP_NO_ERROR);
+            NL_TEST_ASSERT_SUCCESS(inSuite, VerifyCertificateSigningRequest(csrSpan.data(), csrSpan.size(), nocPubKey));
 
-            EXPECT_EQ(fabricTable.SignWithOpKeypair(newFabricIndex, ByteSpan{ message }, sig), CHIP_NO_ERROR);
-            EXPECT_EQ(nocPubKey.ECDSA_validate_msg_signature(&message[0], sizeof(message), sig), CHIP_NO_ERROR);
+            NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.SignWithOpKeypair(newFabricIndex, ByteSpan{ message }, sig));
+            NL_TEST_ASSERT_SUCCESS(inSuite, nocPubKey.ECDSA_validate_msg_signature(&message[0], sizeof(message), sig));
         }
 
         // Verify we can now see the fabric with the iterator
@@ -1778,14 +1775,14 @@ TEST_F(TestFabricTable, TestAddNocFailSafe)
                 ++numFabricsIterated;
                 if (iterFabricInfo.GetFabricIndex() == 1)
                 {
-                    EXPECT_EQ(iterFabricInfo.GetNodeId(), 999u);
-                    EXPECT_EQ(iterFabricInfo.GetFabricId(), 44u);
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetNodeId() == 999);
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetFabricId() == 44);
                     saw1 = true;
                 }
             }
 
-            EXPECT_EQ(numFabricsIterated, 1u);
-            EXPECT_TRUE(saw1);
+            NL_TEST_ASSERT(inSuite, numFabricsIterated == 1);
+            NL_TEST_ASSERT(inSuite, saw1 == true);
         }
     }
 
@@ -1798,8 +1795,8 @@ TEST_F(TestFabricTable, TestAddNocFailSafe)
         fabricTable.RevertPendingFabricData();
 
         // No change of storage
-        EXPECT_EQ(fabricTable.FabricCount(), 1);
-        EXPECT_EQ(storage.GetNumKeys(), numStorageAfterAdd);
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 1);
+        NL_TEST_ASSERT(inSuite, storage.GetNumKeys() == numStorageAfterAdd);
 
         // Verify we can still see the fabric with the iterator
         {
@@ -1810,19 +1807,19 @@ TEST_F(TestFabricTable, TestAddNocFailSafe)
                 ++numFabricsIterated;
                 if (iterFabricInfo.GetFabricIndex() == 1)
                 {
-                    EXPECT_EQ(iterFabricInfo.GetNodeId(), 999u);
-                    EXPECT_EQ(iterFabricInfo.GetFabricId(), 44u);
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetNodeId() == 999);
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetFabricId() == 44);
                     saw1 = true;
                 }
             }
 
-            EXPECT_EQ(numFabricsIterated, 1u);
-            EXPECT_TRUE(saw1);
+            NL_TEST_ASSERT(inSuite, numFabricsIterated == 1);
+            NL_TEST_ASSERT(inSuite, saw1 == true);
         }
     }
 }
 
-TEST_F(TestFabricTable, TestUpdateNocFailSafe)
+void TestUpdateNocFailSafe(nlTestSuite * inSuite, void * inContext)
 {
     Credentials::TestOnlyLocalCertificateAuthority fabric11CertAuthority;
     Credentials::TestOnlyLocalCertificateAuthority fabric44CertAuthority;
@@ -1831,17 +1828,17 @@ TEST_F(TestFabricTable, TestUpdateNocFailSafe)
 
     storage.SetLoggingLevel(chip::TestPersistentStorageDelegate::LoggingLevel::kLogMutation);
 
-    EXPECT_TRUE(fabric11CertAuthority.Init().IsSuccess());
-    EXPECT_TRUE(fabric44CertAuthority.Init().IsSuccess());
+    NL_TEST_ASSERT(inSuite, fabric11CertAuthority.Init().IsSuccess());
+    NL_TEST_ASSERT(inSuite, fabric44CertAuthority.Init().IsSuccess());
 
     constexpr uint16_t kVendorId = 0xFFF1u;
 
     // Initialize a fabric table.
     ScopedFabricTable fabricTableHolder;
-    EXPECT_EQ(fabricTableHolder.Init(&storage), CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, fabricTableHolder.Init(&storage) == CHIP_NO_ERROR);
     FabricTable & fabricTable = fabricTableHolder.GetFabricTable();
 
-    EXPECT_EQ(fabricTable.FabricCount(), 0);
+    NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 0);
 
     size_t numFabricsIterated = 0;
 
@@ -1854,49 +1851,54 @@ TEST_F(TestFabricTable, TestUpdateNocFailSafe)
 
         uint8_t csrBuf[chip::Crypto::kMIN_CSR_Buffer_Size];
         MutableByteSpan csrSpan{ csrBuf };
-        EXPECT_EQ(fabricTable.AllocatePendingOperationalKey(chip::NullOptional, csrSpan), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.AllocatePendingOperationalKey(chip::NullOptional, csrSpan));
 
-        EXPECT_EQ(fabric44CertAuthority.SetIncludeIcac(true).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus(),
-                  CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite,
+                               fabric44CertAuthority.SetIncludeIcac(true).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus());
         ByteSpan rcac = fabric44CertAuthority.GetRcac();
         ByteSpan icac = fabric44CertAuthority.GetIcac();
         ByteSpan noc  = fabric44CertAuthority.GetNoc();
 
-        EXPECT_EQ(fabricTable.FabricCount(), 0);
-        EXPECT_EQ(fabricTable.AddNewPendingTrustedRootCert(rcac), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 0);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.AddNewPendingTrustedRootCert(rcac));
         FabricIndex newFabricIndex = kUndefinedFabricIndex;
 
-        EXPECT_EQ(fabricTable.FabricCount(), 0);
-        EXPECT_EQ(fabricTable.AddNewPendingFabricWithOperationalKeystore(noc, icac, kVendorId, &newFabricIndex), CHIP_NO_ERROR);
-        EXPECT_EQ(fabricTable.FabricCount(), 1);
-        EXPECT_EQ(newFabricIndex, 1);
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 0);
+        NL_TEST_ASSERT_SUCCESS(inSuite,
+                               fabricTable.AddNewPendingFabricWithOperationalKeystore(noc, icac, kVendorId, &newFabricIndex));
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 1);
+        NL_TEST_ASSERT(inSuite, newFabricIndex == 1);
         // No storage yet
-        EXPECT_EQ(storage.GetNumKeys(), numStorageKeysAtStart);
+        NL_TEST_ASSERT(inSuite, storage.GetNumKeys() == numStorageKeysAtStart);
 
         // Commit, now storage should have keys
-        EXPECT_EQ(fabricTable.CommitPendingFabricData(), CHIP_NO_ERROR);
-        EXPECT_EQ(fabricTable.FabricCount(), 1);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.CommitPendingFabricData());
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 1);
 
-        EXPECT_EQ(storage.GetNumKeys(),
-                  (numStorageKeysAtStart + 6)); // 3 opcerts + fabric metadata + 1 operational key + LKGT + fabric index
+        NL_TEST_ASSERT_EQUALS(inSuite, storage.GetNumKeys(),
+                              (numStorageKeysAtStart + 6)); // 3 opcerts + fabric metadata + 1 operational key + LKGT + fabric index
 
         // Validate contents
         const auto * fabricInfo = fabricTable.FindFabricWithIndex(1);
-        ASSERT_NE(fabricInfo, nullptr);
-        Credentials::ChipCertificateSet certificates;
-        EXPECT_EQ(certificates.Init(1), CHIP_NO_ERROR);
-        EXPECT_EQ(certificates.LoadCert(rcac, BitFlags<CertDecodeFlags>(CertDecodeFlags::kIsTrustAnchor)), CHIP_NO_ERROR);
-        Crypto::P256PublicKey rcacPublicKey(certificates.GetCertSet()[0].mPublicKey);
+        NL_TEST_ASSERT(inSuite, fabricInfo != nullptr);
+        if (fabricInfo != nullptr)
+        {
+            Credentials::ChipCertificateSet certificates;
+            NL_TEST_ASSERT_SUCCESS(inSuite, certificates.Init(1));
+            NL_TEST_ASSERT_SUCCESS(inSuite,
+                                   certificates.LoadCert(rcac, BitFlags<CertDecodeFlags>(CertDecodeFlags::kIsTrustAnchor)));
+            Crypto::P256PublicKey rcacPublicKey(certificates.GetCertSet()[0].mPublicKey);
 
-        EXPECT_EQ(fabricInfo->GetFabricIndex(), newFabricIndex);
-        EXPECT_EQ(fabricInfo->GetNodeId(), nodeId);
-        EXPECT_EQ(fabricInfo->GetFabricId(), fabricId);
-        EXPECT_EQ(fabricInfo->GetVendorId(), kVendorId);
-        EXPECT_EQ(fabricInfo->GetFabricLabel().size(), 0u);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricIndex() == newFabricIndex);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetNodeId() == nodeId);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricId() == fabricId);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetVendorId() == kVendorId);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricLabel().size() == 0);
 
-        Crypto::P256PublicKey rootPublicKeyOfFabric;
-        EXPECT_EQ(fabricTable.FetchRootPubkey(newFabricIndex, rootPublicKeyOfFabric), CHIP_NO_ERROR);
-        EXPECT_TRUE(rootPublicKeyOfFabric.Matches(rcacPublicKey));
+            Crypto::P256PublicKey rootPublicKeyOfFabric;
+            NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.FetchRootPubkey(newFabricIndex, rootPublicKeyOfFabric));
+            NL_TEST_ASSERT(inSuite, rootPublicKeyOfFabric.Matches(rcacPublicKey));
+        }
 
         // Validate that fabric has the correct operational key by verifying a signature
         {
@@ -1904,10 +1906,10 @@ TEST_F(TestFabricTable, TestUpdateNocFailSafe)
             uint8_t message[] = { 'm', 's', 'g' };
 
             Crypto::P256PublicKey nocPubKey;
-            EXPECT_EQ(VerifyCertificateSigningRequest(csrSpan.data(), csrSpan.size(), nocPubKey), CHIP_NO_ERROR);
+            NL_TEST_ASSERT_SUCCESS(inSuite, VerifyCertificateSigningRequest(csrSpan.data(), csrSpan.size(), nocPubKey));
 
-            EXPECT_EQ(fabricTable.SignWithOpKeypair(newFabricIndex, ByteSpan{ message }, sig), CHIP_NO_ERROR);
-            EXPECT_EQ(nocPubKey.ECDSA_validate_msg_signature(&message[0], sizeof(message), sig), CHIP_NO_ERROR);
+            NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.SignWithOpKeypair(newFabricIndex, ByteSpan{ message }, sig));
+            NL_TEST_ASSERT_SUCCESS(inSuite, nocPubKey.ECDSA_validate_msg_signature(&message[0], sizeof(message), sig));
         }
 
         // Verify we can now see the fabric with the iterator
@@ -1919,14 +1921,14 @@ TEST_F(TestFabricTable, TestUpdateNocFailSafe)
                 ++numFabricsIterated;
                 if (iterFabricInfo.GetFabricIndex() == 1)
                 {
-                    EXPECT_EQ(iterFabricInfo.GetNodeId(), 999u);
-                    EXPECT_EQ(iterFabricInfo.GetFabricId(), 44u);
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetNodeId() == 999);
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetFabricId() == 44);
                     saw1 = true;
                 }
             }
 
-            EXPECT_EQ(numFabricsIterated, 1u);
-            EXPECT_TRUE(saw1);
+            NL_TEST_ASSERT(inSuite, numFabricsIterated == 1);
+            NL_TEST_ASSERT(inSuite, saw1 == true);
         }
     }
 
@@ -1941,24 +1943,21 @@ TEST_F(TestFabricTable, TestUpdateNocFailSafe)
         uint8_t csrBuf[chip::Crypto::kMIN_CSR_Buffer_Size];
         MutableByteSpan csrSpan{ csrBuf };
 
-        EXPECT_EQ(fabricTable.GetPendingNewFabricIndex(), kUndefinedFabricIndex);
-
         // Make sure to tag fabric index to pending opkey: otherwise the UpdateNOC fails
-        EXPECT_EQ(fabricTable.AllocatePendingOperationalKey(chip::MakeOptional(static_cast<FabricIndex>(1)), csrSpan),
-                  CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite,
+                               fabricTable.AllocatePendingOperationalKey(chip::MakeOptional(static_cast<FabricIndex>(1)), csrSpan));
 
-        EXPECT_EQ(fabric44CertAuthority.SetIncludeIcac(false).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus(),
-                  CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite,
+                               fabric44CertAuthority.SetIncludeIcac(false).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus());
         ByteSpan rcac = fabric44CertAuthority.GetRcac();
         ByteSpan noc  = fabric44CertAuthority.GetNoc();
 
-        EXPECT_EQ(fabricTable.FabricCount(), 1);
-        EXPECT_EQ(fabricTable.UpdatePendingFabricWithOperationalKeystore(1, noc, ByteSpan{}), CHIP_NO_ERROR);
-        EXPECT_EQ(fabricTable.GetPendingNewFabricIndex(), kUndefinedFabricIndex);
-        EXPECT_EQ(fabricTable.FabricCount(), 1);
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 1);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.UpdatePendingFabricWithOperationalKeystore(1, noc, ByteSpan{}));
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 1);
 
         // No storage yet
-        EXPECT_EQ(storage.GetNumKeys(), numStorageAfterAdd);
+        NL_TEST_ASSERT(inSuite, storage.GetNumKeys() == numStorageAfterAdd);
 
         // Validate iterator sees the pending data
         {
@@ -1969,59 +1968,62 @@ TEST_F(TestFabricTable, TestUpdateNocFailSafe)
                 ++numFabricsIterated;
                 if (iterFabricInfo.GetFabricIndex() == 1)
                 {
-                    EXPECT_EQ(iterFabricInfo.GetNodeId(), 1000u);
-                    EXPECT_EQ(iterFabricInfo.GetFabricId(), 44u);
-                    EXPECT_TRUE(iterFabricInfo.ShouldAdvertiseIdentity());
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetNodeId() == 1000);
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetFabricId() == 44);
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.ShouldAdvertiseIdentity());
                     saw1 = true;
                 }
             }
 
-            EXPECT_EQ(numFabricsIterated, 1u);
-            EXPECT_TRUE(saw1);
+            NL_TEST_ASSERT(inSuite, numFabricsIterated == 1);
+            NL_TEST_ASSERT(inSuite, saw1 == true);
         }
 
         // Revert, should see Node ID 999 again
         fabricTable.RevertPendingFabricData();
-        EXPECT_EQ(fabricTable.FabricCount(), 1);
-        EXPECT_EQ(fabricTable.GetPendingNewFabricIndex(), kUndefinedFabricIndex);
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 1);
 
-        EXPECT_EQ(storage.GetNumKeys(), numStorageAfterAdd);
+        NL_TEST_ASSERT_EQUALS(inSuite, storage.GetNumKeys(), numStorageAfterAdd);
 
         // Validate contents
         const auto * fabricInfo = fabricTable.FindFabricWithIndex(1);
-        ASSERT_NE(fabricInfo, nullptr);
+        NL_TEST_ASSERT(inSuite, fabricInfo != nullptr);
+        if (fabricInfo != nullptr)
         {
             Credentials::ChipCertificateSet certificates;
-            EXPECT_EQ(certificates.Init(1), CHIP_NO_ERROR);
-            EXPECT_EQ(certificates.LoadCert(rcac, BitFlags<CertDecodeFlags>(CertDecodeFlags::kIsTrustAnchor)), CHIP_NO_ERROR);
+            NL_TEST_ASSERT_SUCCESS(inSuite, certificates.Init(1));
+            NL_TEST_ASSERT_SUCCESS(inSuite,
+                                   certificates.LoadCert(rcac, BitFlags<CertDecodeFlags>(CertDecodeFlags::kIsTrustAnchor)));
             Crypto::P256PublicKey rcacPublicKey(certificates.GetCertSet()[0].mPublicKey);
 
-            EXPECT_EQ(fabricInfo->GetFabricIndex(), fabricIndex);
-            EXPECT_EQ(fabricInfo->GetNodeId(), 999u);
-            EXPECT_EQ(fabricInfo->GetFabricId(), 44u);
-            EXPECT_EQ(fabricInfo->GetVendorId(), kVendorId);
-            EXPECT_EQ(fabricInfo->GetFabricLabel().size(), 0u);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricIndex() == fabricIndex);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetNodeId() == 999);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricId() == 44);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetVendorId() == kVendorId);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricLabel().size() == 0);
 
             Crypto::P256PublicKey rootPublicKeyOfFabric;
-            EXPECT_EQ(fabricTable.FetchRootPubkey(fabricIndex, rootPublicKeyOfFabric), CHIP_NO_ERROR);
-            EXPECT_TRUE(rootPublicKeyOfFabric.Matches(rcacPublicKey));
+            NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.FetchRootPubkey(fabricIndex, rootPublicKeyOfFabric));
+            NL_TEST_ASSERT(inSuite, rootPublicKeyOfFabric.Matches(rcacPublicKey));
         }
 
         // Validate that fabric has the correct operational key by verifying a signature
         {
             uint8_t nocBuf[Credentials::kMaxCHIPCertLength];
             MutableByteSpan nocSpan{ nocBuf };
-            EXPECT_EQ(fabricTable.FetchNOCCert(1, nocSpan), CHIP_NO_ERROR);
+            NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.FetchNOCCert(1, nocSpan));
+
             Credentials::ChipCertificateSet certificates;
-            EXPECT_EQ(certificates.Init(1), CHIP_NO_ERROR);
-            EXPECT_EQ(certificates.LoadCert(nocSpan, BitFlags<CertDecodeFlags>(CertDecodeFlags::kIsTrustAnchor)), CHIP_NO_ERROR);
+            NL_TEST_ASSERT_SUCCESS(inSuite, certificates.Init(1));
+            NL_TEST_ASSERT_SUCCESS(inSuite,
+                                   certificates.LoadCert(nocSpan, BitFlags<CertDecodeFlags>(CertDecodeFlags::kIsTrustAnchor)));
             Crypto::P256PublicKey nocPubKey(certificates.GetCertSet()[0].mPublicKey);
 
             Crypto::P256ECDSASignature sig;
             uint8_t message[] = { 'm', 's', 'g' };
 
-            EXPECT_EQ(fabricTable.SignWithOpKeypair(fabricIndex, ByteSpan{ message }, sig), CHIP_NO_ERROR);
-            EXPECT_EQ(nocPubKey.ECDSA_validate_msg_signature(&message[0], sizeof(message), sig), CHIP_NO_ERROR);
+            NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.SignWithOpKeypair(fabricIndex, ByteSpan{ message }, sig));
+            NL_TEST_ASSERT_SUCCESS(inSuite, nocPubKey.ECDSA_validate_msg_signature(&message[0], sizeof(message), sig));
         }
 
         // Validate iterator sees the previous fabric
@@ -2033,14 +2035,14 @@ TEST_F(TestFabricTable, TestUpdateNocFailSafe)
                 ++numFabricsIterated;
                 if (iterFabricInfo.GetFabricIndex() == 1)
                 {
-                    EXPECT_EQ(iterFabricInfo.GetNodeId(), 999u);
-                    EXPECT_EQ(iterFabricInfo.GetFabricId(), 44u);
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetNodeId() == 999);
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetFabricId() == 44);
                     saw1 = true;
                 }
             }
 
-            EXPECT_EQ(numFabricsIterated, 1u);
-            EXPECT_TRUE(saw1);
+            NL_TEST_ASSERT(inSuite, numFabricsIterated == 1);
+            NL_TEST_ASSERT(inSuite, saw1 == true);
         }
     }
 
@@ -2054,20 +2056,20 @@ TEST_F(TestFabricTable, TestUpdateNocFailSafe)
         MutableByteSpan csrSpan{ csrBuf };
 
         // Make sure to tag fabric index to pending opkey: otherwise the UpdateNOC fails
-        EXPECT_EQ(fabricTable.AllocatePendingOperationalKey(chip::MakeOptional(static_cast<FabricIndex>(1)), csrSpan),
-                  CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite,
+                               fabricTable.AllocatePendingOperationalKey(chip::MakeOptional(static_cast<FabricIndex>(1)), csrSpan));
 
-        EXPECT_EQ(fabric44CertAuthority.SetIncludeIcac(false).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus(),
-                  CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite,
+                               fabric44CertAuthority.SetIncludeIcac(false).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus());
         ByteSpan rcac = fabric44CertAuthority.GetRcac();
         ByteSpan noc  = fabric44CertAuthority.GetNoc();
 
-        EXPECT_EQ(fabricTable.FabricCount(), 1);
-        EXPECT_EQ(fabricTable.UpdatePendingFabricWithOperationalKeystore(1, noc, ByteSpan{}), CHIP_NO_ERROR);
-        EXPECT_EQ(fabricTable.FabricCount(), 1);
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 1);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.UpdatePendingFabricWithOperationalKeystore(1, noc, ByteSpan{}));
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 1);
 
         // No storage yet
-        EXPECT_EQ(storage.GetNumKeys(), numStorageAfterAdd);
+        NL_TEST_ASSERT(inSuite, storage.GetNumKeys() == numStorageAfterAdd);
 
         // Validate iterator sees the pending data
         {
@@ -2078,51 +2080,55 @@ TEST_F(TestFabricTable, TestUpdateNocFailSafe)
                 ++numFabricsIterated;
                 if (iterFabricInfo.GetFabricIndex() == 1)
                 {
-                    EXPECT_EQ(iterFabricInfo.GetNodeId(), 1001u);
-                    EXPECT_EQ(iterFabricInfo.GetFabricId(), 44u);
-                    EXPECT_TRUE(iterFabricInfo.ShouldAdvertiseIdentity());
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetNodeId() == 1001);
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetFabricId() == 44);
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.ShouldAdvertiseIdentity());
                     saw1 = true;
                 }
             }
 
-            EXPECT_EQ(numFabricsIterated, 1u);
-            EXPECT_TRUE(saw1);
+            NL_TEST_ASSERT(inSuite, numFabricsIterated == 1);
+            NL_TEST_ASSERT(inSuite, saw1 == true);
         }
 
         // Commit, should see Node ID 1001, and 1 less cert in the storage
-        EXPECT_EQ(fabricTable.CommitPendingFabricData(), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.CommitPendingFabricData());
 
-        EXPECT_EQ(fabricTable.FabricCount(), 1);
-        EXPECT_EQ(storage.GetNumKeys(), numStorageAfterAdd - 1);
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 1);
+        NL_TEST_ASSERT_EQUALS(inSuite, storage.GetNumKeys(), numStorageAfterAdd - 1);
 
         // Validate contents
         const auto * fabricInfo = fabricTable.FindFabricWithIndex(1);
-        ASSERT_NE(fabricInfo, nullptr);
-        Credentials::ChipCertificateSet certificates;
-        EXPECT_EQ(certificates.Init(1), CHIP_NO_ERROR);
-        EXPECT_EQ(certificates.LoadCert(rcac, BitFlags<CertDecodeFlags>(CertDecodeFlags::kIsTrustAnchor)), CHIP_NO_ERROR);
-        Crypto::P256PublicKey rcacPublicKey(certificates.GetCertSet()[0].mPublicKey);
+        NL_TEST_ASSERT(inSuite, fabricInfo != nullptr);
+        if (fabricInfo != nullptr)
+        {
+            Credentials::ChipCertificateSet certificates;
+            NL_TEST_ASSERT_SUCCESS(inSuite, certificates.Init(1));
+            NL_TEST_ASSERT_SUCCESS(inSuite,
+                                   certificates.LoadCert(rcac, BitFlags<CertDecodeFlags>(CertDecodeFlags::kIsTrustAnchor)));
+            Crypto::P256PublicKey rcacPublicKey(certificates.GetCertSet()[0].mPublicKey);
 
-        EXPECT_EQ(fabricInfo->GetFabricIndex(), fabricIndex);
-        EXPECT_EQ(fabricInfo->GetNodeId(), 1001u);
-        EXPECT_EQ(fabricInfo->GetFabricId(), 44u);
-        EXPECT_EQ(fabricInfo->GetVendorId(), kVendorId);
-        EXPECT_EQ(fabricInfo->GetFabricLabel().size(), 0u);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricIndex() == fabricIndex);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetNodeId() == 1001);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricId() == 44);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetVendorId() == kVendorId);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricLabel().size() == 0);
 
-        Crypto::P256PublicKey rootPublicKeyOfFabric;
-        EXPECT_EQ(fabricTable.FetchRootPubkey(fabricIndex, rootPublicKeyOfFabric), CHIP_NO_ERROR);
-        EXPECT_TRUE(rootPublicKeyOfFabric.Matches(rcacPublicKey));
+            Crypto::P256PublicKey rootPublicKeyOfFabric;
+            NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.FetchRootPubkey(fabricIndex, rootPublicKeyOfFabric));
+            NL_TEST_ASSERT(inSuite, rootPublicKeyOfFabric.Matches(rcacPublicKey));
+        }
 
         // Validate that fabric has the correct operational key by verifying a signature
         {
             Crypto::P256PublicKey nocPubKey;
-            EXPECT_EQ(VerifyCertificateSigningRequest(csrSpan.data(), csrSpan.size(), nocPubKey), CHIP_NO_ERROR);
+            NL_TEST_ASSERT_SUCCESS(inSuite, VerifyCertificateSigningRequest(csrSpan.data(), csrSpan.size(), nocPubKey));
 
             Crypto::P256ECDSASignature sig;
             uint8_t message[] = { 'm', 's', 'g' };
 
-            EXPECT_EQ(fabricTable.SignWithOpKeypair(fabricIndex, ByteSpan{ message }, sig), CHIP_NO_ERROR);
-            EXPECT_EQ(nocPubKey.ECDSA_validate_msg_signature(&message[0], sizeof(message), sig), CHIP_NO_ERROR);
+            NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.SignWithOpKeypair(fabricIndex, ByteSpan{ message }, sig));
+            NL_TEST_ASSERT_SUCCESS(inSuite, nocPubKey.ECDSA_validate_msg_signature(&message[0], sizeof(message), sig));
         }
 
         // Validate iterator sees the updated fabric
@@ -2134,32 +2140,32 @@ TEST_F(TestFabricTable, TestUpdateNocFailSafe)
                 ++numFabricsIterated;
                 if (iterFabricInfo.GetFabricIndex() == 1)
                 {
-                    EXPECT_EQ(iterFabricInfo.GetNodeId(), 1001u);
-                    EXPECT_EQ(iterFabricInfo.GetFabricId(), 44u);
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetNodeId() == 1001);
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetFabricId() == 44);
                     saw1 = true;
                 }
             }
 
-            EXPECT_EQ(numFabricsIterated, 1u);
-            EXPECT_TRUE(saw1);
+            NL_TEST_ASSERT(inSuite, numFabricsIterated == 1);
+            NL_TEST_ASSERT(inSuite, saw1 == true);
         }
     }
 }
 
-TEST_F(TestFabricTable, TestAddRootCertFailSafe)
+void TestAddRootCertFailSafe(nlTestSuite * inSuite, void * inContext)
 {
     Credentials::TestOnlyLocalCertificateAuthority fabric11CertAuthority;
 
     chip::TestPersistentStorageDelegate storage;
 
-    EXPECT_TRUE(fabric11CertAuthority.Init().IsSuccess());
+    NL_TEST_ASSERT(inSuite, fabric11CertAuthority.Init().IsSuccess());
 
     // Initialize a fabric table.
     ScopedFabricTable fabricTableHolder;
-    EXPECT_EQ(fabricTableHolder.Init(&storage), CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, fabricTableHolder.Init(&storage) == CHIP_NO_ERROR);
     FabricTable & fabricTable = fabricTableHolder.GetFabricTable();
 
-    EXPECT_EQ(fabricTable.FabricCount(), 0);
+    NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 0);
 
     // Add a root cert, see that pending works, and that revert works
     {
@@ -2169,15 +2175,15 @@ TEST_F(TestFabricTable, TestAddRootCertFailSafe)
         {
             // No pending root cert yet.
             MutableByteSpan fetchedSpan{ rcacBuf };
-            EXPECT_EQ(fabricTable.FetchPendingNonFabricAssociatedRootCert(fetchedSpan), CHIP_ERROR_NOT_FOUND);
+            NL_TEST_ASSERT(inSuite, fabricTable.FetchPendingNonFabricAssociatedRootCert(fetchedSpan) == CHIP_ERROR_NOT_FOUND);
         }
 
-        EXPECT_EQ(fabricTable.AddNewPendingTrustedRootCert(rcac), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.AddNewPendingTrustedRootCert(rcac));
         {
             // Now have a pending root cert.
             MutableByteSpan fetchedSpan{ rcacBuf };
-            EXPECT_EQ(fabricTable.FetchPendingNonFabricAssociatedRootCert(fetchedSpan), CHIP_NO_ERROR);
-            EXPECT_TRUE(fetchedSpan.data_equal(rcac));
+            NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.FetchPendingNonFabricAssociatedRootCert(fetchedSpan));
+            NL_TEST_ASSERT(inSuite, fetchedSpan.data_equal(rcac));
         }
 
         // Revert
@@ -2186,31 +2192,31 @@ TEST_F(TestFabricTable, TestAddRootCertFailSafe)
         {
             // No pending root cert anymore.
             MutableByteSpan fetchedSpan{ rcacBuf };
-            EXPECT_EQ(fabricTable.FetchPendingNonFabricAssociatedRootCert(fetchedSpan), CHIP_ERROR_NOT_FOUND);
+            NL_TEST_ASSERT(inSuite, fabricTable.FetchPendingNonFabricAssociatedRootCert(fetchedSpan) == CHIP_ERROR_NOT_FOUND);
         }
     }
 }
 
-TEST_F(TestFabricTable, TestSequenceErrors)
+void TestSequenceErrors(nlTestSuite * inSuite, void * inContext)
 {
     // TODO: Write test
 }
 
-TEST_F(TestFabricTable, TestFabricLabelChange)
+void TestFabricLabelChange(nlTestSuite * inSuite, void * inContext)
 {
     Credentials::TestOnlyLocalCertificateAuthority fabricCertAuthority;
 
     chip::TestPersistentStorageDelegate storage;
-    EXPECT_TRUE(fabricCertAuthority.Init().IsSuccess());
+    NL_TEST_ASSERT(inSuite, fabricCertAuthority.Init().IsSuccess());
 
     constexpr uint16_t kVendorId = 0xFFF1u;
 
     // Initialize a fabric table.
     ScopedFabricTable fabricTableHolder;
-    EXPECT_EQ(fabricTableHolder.Init(&storage), CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, fabricTableHolder.Init(&storage) == CHIP_NO_ERROR);
     FabricTable & fabricTable = fabricTableHolder.GetFabricTable();
 
-    EXPECT_EQ(fabricTable.FabricCount(), 0);
+    NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 0);
 
     // First scope: add FabricID 1111, node ID 55
     {
@@ -2219,63 +2225,68 @@ TEST_F(TestFabricTable, TestFabricLabelChange)
 
         uint8_t csrBuf[chip::Crypto::kMIN_CSR_Buffer_Size];
         MutableByteSpan csrSpan{ csrBuf };
-        EXPECT_EQ(fabricTable.AllocatePendingOperationalKey(chip::NullOptional, csrSpan), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.AllocatePendingOperationalKey(chip::NullOptional, csrSpan));
 
-        EXPECT_EQ(fabricCertAuthority.SetIncludeIcac(true).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus(), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite,
+                               fabricCertAuthority.SetIncludeIcac(true).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus());
         ByteSpan rcac = fabricCertAuthority.GetRcac();
         ByteSpan icac = fabricCertAuthority.GetIcac();
         ByteSpan noc  = fabricCertAuthority.GetNoc();
 
-        EXPECT_EQ(fabricTable.FabricCount(), 0);
-        EXPECT_EQ(fabricTable.AddNewPendingTrustedRootCert(rcac), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 0);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.AddNewPendingTrustedRootCert(rcac));
         FabricIndex newFabricIndex = kUndefinedFabricIndex;
-        EXPECT_EQ(fabricTable.AddNewPendingFabricWithOperationalKeystore(noc, icac, kVendorId, &newFabricIndex), CHIP_NO_ERROR);
-        EXPECT_EQ(fabricTable.FabricCount(), 1);
-        EXPECT_EQ(newFabricIndex, 1);
+        NL_TEST_ASSERT_SUCCESS(inSuite,
+                               fabricTable.AddNewPendingFabricWithOperationalKeystore(noc, icac, kVendorId, &newFabricIndex));
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 1);
+        NL_TEST_ASSERT(inSuite, newFabricIndex == 1);
 
-        EXPECT_EQ(fabricTable.CommitPendingFabricData(), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.CommitPendingFabricData());
 
         // Validate contents
         const auto * fabricInfo = fabricTable.FindFabricWithIndex(1);
-        ASSERT_NE(fabricInfo, nullptr);
-        EXPECT_EQ(fabricInfo->GetFabricIndex(), 1);
-        EXPECT_EQ(fabricInfo->GetNodeId(), 55u);
-        EXPECT_EQ(fabricInfo->GetFabricId(), 1111u);
-        EXPECT_EQ(fabricInfo->GetVendorId(), kVendorId);
-        EXPECT_EQ(fabricInfo->GetFabricLabel().size(), 0u);
+        NL_TEST_ASSERT(inSuite, fabricInfo != nullptr);
+        if (fabricInfo != nullptr)
+        {
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricIndex() == 1);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetNodeId() == 55);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricId() == 1111);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetVendorId() == kVendorId);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricLabel().size() == 0);
+        }
     }
     size_t numStorageKeysAfterFirstAdd = storage.GetNumKeys();
-    EXPECT_EQ(numStorageKeysAfterFirstAdd, 7u); // Metadata, index, 3 certs, 1 opkey, last known good time
+    NL_TEST_ASSERT(inSuite, numStorageKeysAfterFirstAdd == 7); // Metadata, index, 3 certs, 1 opkey, last known good time
 
     // Second scope: set FabricLabel to "acme fabric", make sure it cannot be reverted
     {
         // Fabric label starts unset from prior scope
         CharSpan fabricLabel = "placeholder"_span;
 
-        EXPECT_EQ(fabricTable.GetFabricLabel(1, fabricLabel), CHIP_NO_ERROR);
-        EXPECT_EQ(fabricLabel.size(), 0u);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.GetFabricLabel(1, fabricLabel));
+        NL_TEST_ASSERT(inSuite, fabricLabel.size() == 0);
 
         // Set a valid name
-        EXPECT_EQ(fabricTable.SetFabricLabel(1, "acme fabric"_span), CHIP_NO_ERROR);
-        EXPECT_EQ(fabricTable.GetFabricLabel(1, fabricLabel), CHIP_NO_ERROR);
-        EXPECT_TRUE(fabricLabel.data_equal("acme fabric"_span));
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.SetFabricLabel(1, "acme fabric"_span));
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.GetFabricLabel(1, fabricLabel));
+        NL_TEST_ASSERT(inSuite, fabricLabel.data_equal("acme fabric"_span) == true);
 
         // Revert pending fabric data. Should not revert name since nothing pending.
         fabricTable.RevertPendingFabricData();
 
         fabricLabel = "placeholder"_span;
-        EXPECT_EQ(fabricTable.GetFabricLabel(1, fabricLabel), CHIP_NO_ERROR);
-        EXPECT_TRUE(fabricLabel.data_equal("acme fabric"_span));
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.GetFabricLabel(1, fabricLabel));
+        NL_TEST_ASSERT(inSuite, fabricLabel.data_equal("acme fabric"_span) == true);
 
         // Verify we fail to set too large a label (> kFabricLabelMaxLengthInBytes)
         CharSpan fabricLabelTooBig = "012345678901234567890123456789123456"_span;
-        EXPECT_GT(fabricLabelTooBig.size(), chip::kFabricLabelMaxLengthInBytes);
+        NL_TEST_ASSERT(inSuite, fabricLabelTooBig.size() > chip::kFabricLabelMaxLengthInBytes);
 
-        EXPECT_EQ(fabricTable.SetFabricLabel(1, fabricLabelTooBig), CHIP_ERROR_INVALID_ARGUMENT);
+        NL_TEST_ASSERT(inSuite, fabricTable.SetFabricLabel(1, fabricLabelTooBig) == CHIP_ERROR_INVALID_ARGUMENT);
 
         fabricLabel = "placeholder"_span;
-        EXPECT_EQ(fabricTable.GetFabricLabel(1, fabricLabel), CHIP_NO_ERROR);
-        EXPECT_TRUE(fabricLabel.data_equal("acme fabric"_span));
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.GetFabricLabel(1, fabricLabel));
+        NL_TEST_ASSERT(inSuite, fabricLabel.data_equal("acme fabric"_span) == true);
     }
 
     // Third scope: set fabric label after an update, it sticks, but then goes back after revert
@@ -2285,197 +2296,156 @@ TEST_F(TestFabricTable, TestFabricLabelChange)
 
         uint8_t csrBuf[chip::Crypto::kMIN_CSR_Buffer_Size];
         MutableByteSpan csrSpan{ csrBuf };
-        EXPECT_EQ(fabricTable.AllocatePendingOperationalKey(chip::MakeOptional(static_cast<FabricIndex>(1)), csrSpan),
-                  CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite,
+                               fabricTable.AllocatePendingOperationalKey(chip::MakeOptional(static_cast<FabricIndex>(1)), csrSpan));
 
-        EXPECT_EQ(fabricCertAuthority.SetIncludeIcac(true).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus(), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite,
+                               fabricCertAuthority.SetIncludeIcac(true).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus());
         ByteSpan icac = fabricCertAuthority.GetIcac();
         ByteSpan noc  = fabricCertAuthority.GetNoc();
 
-        EXPECT_EQ(fabricTable.FabricCount(), 1);
-        EXPECT_EQ(fabricTable.UpdatePendingFabricWithOperationalKeystore(1, noc, icac), CHIP_NO_ERROR);
-        EXPECT_EQ(fabricTable.FabricCount(), 1);
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 1);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.UpdatePendingFabricWithOperationalKeystore(1, noc, icac));
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 1);
 
         // Validate contents prior to change/revert
         const auto * fabricInfo = fabricTable.FindFabricWithIndex(1);
+        NL_TEST_ASSERT(inSuite, fabricInfo != nullptr);
 
-        ASSERT_NE(fabricInfo, nullptr);
-        EXPECT_EQ(fabricInfo->GetFabricIndex(), 1);
-        EXPECT_EQ(fabricInfo->GetNodeId(), 66u);
-        EXPECT_EQ(fabricInfo->GetFabricId(), 1111u);
-        EXPECT_EQ(fabricInfo->GetVendorId(), kVendorId);
+        if (fabricInfo != nullptr)
+        {
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricIndex() == 1);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetNodeId() == 66);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricId() == 1111);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetVendorId() == kVendorId);
 
-        CharSpan fabricLabel = fabricInfo->GetFabricLabel();
-        EXPECT_TRUE(fabricLabel.data_equal("acme fabric"_span));
+            CharSpan fabricLabel = fabricInfo->GetFabricLabel();
+            NL_TEST_ASSERT(inSuite, fabricLabel.data_equal("acme fabric"_span) == true);
+        }
 
         // Update fabric label
-        fabricLabel = "placeholder"_span;
-        EXPECT_EQ(fabricTable.SetFabricLabel(1, "roboto fabric"_span), CHIP_NO_ERROR);
+        CharSpan fabricLabel = "placeholder"_span;
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.SetFabricLabel(1, "roboto fabric"_span));
 
         fabricLabel = "placeholder"_span;
-        EXPECT_EQ(fabricTable.GetFabricLabel(1, fabricLabel), CHIP_NO_ERROR);
-        EXPECT_TRUE(fabricLabel.data_equal("roboto fabric"_span));
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.GetFabricLabel(1, fabricLabel));
+        NL_TEST_ASSERT(inSuite, fabricLabel.data_equal("roboto fabric"_span) == true);
 
         // Revert pending fabric data. Should revert name to "acme fabric"
         fabricTable.RevertPendingFabricData();
 
         fabricLabel = "placeholder"_span;
-        EXPECT_EQ(fabricTable.GetFabricLabel(1, fabricLabel), CHIP_NO_ERROR);
-        EXPECT_TRUE(fabricLabel.data_equal("acme fabric"_span));
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.GetFabricLabel(1, fabricLabel));
+        NL_TEST_ASSERT(inSuite, fabricLabel.data_equal("acme fabric"_span) == true);
     }
 }
 
-TEST_F(TestFabricTable, TestCompressedFabricId)
+void TestCompressedFabricId(nlTestSuite * inSuite, void * inContext)
 {
     // TODO: Write test
 }
 
-TEST_F(TestFabricTable, TestFabricLookup)
+void TestFabricLookup(nlTestSuite * inSuite, void * inContext)
 {
     // Initialize a fabric table.
     chip::TestPersistentStorageDelegate testStorage;
     ScopedFabricTable fabricTableHolder;
-    EXPECT_EQ(fabricTableHolder.Init(&testStorage), CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, fabricTableHolder.Init(&testStorage) == CHIP_NO_ERROR);
     FabricTable & fabricTable = fabricTableHolder.GetFabricTable();
-    EXPECT_EQ(LoadTestFabric_Node01_01(fabricTable, /* doCommit = */ true), CHIP_NO_ERROR);
-    EXPECT_EQ(LoadTestFabric_Node02_01(fabricTable, /* doCommit = */ true, FabricTable::AdvertiseIdentity::No), CHIP_NO_ERROR);
-
-    // These two NOCs have the same fabric id on purpose; only the trust root is
-    // different.
-    constexpr FabricId kNode01_01_and_02_01_FabricId = 0xFAB000000000001D;
+    NL_TEST_ASSERT(inSuite, LoadTestFabric_Node01_01(inSuite, fabricTable, /* doCommit = */ true) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite,
+                   LoadTestFabric_Node02_01(inSuite, fabricTable, /* doCommit = */ true, FabricTable::AdvertiseIdentity::No) ==
+                       CHIP_NO_ERROR);
 
     // Attempt lookup of the Root01 fabric.
     {
-        auto fabricInfo = FindFabric(fabricTable, TestCerts::sTestCert_Root01_PublicKey, kNode01_01_and_02_01_FabricId);
-        ASSERT_NE(fabricInfo, nullptr);
-
-        EXPECT_EQ(fabricInfo->GetFabricIndex(), 1);
-        EXPECT_TRUE(fabricInfo->ShouldAdvertiseIdentity());
+        Crypto::P256PublicKey key;
+        NL_TEST_ASSERT(inSuite, key.Length() >= TestCerts::sTestCert_Root01_PublicKey.size());
+        if (key.Length() < TestCerts::sTestCert_Root01_PublicKey.size())
+        {
+            return;
+        }
+        memcpy(key.Bytes(), TestCerts::sTestCert_Root01_PublicKey.data(), TestCerts::sTestCert_Root01_PublicKey.size());
+        auto fabricInfo = fabricTable.FindFabric(key, 0xFAB000000000001D);
+        NL_TEST_ASSERT(inSuite, fabricInfo != nullptr);
+        if (fabricInfo == nullptr)
+        {
+            return;
+        }
+        NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricIndex() == 1);
+        NL_TEST_ASSERT(inSuite, fabricInfo->ShouldAdvertiseIdentity());
     }
 
     // Attempt lookup of the Root02 fabric.
     {
-        auto fabricInfo = FindFabric(fabricTable, TestCerts::sTestCert_Root02_PublicKey, kNode01_01_and_02_01_FabricId);
-        ASSERT_NE(fabricInfo, nullptr);
-
-        EXPECT_EQ(fabricInfo->GetFabricIndex(), 2);
-        EXPECT_FALSE(fabricInfo->ShouldAdvertiseIdentity());
+        Crypto::P256PublicKey key;
+        NL_TEST_ASSERT(inSuite, key.Length() >= TestCerts::sTestCert_Root02_PublicKey.size());
+        if (key.Length() < TestCerts::sTestCert_Root02_PublicKey.size())
+        {
+            return;
+        }
+        memcpy(key.Bytes(), TestCerts::sTestCert_Root02_PublicKey.data(), TestCerts::sTestCert_Root02_PublicKey.size());
+        auto fabricInfo = fabricTable.FindFabric(key, 0xFAB000000000001D);
+        NL_TEST_ASSERT(inSuite, fabricInfo != nullptr);
+        if (fabricInfo == nullptr)
+        {
+            return;
+        }
+        NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricIndex() == 2);
+        NL_TEST_ASSERT(inSuite, !fabricInfo->ShouldAdvertiseIdentity());
     }
 
     // Attempt lookup of FabricIndex 0 --> should always fail.
     {
-        EXPECT_EQ(fabricTable.FindFabricWithIndex(0), nullptr);
+        NL_TEST_ASSERT(inSuite, fabricTable.FindFabricWithIndex(0) == nullptr);
     }
 }
 
-TEST_F(TestFabricTable, ShouldFailSetFabricIndexWithInvalidIndex)
-{
-    chip::TestPersistentStorageDelegate testStorage;
-    ScopedFabricTable fabricTableHolder;
-    EXPECT_EQ(fabricTableHolder.Init(&testStorage), CHIP_NO_ERROR);
-    FabricTable & fabricTable = fabricTableHolder.GetFabricTable();
-
-    EXPECT_EQ(fabricTable.SetFabricIndexForNextAddition(kUndefinedFabricIndex), CHIP_ERROR_INVALID_FABRIC_INDEX);
-}
-
-TEST_F(TestFabricTable, ShouldFailSetFabricIndexWithPendingFabric)
-{
-    chip::TestPersistentStorageDelegate testStorage;
-    ScopedFabricTable fabricTableHolder;
-    EXPECT_EQ(fabricTableHolder.Init(&testStorage), CHIP_NO_ERROR);
-    FabricTable & fabricTable = fabricTableHolder.GetFabricTable();
-
-    EXPECT_EQ(fabricTable.AddNewPendingTrustedRootCert(ByteSpan(TestCerts::sTestCert_Root01_Chip)), CHIP_NO_ERROR);
-
-    EXPECT_EQ(fabricTable.SetFabricIndexForNextAddition(1), CHIP_ERROR_INCORRECT_STATE);
-}
-
-TEST_F(TestFabricTable, ShouldFailSetFabricIndexWhenInUse)
-{
-    chip::TestPersistentStorageDelegate testStorage;
-    ScopedFabricTable fabricTableHolder;
-    EXPECT_EQ(fabricTableHolder.Init(&testStorage), CHIP_NO_ERROR);
-    FabricTable & fabricTable = fabricTableHolder.GetFabricTable();
-
-    EXPECT_EQ(LoadTestFabric_Node01_01(fabricTable, /* doCommit = */ true), CHIP_NO_ERROR);
-    EXPECT_EQ(fabricTable.SetFabricIndexForNextAddition(1), CHIP_ERROR_FABRIC_EXISTS);
-}
-
-TEST_F(TestFabricTable, ShouldAddFabricAtRequestedIndex)
-{
-    chip::TestPersistentStorageDelegate testStorage;
-    ScopedFabricTable fabricTableHolder;
-    EXPECT_EQ(fabricTableHolder.Init(&testStorage), CHIP_NO_ERROR);
-    FabricTable & fabricTable = fabricTableHolder.GetFabricTable();
-
-    EXPECT_EQ(fabricTable.SetFabricIndexForNextAddition(2), CHIP_NO_ERROR);
-    EXPECT_EQ(LoadTestFabric_Node02_01(fabricTable, /* doCommit = */ true), CHIP_NO_ERROR);
-
-    EXPECT_EQ(fabricTable.SetFabricIndexForNextAddition(1), CHIP_NO_ERROR);
-    EXPECT_EQ(LoadTestFabric_Node01_01(fabricTable, /* doCommit = */ true), CHIP_NO_ERROR);
-
-    {
-        auto fabricInfo = FindFabric(fabricTable, TestCerts::sTestCert_Root01_PublicKey, TestCerts::kTestCert_Node01_01_FabricId);
-        ASSERT_NE(fabricInfo, nullptr);
-        EXPECT_EQ(fabricInfo->GetFabricIndex(), 1);
-        EXPECT_EQ(fabricInfo->GetNodeId(), TestCerts::kTestCert_Node01_01_NodeId);
-        EXPECT_EQ(fabricInfo->GetFabricId(), TestCerts::kTestCert_Node01_01_FabricId);
-    }
-
-    {
-        auto fabricInfo = FindFabric(fabricTable, TestCerts::sTestCert_Root02_PublicKey, TestCerts::kTestCert_Node02_01_FabricId);
-        ASSERT_NE(fabricInfo, nullptr);
-        EXPECT_EQ(fabricInfo->GetFabricIndex(), 2);
-        EXPECT_EQ(fabricInfo->GetNodeId(), TestCerts::kTestCert_Node02_01_NodeId);
-        EXPECT_EQ(fabricInfo->GetFabricId(), TestCerts::kTestCert_Node02_01_FabricId);
-    }
-}
-
-TEST_F(TestFabricTable, TestFetchCATs)
+void TestFetchCATs(nlTestSuite * inSuite, void * inContext)
 {
     // Initialize a fabric table.
     chip::TestPersistentStorageDelegate testStorage;
     ScopedFabricTable fabricTableHolder;
-    EXPECT_EQ(fabricTableHolder.Init(&testStorage), CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, fabricTableHolder.Init(&testStorage) == CHIP_NO_ERROR);
     FabricTable & fabricTable = fabricTableHolder.GetFabricTable();
-    EXPECT_EQ(LoadTestFabric_Node01_01(fabricTable, /* doCommit = */ true), CHIP_NO_ERROR);
-    EXPECT_EQ(LoadTestFabric_Node02_01(fabricTable, /* doCommit = */ true), CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, LoadTestFabric_Node01_01(inSuite, fabricTable, /* doCommit = */ true) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, LoadTestFabric_Node02_01(inSuite, fabricTable, /* doCommit = */ true) == CHIP_NO_ERROR);
 
     // Attempt Fetching fabric index 1 CATs and verify contents.
     {
         CATValues cats;
-        EXPECT_EQ(fabricTable.FetchCATs(1, cats), CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, fabricTable.FetchCATs(1, cats) == CHIP_NO_ERROR);
         // Test fabric NOCs don't contain any CATs.
-        EXPECT_EQ(cats, kUndefinedCATs);
+        NL_TEST_ASSERT(inSuite, cats == kUndefinedCATs);
     }
 
     // Attempt Fetching fabric index 2 CATs and verify contents.
     {
         CATValues cats;
-        EXPECT_EQ(fabricTable.FetchCATs(2, cats), CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, fabricTable.FetchCATs(2, cats) == CHIP_NO_ERROR);
         // Test fabric NOCs don't contain any CATs.
-        EXPECT_EQ(cats, kUndefinedCATs);
+        NL_TEST_ASSERT(inSuite, cats == kUndefinedCATs);
     }
 
     // TODO(#20335): Add test cases for NOCs that actually embed CATs
 }
 
 // Validate that adding the same fabric twice fails (same root, same FabricId)
-TEST_F(TestFabricTable, TestAddNocRootCollision)
+void TestAddNocRootCollision(nlTestSuite * inSuite, void * inContext)
 {
     Credentials::TestOnlyLocalCertificateAuthority fabricCertAuthority;
 
     chip::TestPersistentStorageDelegate storage;
-    EXPECT_TRUE(fabricCertAuthority.Init().IsSuccess());
+    NL_TEST_ASSERT(inSuite, fabricCertAuthority.Init().IsSuccess());
 
     constexpr uint16_t kVendorId = 0xFFF1u;
 
     // Initialize a fabric table.
     ScopedFabricTable fabricTableHolder;
-    EXPECT_EQ(fabricTableHolder.Init(&storage), CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, fabricTableHolder.Init(&storage) == CHIP_NO_ERROR);
     FabricTable & fabricTable = fabricTableHolder.GetFabricTable();
 
-    EXPECT_EQ(fabricTable.FabricCount(), 0);
+    NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 0);
 
     // First scope: add FabricID 1111, node ID 55
     {
@@ -2484,46 +2454,51 @@ TEST_F(TestFabricTable, TestAddNocRootCollision)
 
         uint8_t csrBuf[chip::Crypto::kMIN_CSR_Buffer_Size];
         MutableByteSpan csrSpan{ csrBuf };
-        EXPECT_EQ(fabricTable.AllocatePendingOperationalKey(chip::NullOptional, csrSpan), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.AllocatePendingOperationalKey(chip::NullOptional, csrSpan));
 
-        EXPECT_EQ(fabricCertAuthority.SetIncludeIcac(true).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus(), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite,
+                               fabricCertAuthority.SetIncludeIcac(true).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus());
         ByteSpan rcac = fabricCertAuthority.GetRcac();
         ByteSpan icac = fabricCertAuthority.GetIcac();
         ByteSpan noc  = fabricCertAuthority.GetNoc();
 
-        EXPECT_EQ(fabricTable.FabricCount(), 0);
-        EXPECT_EQ(fabricTable.AddNewPendingTrustedRootCert(rcac), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 0);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.AddNewPendingTrustedRootCert(rcac));
         FabricIndex newFabricIndex = kUndefinedFabricIndex;
-        EXPECT_EQ(fabricTable.AddNewPendingFabricWithOperationalKeystore(noc, icac, kVendorId, &newFabricIndex,
-                                                                         FabricTable::AdvertiseIdentity::No),
-                  CHIP_NO_ERROR);
-        EXPECT_EQ(fabricTable.FabricCount(), 1);
-        EXPECT_EQ(newFabricIndex, 1);
+        NL_TEST_ASSERT_SUCCESS(inSuite,
+                               fabricTable.AddNewPendingFabricWithOperationalKeystore(noc, icac, kVendorId, &newFabricIndex,
+                                                                                      FabricTable::AdvertiseIdentity::No));
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 1);
+        NL_TEST_ASSERT(inSuite, newFabricIndex == 1);
 
-        EXPECT_EQ(fabricTable.CommitPendingFabricData(), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.CommitPendingFabricData());
 
         // Validate contents
         const auto * fabricInfo = fabricTable.FindFabricWithIndex(1);
-        ASSERT_NE(fabricInfo, nullptr);
-        EXPECT_FALSE(fabricInfo->ShouldAdvertiseIdentity());
+        NL_TEST_ASSERT(inSuite, fabricInfo != nullptr);
+        if (fabricInfo != nullptr)
+        {
+            NL_TEST_ASSERT(inSuite, !fabricInfo->ShouldAdvertiseIdentity());
 
-        Credentials::ChipCertificateSet certificates;
-        EXPECT_EQ(certificates.Init(1), CHIP_NO_ERROR);
-        EXPECT_EQ(certificates.LoadCert(rcac, BitFlags<CertDecodeFlags>(CertDecodeFlags::kIsTrustAnchor)), CHIP_NO_ERROR);
-        Crypto::P256PublicKey rcacPublicKey(certificates.GetCertSet()[0].mPublicKey);
+            Credentials::ChipCertificateSet certificates;
+            NL_TEST_ASSERT_SUCCESS(inSuite, certificates.Init(1));
+            NL_TEST_ASSERT_SUCCESS(inSuite,
+                                   certificates.LoadCert(rcac, BitFlags<CertDecodeFlags>(CertDecodeFlags::kIsTrustAnchor)));
+            Crypto::P256PublicKey rcacPublicKey(certificates.GetCertSet()[0].mPublicKey);
 
-        EXPECT_EQ(fabricInfo->GetFabricIndex(), 1);
-        EXPECT_EQ(fabricInfo->GetNodeId(), 55u);
-        EXPECT_EQ(fabricInfo->GetFabricId(), 1111u);
-        EXPECT_EQ(fabricInfo->GetVendorId(), kVendorId);
-        EXPECT_EQ(fabricInfo->GetFabricLabel().size(), 0u);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricIndex() == 1);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetNodeId() == 55);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricId() == 1111);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetVendorId() == kVendorId);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricLabel().size() == 0);
 
-        Crypto::P256PublicKey rootPublicKeyOfFabric;
-        EXPECT_EQ(fabricTable.FetchRootPubkey(newFabricIndex, rootPublicKeyOfFabric), CHIP_NO_ERROR);
-        EXPECT_TRUE(rootPublicKeyOfFabric.Matches(rcacPublicKey));
+            Crypto::P256PublicKey rootPublicKeyOfFabric;
+            NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.FetchRootPubkey(newFabricIndex, rootPublicKeyOfFabric));
+            NL_TEST_ASSERT(inSuite, rootPublicKeyOfFabric.Matches(rcacPublicKey));
+        }
     }
     size_t numStorageKeysAfterFirstAdd = storage.GetNumKeys();
-    EXPECT_EQ(numStorageKeysAfterFirstAdd, 7u); // Metadata, index, 3 certs, 1 opkey, last known good time
+    NL_TEST_ASSERT(inSuite, numStorageKeysAfterFirstAdd == 7); // Metadata, index, 3 certs, 1 opkey, last known good time
 
     // Second scope: add FabricID 1111, node ID 55 *again* --> Collision of Root/FabricID with existing
     {
@@ -2532,45 +2507,51 @@ TEST_F(TestFabricTable, TestAddNocRootCollision)
 
         uint8_t csrBuf[chip::Crypto::kMIN_CSR_Buffer_Size];
         MutableByteSpan csrSpan{ csrBuf };
-        EXPECT_EQ(fabricTable.AllocatePendingOperationalKey(chip::NullOptional, csrSpan), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.AllocatePendingOperationalKey(chip::NullOptional, csrSpan));
 
-        EXPECT_EQ(fabricCertAuthority.SetIncludeIcac(true).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus(), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite,
+                               fabricCertAuthority.SetIncludeIcac(true).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus());
         ByteSpan rcac = fabricCertAuthority.GetRcac();
         ByteSpan icac = fabricCertAuthority.GetIcac();
         ByteSpan noc  = fabricCertAuthority.GetNoc();
 
-        EXPECT_EQ(fabricTable.FabricCount(), 1);
-        EXPECT_EQ(fabricTable.AddNewPendingTrustedRootCert(rcac), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 1);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.AddNewPendingTrustedRootCert(rcac));
         FabricIndex newFabricIndex = kUndefinedFabricIndex;
-        EXPECT_EQ(fabricTable.AddNewPendingFabricWithOperationalKeystore(noc, icac, kVendorId, &newFabricIndex),
-                  CHIP_ERROR_FABRIC_EXISTS);
-        EXPECT_EQ(fabricTable.FabricCount(), 1);
+        NL_TEST_ASSERT(inSuite,
+                       fabricTable.AddNewPendingFabricWithOperationalKeystore(noc, icac, kVendorId, &newFabricIndex) ==
+                           CHIP_ERROR_FABRIC_EXISTS);
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 1);
 
         CHIP_ERROR err = fabricTable.CommitPendingFabricData();
         printf("err = %" CHIP_ERROR_FORMAT "\n", err.Format());
-        EXPECT_EQ(err, CHIP_ERROR_INCORRECT_STATE);
+        NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_INCORRECT_STATE);
 
         // Validate contents of Fabric index 1 still valid
         const auto * fabricInfo = fabricTable.FindFabricWithIndex(1);
-        ASSERT_NE(fabricInfo, nullptr);
-        Credentials::ChipCertificateSet certificates;
-        EXPECT_EQ(certificates.Init(1), CHIP_NO_ERROR);
-        EXPECT_EQ(certificates.LoadCert(rcac, BitFlags<CertDecodeFlags>(CertDecodeFlags::kIsTrustAnchor)), CHIP_NO_ERROR);
-        Crypto::P256PublicKey rcacPublicKey(certificates.GetCertSet()[0].mPublicKey);
+        NL_TEST_ASSERT(inSuite, fabricInfo != nullptr);
+        if (fabricInfo != nullptr)
+        {
+            Credentials::ChipCertificateSet certificates;
+            NL_TEST_ASSERT_SUCCESS(inSuite, certificates.Init(1));
+            NL_TEST_ASSERT_SUCCESS(inSuite,
+                                   certificates.LoadCert(rcac, BitFlags<CertDecodeFlags>(CertDecodeFlags::kIsTrustAnchor)));
+            Crypto::P256PublicKey rcacPublicKey(certificates.GetCertSet()[0].mPublicKey);
 
-        EXPECT_EQ(fabricInfo->GetFabricIndex(), 1);
-        EXPECT_EQ(fabricInfo->GetNodeId(), 55u);
-        EXPECT_EQ(fabricInfo->GetFabricId(), 1111u);
-        EXPECT_EQ(fabricInfo->GetVendorId(), kVendorId);
-        EXPECT_EQ(fabricInfo->GetFabricLabel().size(), 0u);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricIndex() == 1);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetNodeId() == 55);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricId() == 1111);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetVendorId() == kVendorId);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricLabel().size() == 0);
 
-        Crypto::P256PublicKey rootPublicKeyOfFabric;
-        EXPECT_EQ(fabricTable.FetchRootPubkey(1, rootPublicKeyOfFabric), CHIP_NO_ERROR);
-        EXPECT_TRUE(rootPublicKeyOfFabric.Matches(rcacPublicKey));
+            Crypto::P256PublicKey rootPublicKeyOfFabric;
+            NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.FetchRootPubkey(1, rootPublicKeyOfFabric));
+            NL_TEST_ASSERT(inSuite, rootPublicKeyOfFabric.Matches(rcacPublicKey));
+        }
     }
 
     // Ensure no new persisted keys after failed colliding add
-    EXPECT_EQ(storage.GetNumKeys(), numStorageKeysAfterFirstAdd);
+    NL_TEST_ASSERT(inSuite, storage.GetNumKeys() == numStorageKeysAfterFirstAdd);
 
     // Third scope: add FabricID 2222, node ID 55 --> Not colliding, should work. The failing commit above]
     // should have been enough of a revert that this scope succeeds without any additional revert.
@@ -2580,64 +2561,70 @@ TEST_F(TestFabricTable, TestAddNocRootCollision)
 
         uint8_t csrBuf[chip::Crypto::kMIN_CSR_Buffer_Size];
         MutableByteSpan csrSpan{ csrBuf };
-        EXPECT_EQ(fabricTable.AllocatePendingOperationalKey(chip::NullOptional, csrSpan), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.AllocatePendingOperationalKey(chip::NullOptional, csrSpan));
 
-        EXPECT_EQ(fabricCertAuthority.SetIncludeIcac(true).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus(), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite,
+                               fabricCertAuthority.SetIncludeIcac(true).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus());
         ByteSpan rcac = fabricCertAuthority.GetRcac();
         ByteSpan icac = fabricCertAuthority.GetIcac();
         ByteSpan noc  = fabricCertAuthority.GetNoc();
 
-        EXPECT_EQ(fabricTable.FabricCount(), 1);
-        EXPECT_EQ(fabricTable.AddNewPendingTrustedRootCert(rcac), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 1);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.AddNewPendingTrustedRootCert(rcac));
         FabricIndex newFabricIndex = kUndefinedFabricIndex;
-        EXPECT_EQ(fabricTable.AddNewPendingFabricWithOperationalKeystore(noc, icac, kVendorId, &newFabricIndex), CHIP_NO_ERROR);
-        EXPECT_EQ(fabricTable.FabricCount(), 2);
-        EXPECT_EQ(newFabricIndex, 2);
+        NL_TEST_ASSERT_SUCCESS(inSuite,
+                               fabricTable.AddNewPendingFabricWithOperationalKeystore(noc, icac, kVendorId, &newFabricIndex));
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 2);
+        NL_TEST_ASSERT(inSuite, newFabricIndex == 2);
 
-        EXPECT_EQ(fabricTable.CommitPendingFabricData(), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.CommitPendingFabricData());
 
         // Validate contents
         const auto * fabricInfo = fabricTable.FindFabricWithIndex(2);
-        ASSERT_NE(fabricInfo, nullptr);
-        EXPECT_TRUE(fabricInfo->ShouldAdvertiseIdentity());
+        NL_TEST_ASSERT(inSuite, fabricInfo != nullptr);
+        if (fabricInfo != nullptr)
+        {
+            NL_TEST_ASSERT(inSuite, fabricInfo->ShouldAdvertiseIdentity());
 
-        Credentials::ChipCertificateSet certificates;
-        EXPECT_EQ(certificates.Init(1), CHIP_NO_ERROR);
-        EXPECT_EQ(certificates.LoadCert(rcac, BitFlags<CertDecodeFlags>(CertDecodeFlags::kIsTrustAnchor)), CHIP_NO_ERROR);
-        Crypto::P256PublicKey rcacPublicKey(certificates.GetCertSet()[0].mPublicKey);
+            Credentials::ChipCertificateSet certificates;
+            NL_TEST_ASSERT_SUCCESS(inSuite, certificates.Init(1));
+            NL_TEST_ASSERT_SUCCESS(inSuite,
+                                   certificates.LoadCert(rcac, BitFlags<CertDecodeFlags>(CertDecodeFlags::kIsTrustAnchor)));
+            Crypto::P256PublicKey rcacPublicKey(certificates.GetCertSet()[0].mPublicKey);
 
-        EXPECT_EQ(fabricInfo->GetFabricIndex(), 2);
-        EXPECT_EQ(fabricInfo->GetNodeId(), 55u);
-        EXPECT_EQ(fabricInfo->GetFabricId(), 2222u);
-        EXPECT_EQ(fabricInfo->GetVendorId(), kVendorId);
-        EXPECT_EQ(fabricInfo->GetFabricLabel().size(), 0u);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricIndex() == 2);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetNodeId() == 55);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricId() == 2222);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetVendorId() == kVendorId);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricLabel().size() == 0);
 
-        Crypto::P256PublicKey rootPublicKeyOfFabric;
-        EXPECT_EQ(fabricTable.FetchRootPubkey(newFabricIndex, rootPublicKeyOfFabric), CHIP_NO_ERROR);
-        EXPECT_TRUE(rootPublicKeyOfFabric.Matches(rcacPublicKey));
+            Crypto::P256PublicKey rootPublicKeyOfFabric;
+            NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.FetchRootPubkey(newFabricIndex, rootPublicKeyOfFabric));
+            NL_TEST_ASSERT(inSuite, rootPublicKeyOfFabric.Matches(rcacPublicKey));
+        }
     }
     size_t numStorageKeysAfterSecondAdd = storage.GetNumKeys();
 
-    EXPECT_EQ(numStorageKeysAfterSecondAdd, (numStorageKeysAfterFirstAdd + 5)); // Metadata, 3 certs, 1 opkey
+    NL_TEST_ASSERT(inSuite, numStorageKeysAfterSecondAdd == (numStorageKeysAfterFirstAdd + 5)); // Metadata, 3 certs, 1 opkey
 }
 
-TEST_F(TestFabricTable, TestInvalidChaining)
+void TestInvalidChaining(nlTestSuite * inSuite, void * inContext)
 {
     Credentials::TestOnlyLocalCertificateAuthority fabricCertAuthority;
     Credentials::TestOnlyLocalCertificateAuthority differentCertAuthority;
 
     chip::TestPersistentStorageDelegate storage;
-    EXPECT_TRUE(fabricCertAuthority.Init().IsSuccess());
-    EXPECT_TRUE(differentCertAuthority.Init().IsSuccess());
+    NL_TEST_ASSERT(inSuite, fabricCertAuthority.Init().IsSuccess());
+    NL_TEST_ASSERT(inSuite, differentCertAuthority.Init().IsSuccess());
 
     constexpr uint16_t kVendorId = 0xFFF1u;
 
     // Initialize a fabric table.
     ScopedFabricTable fabricTableHolder;
-    EXPECT_EQ(fabricTableHolder.Init(&storage), CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, fabricTableHolder.Init(&storage) == CHIP_NO_ERROR);
     FabricTable & fabricTable = fabricTableHolder.GetFabricTable();
 
-    EXPECT_EQ(fabricTable.FabricCount(), 0);
+    NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 0);
 
     // Try to add fabric with either the NOC not chaining properly, or ICAC not chaining properly, fail,
     // then succeed with proper chaining
@@ -2647,12 +2634,13 @@ TEST_F(TestFabricTable, TestInvalidChaining)
 
         uint8_t csrBuf[chip::Crypto::kMIN_CSR_Buffer_Size];
         MutableByteSpan csrSpan{ csrBuf };
-        EXPECT_EQ(fabricTable.AllocatePendingOperationalKey(chip::NullOptional, csrSpan), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.AllocatePendingOperationalKey(chip::NullOptional, csrSpan));
 
         // Generate same cert chain from two different roots
-        EXPECT_EQ(fabricCertAuthority.SetIncludeIcac(true).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus(), CHIP_NO_ERROR);
-        EXPECT_EQ(differentCertAuthority.SetIncludeIcac(true).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus(),
-                  CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite,
+                               fabricCertAuthority.SetIncludeIcac(true).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus());
+        NL_TEST_ASSERT_SUCCESS(inSuite,
+                               differentCertAuthority.SetIncludeIcac(true).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus());
 
         ByteSpan rcac = fabricCertAuthority.GetRcac();
         ByteSpan icac = fabricCertAuthority.GetIcac();
@@ -2661,23 +2649,23 @@ TEST_F(TestFabricTable, TestInvalidChaining)
         ByteSpan otherIcac = differentCertAuthority.GetIcac();
         ByteSpan otherNoc  = differentCertAuthority.GetNoc();
 
-        EXPECT_EQ(fabricTable.FabricCount(), 0);
-        EXPECT_EQ(fabricTable.AddNewPendingTrustedRootCert(rcac), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 0);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.AddNewPendingTrustedRootCert(rcac));
 
         // Add with NOC not chaining to ICAC: fail
         {
             FabricIndex newFabricIndex = kUndefinedFabricIndex;
             CHIP_ERROR err = fabricTable.AddNewPendingFabricWithOperationalKeystore(otherNoc, icac, kVendorId, &newFabricIndex);
-            EXPECT_NE(err, CHIP_NO_ERROR);
-            EXPECT_EQ(fabricTable.FabricCount(), 0);
+            NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
+            NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 0);
         }
 
         // Add with ICAC not chaining to root: fail
         {
             FabricIndex newFabricIndex = kUndefinedFabricIndex;
             CHIP_ERROR err = fabricTable.AddNewPendingFabricWithOperationalKeystore(noc, otherIcac, kVendorId, &newFabricIndex);
-            EXPECT_NE(err, CHIP_NO_ERROR);
-            EXPECT_EQ(fabricTable.FabricCount(), 0);
+            NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
+            NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 0);
         }
 
         // Add with NOC and ICAC chaining together, but not to root: fail
@@ -2685,8 +2673,8 @@ TEST_F(TestFabricTable, TestInvalidChaining)
             FabricIndex newFabricIndex = kUndefinedFabricIndex;
             CHIP_ERROR err =
                 fabricTable.AddNewPendingFabricWithOperationalKeystore(otherNoc, otherIcac, kVendorId, &newFabricIndex);
-            EXPECT_NE(err, CHIP_NO_ERROR);
-            EXPECT_EQ(fabricTable.FabricCount(), 0);
+            NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
+            NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 0);
         }
 
         // Revert state, start tests without ICAC
@@ -2695,48 +2683,52 @@ TEST_F(TestFabricTable, TestInvalidChaining)
         // Generate same cert chain from two different roots
 
         csrSpan = MutableByteSpan{ csrBuf };
-        EXPECT_EQ(fabricTable.AllocatePendingOperationalKey(chip::NullOptional, csrSpan), CHIP_NO_ERROR);
-        EXPECT_EQ(fabricCertAuthority.SetIncludeIcac(false).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus(), CHIP_NO_ERROR);
-        EXPECT_EQ(differentCertAuthority.SetIncludeIcac(false).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus(),
-                  CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.AllocatePendingOperationalKey(chip::NullOptional, csrSpan));
+        NL_TEST_ASSERT_SUCCESS(inSuite,
+                               fabricCertAuthority.SetIncludeIcac(false).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus());
+        NL_TEST_ASSERT_SUCCESS(
+            inSuite, differentCertAuthority.SetIncludeIcac(false).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus());
 
         rcac = fabricCertAuthority.GetRcac();
         noc  = fabricCertAuthority.GetNoc();
 
         otherNoc = differentCertAuthority.GetNoc();
 
-        EXPECT_EQ(fabricTable.AddNewPendingTrustedRootCert(rcac), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.AddNewPendingTrustedRootCert(rcac));
 
         // Add with NOC not chaining to RCAC: fail
         {
             FabricIndex newFabricIndex = kUndefinedFabricIndex;
             CHIP_ERROR err =
                 fabricTable.AddNewPendingFabricWithOperationalKeystore(otherNoc, ByteSpan{}, kVendorId, &newFabricIndex);
-            EXPECT_NE(err, CHIP_NO_ERROR);
-            EXPECT_EQ(fabricTable.FabricCount(), 0);
+            NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
+            NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 0);
         }
 
         // Add properly now
         FabricIndex newFabricIndex = kUndefinedFabricIndex;
-        EXPECT_EQ(fabricTable.AddNewPendingFabricWithOperationalKeystore(noc, ByteSpan{}, kVendorId, &newFabricIndex),
-                  CHIP_NO_ERROR);
-        EXPECT_EQ(fabricTable.FabricCount(), 1);
-        EXPECT_EQ(newFabricIndex, 1);
+        NL_TEST_ASSERT_SUCCESS(inSuite,
+                               fabricTable.AddNewPendingFabricWithOperationalKeystore(noc, ByteSpan{}, kVendorId, &newFabricIndex));
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 1);
+        NL_TEST_ASSERT(inSuite, newFabricIndex == 1);
 
-        EXPECT_EQ(fabricTable.CommitPendingFabricData(), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.CommitPendingFabricData());
 
         // Validate contents
         const auto * fabricInfo = fabricTable.FindFabricWithIndex(1);
-        ASSERT_NE(fabricInfo, nullptr);
-        EXPECT_EQ(fabricInfo->GetFabricIndex(), 1);
-        EXPECT_EQ(fabricInfo->GetNodeId(), 55u);
-        EXPECT_EQ(fabricInfo->GetFabricId(), 1111u);
-        EXPECT_EQ(fabricInfo->GetVendorId(), kVendorId);
-        EXPECT_EQ(fabricInfo->GetFabricLabel().size(), 0u);
+        NL_TEST_ASSERT(inSuite, fabricInfo != nullptr);
+        if (fabricInfo != nullptr)
+        {
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricIndex() == 1);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetNodeId() == 55);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricId() == 1111);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetVendorId() == kVendorId);
+            NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricLabel().size() == 0);
+        }
     }
 }
 
-TEST_F(TestFabricTable, TestEphemeralKeys)
+void TestEphemeralKeys(nlTestSuite * inSuite, void * inContext)
 {
     // Initialize a fabric table with operational keystore
     {
@@ -2744,18 +2736,18 @@ TEST_F(TestFabricTable, TestEphemeralKeys)
 
         // Initialize a FabricTable
         ScopedFabricTable fabricTableHolder;
-        EXPECT_EQ(fabricTableHolder.Init(&storage), CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, fabricTableHolder.Init(&storage) == CHIP_NO_ERROR);
         FabricTable & fabricTable = fabricTableHolder.GetFabricTable();
 
         Crypto::P256ECDSASignature sig;
         uint8_t message[] = { 'm', 's', 'g' };
 
         Crypto::P256Keypair * ephemeralKeypair = fabricTable.AllocateEphemeralKeypairForCASE();
-        ASSERT_NE(ephemeralKeypair, nullptr);
-        EXPECT_EQ(ephemeralKeypair->Initialize(Crypto::ECPKeyTarget::ECDSA), CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, ephemeralKeypair != nullptr);
+        NL_TEST_ASSERT_SUCCESS(inSuite, ephemeralKeypair->Initialize(Crypto::ECPKeyTarget::ECDSA));
 
-        EXPECT_EQ(ephemeralKeypair->ECDSA_sign_msg(message, sizeof(message), sig), CHIP_NO_ERROR);
-        EXPECT_EQ(ephemeralKeypair->Pubkey().ECDSA_validate_msg_signature(message, sizeof(message), sig), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite, ephemeralKeypair->ECDSA_sign_msg(message, sizeof(message), sig));
+        NL_TEST_ASSERT_SUCCESS(inSuite, ephemeralKeypair->Pubkey().ECDSA_validate_msg_signature(message, sizeof(message), sig));
 
         fabricTable.ReleaseEphemeralKeypair(ephemeralKeypair);
     }
@@ -2765,24 +2757,24 @@ TEST_F(TestFabricTable, TestEphemeralKeys)
         chip::TestPersistentStorageDelegate storage;
 
         chip::Credentials::PersistentStorageOpCertStore opCertStore;
-        EXPECT_EQ(opCertStore.Init(&storage), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite, opCertStore.Init(&storage));
 
         FabricTable fabricTable;
         FabricTable::InitParams initParams;
         initParams.storage     = &storage;
         initParams.opCertStore = &opCertStore;
 
-        EXPECT_EQ(fabricTable.Init(initParams), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.Init(initParams));
 
         Crypto::P256ECDSASignature sig;
         uint8_t message[] = { 'm', 's', 'g' };
 
         Crypto::P256Keypair * ephemeralKeypair = fabricTable.AllocateEphemeralKeypairForCASE();
-        ASSERT_NE(ephemeralKeypair, nullptr);
-        EXPECT_EQ(ephemeralKeypair->Initialize(Crypto::ECPKeyTarget::ECDSA), CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, ephemeralKeypair != nullptr);
+        NL_TEST_ASSERT_SUCCESS(inSuite, ephemeralKeypair->Initialize(Crypto::ECPKeyTarget::ECDSA));
 
-        EXPECT_EQ(ephemeralKeypair->ECDSA_sign_msg(message, sizeof(message), sig), CHIP_NO_ERROR);
-        EXPECT_EQ(ephemeralKeypair->Pubkey().ECDSA_validate_msg_signature(message, sizeof(message), sig), CHIP_NO_ERROR);
+        NL_TEST_ASSERT_SUCCESS(inSuite, ephemeralKeypair->ECDSA_sign_msg(message, sizeof(message), sig));
+        NL_TEST_ASSERT_SUCCESS(inSuite, ephemeralKeypair->Pubkey().ECDSA_validate_msg_signature(message, sizeof(message), sig));
 
         fabricTable.ReleaseEphemeralKeypair(ephemeralKeypair);
 
@@ -2791,7 +2783,7 @@ TEST_F(TestFabricTable, TestEphemeralKeys)
     }
 }
 
-TEST_F(TestFabricTable, TestCommitMarker)
+void TestCommitMarker(nlTestSuite * inSuite, void * inContext)
 {
     Crypto::P256PublicKey fIdx1PublicKey;
     Crypto::P256PublicKey fIdx2PublicKey;
@@ -2803,7 +2795,7 @@ TEST_F(TestFabricTable, TestCommitMarker)
     // Log verbosity on this test helps debug significantly
     storage.SetLoggingLevel(chip::TestPersistentStorageDelegate::LoggingLevel::kLogMutationAndReads);
 
-    EXPECT_TRUE(fabricCertAuthority.Init().IsSuccess());
+    NL_TEST_ASSERT(inSuite, fabricCertAuthority.Init().IsSuccess());
 
     constexpr uint16_t kVendorId = 0xFFF1u;
 
@@ -2816,11 +2808,11 @@ TEST_F(TestFabricTable, TestCommitMarker)
     {
         // Initialize a fabric table
         ScopedFabricTable fabricTableHolder;
-        EXPECT_EQ(fabricTableHolder.Init(&storage), CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, fabricTableHolder.Init(&storage) == CHIP_NO_ERROR);
         FabricTable & fabricTable = fabricTableHolder.GetFabricTable();
 
-        EXPECT_EQ(fabricTable.GetDeletedFabricFromCommitMarker(), kUndefinedFabricIndex);
-        EXPECT_EQ(fabricTable.FabricCount(), 0);
+        NL_TEST_ASSERT(inSuite, fabricTable.GetDeletedFabricFromCommitMarker() == kUndefinedFabricIndex);
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 0);
 
         // Add Fabric 1111 Node Id 55
         {
@@ -2829,55 +2821,60 @@ TEST_F(TestFabricTable, TestCommitMarker)
 
             uint8_t csrBuf[chip::Crypto::kMIN_CSR_Buffer_Size];
             MutableByteSpan csrSpan{ csrBuf };
-            EXPECT_EQ(fabricTable.AllocatePendingOperationalKey(chip::NullOptional, csrSpan), CHIP_NO_ERROR);
+            NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.AllocatePendingOperationalKey(chip::NullOptional, csrSpan));
 
-            EXPECT_EQ(fabricCertAuthority.SetIncludeIcac(true).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus(),
-                      CHIP_NO_ERROR);
+            NL_TEST_ASSERT_SUCCESS(
+                inSuite, fabricCertAuthority.SetIncludeIcac(true).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus());
             ByteSpan rcac = fabricCertAuthority.GetRcac();
             ByteSpan icac = fabricCertAuthority.GetIcac();
             ByteSpan noc  = fabricCertAuthority.GetNoc();
 
-            EXPECT_EQ(fabricTable.FabricCount(), 0);
-            EXPECT_EQ(fabricTable.AddNewPendingTrustedRootCert(rcac), CHIP_NO_ERROR);
+            NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 0);
+            NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.AddNewPendingTrustedRootCert(rcac));
             FabricIndex newFabricIndex = kUndefinedFabricIndex;
-            EXPECT_EQ(fabricTable.AddNewPendingFabricWithOperationalKeystore(noc, icac, kVendorId, &newFabricIndex), CHIP_NO_ERROR);
-            EXPECT_EQ(fabricTable.FabricCount(), 1);
-            EXPECT_EQ(newFabricIndex, 1);
+            NL_TEST_ASSERT_SUCCESS(inSuite,
+                                   fabricTable.AddNewPendingFabricWithOperationalKeystore(noc, icac, kVendorId, &newFabricIndex));
+            NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 1);
+            NL_TEST_ASSERT(inSuite, newFabricIndex == 1);
 
-            EXPECT_EQ(fabricTable.CommitPendingFabricData(), CHIP_NO_ERROR);
+            NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.CommitPendingFabricData());
 
             // Validate contents
             const auto * fabricInfo = fabricTable.FindFabricWithIndex(1);
-            ASSERT_NE(fabricInfo, nullptr);
-            Credentials::ChipCertificateSet certificates;
-            EXPECT_EQ(certificates.Init(1), CHIP_NO_ERROR);
-            EXPECT_EQ(certificates.LoadCert(rcac, BitFlags<CertDecodeFlags>(CertDecodeFlags::kIsTrustAnchor)), CHIP_NO_ERROR);
-            Crypto::P256PublicKey rcacPublicKey(certificates.GetCertSet()[0].mPublicKey);
+            NL_TEST_ASSERT(inSuite, fabricInfo != nullptr);
+            if (fabricInfo != nullptr)
+            {
+                Credentials::ChipCertificateSet certificates;
+                NL_TEST_ASSERT_SUCCESS(inSuite, certificates.Init(1));
+                NL_TEST_ASSERT_SUCCESS(inSuite,
+                                       certificates.LoadCert(rcac, BitFlags<CertDecodeFlags>(CertDecodeFlags::kIsTrustAnchor)));
+                Crypto::P256PublicKey rcacPublicKey(certificates.GetCertSet()[0].mPublicKey);
 
-            EXPECT_EQ(fabricInfo->GetFabricIndex(), 1);
-            EXPECT_EQ(fabricInfo->GetNodeId(), 55u);
-            EXPECT_EQ(fabricInfo->GetFabricId(), 1111u);
-            EXPECT_EQ(fabricInfo->GetVendorId(), kVendorId);
-            EXPECT_EQ(fabricInfo->GetFabricLabel().size(), 0u);
+                NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricIndex() == 1);
+                NL_TEST_ASSERT(inSuite, fabricInfo->GetNodeId() == 55);
+                NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricId() == 1111);
+                NL_TEST_ASSERT(inSuite, fabricInfo->GetVendorId() == kVendorId);
+                NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricLabel().size() == 0);
 
-            Crypto::P256PublicKey rootPublicKeyOfFabric;
-            EXPECT_EQ(fabricTable.FetchRootPubkey(newFabricIndex, rootPublicKeyOfFabric), CHIP_NO_ERROR);
-            EXPECT_TRUE(rootPublicKeyOfFabric.Matches(rcacPublicKey));
+                Crypto::P256PublicKey rootPublicKeyOfFabric;
+                NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.FetchRootPubkey(newFabricIndex, rootPublicKeyOfFabric));
+                NL_TEST_ASSERT(inSuite, rootPublicKeyOfFabric.Matches(rcacPublicKey));
+            }
 
             // Validate that fabric has the correct operational key by verifying a signature
             {
                 Crypto::P256ECDSASignature sig;
                 uint8_t message[] = { 'm', 's', 'g' };
 
-                EXPECT_EQ(VerifyCertificateSigningRequest(csrSpan.data(), csrSpan.size(), fIdx1PublicKey), CHIP_NO_ERROR);
+                NL_TEST_ASSERT_SUCCESS(inSuite, VerifyCertificateSigningRequest(csrSpan.data(), csrSpan.size(), fIdx1PublicKey));
 
-                EXPECT_EQ(fabricTable.SignWithOpKeypair(newFabricIndex, ByteSpan{ message }, sig), CHIP_NO_ERROR);
-                EXPECT_EQ(fIdx1PublicKey.ECDSA_validate_msg_signature(&message[0], sizeof(message), sig), CHIP_NO_ERROR);
+                NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.SignWithOpKeypair(newFabricIndex, ByteSpan{ message }, sig));
+                NL_TEST_ASSERT_SUCCESS(inSuite, fIdx1PublicKey.ECDSA_validate_msg_signature(&message[0], sizeof(message), sig));
             }
         }
         numStorageKeysAfterFirstAdd = storage.GetNumKeys();
 
-        EXPECT_EQ(numStorageKeysAfterFirstAdd, 7u); // Metadata, index, 3 certs, 1 opkey, last known good time
+        NL_TEST_ASSERT(inSuite, numStorageKeysAfterFirstAdd == 7); // Metadata, index, 3 certs, 1 opkey, last known good time
 
         // The following test requires test methods not available on all builds.
         // TODO: Debug why some CI jobs don't set it properly.
@@ -2890,49 +2887,53 @@ TEST_F(TestFabricTable, TestCommitMarker)
 
             uint8_t csrBuf[chip::Crypto::kMIN_CSR_Buffer_Size];
             MutableByteSpan csrSpan{ csrBuf };
-            EXPECT_EQ(fabricTable.AllocatePendingOperationalKey(chip::NullOptional, csrSpan), CHIP_NO_ERROR);
+            NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.AllocatePendingOperationalKey(chip::NullOptional, csrSpan));
 
-            EXPECT_EQ(fabricCertAuthority.SetIncludeIcac(false).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus(),
-                      CHIP_NO_ERROR);
+            NL_TEST_ASSERT_SUCCESS(
+                inSuite, fabricCertAuthority.SetIncludeIcac(false).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus());
             ByteSpan rcac = fabricCertAuthority.GetRcac();
             ByteSpan noc  = fabricCertAuthority.GetNoc();
 
-            EXPECT_EQ(fabricTable.FabricCount(), 1);
-            EXPECT_EQ(fabricTable.AddNewPendingTrustedRootCert(rcac), CHIP_NO_ERROR);
+            NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 1);
+            NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.AddNewPendingTrustedRootCert(rcac));
             FabricIndex newFabricIndex = kUndefinedFabricIndex;
-            EXPECT_EQ(fabricTable.AddNewPendingFabricWithOperationalKeystore(noc, ByteSpan{}, kVendorId, &newFabricIndex),
-                      CHIP_NO_ERROR);
-            EXPECT_EQ(fabricTable.FabricCount(), 2);
-            EXPECT_EQ(newFabricIndex, 2);
+            NL_TEST_ASSERT_SUCCESS(
+                inSuite, fabricTable.AddNewPendingFabricWithOperationalKeystore(noc, ByteSpan{}, kVendorId, &newFabricIndex));
+            NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 2);
+            NL_TEST_ASSERT(inSuite, newFabricIndex == 2);
 
             // Validate contents of pending
             const auto * fabricInfo = fabricTable.FindFabricWithIndex(2);
-            ASSERT_NE(fabricInfo, nullptr);
-            Credentials::ChipCertificateSet certificates;
-            EXPECT_EQ(certificates.Init(1), CHIP_NO_ERROR);
-            EXPECT_EQ(certificates.LoadCert(rcac, BitFlags<CertDecodeFlags>(CertDecodeFlags::kIsTrustAnchor)), CHIP_NO_ERROR);
-            Crypto::P256PublicKey rcacPublicKey(certificates.GetCertSet()[0].mPublicKey);
+            NL_TEST_ASSERT(inSuite, fabricInfo != nullptr);
+            if (fabricInfo != nullptr)
+            {
+                Credentials::ChipCertificateSet certificates;
+                NL_TEST_ASSERT_SUCCESS(inSuite, certificates.Init(1));
+                NL_TEST_ASSERT_SUCCESS(inSuite,
+                                       certificates.LoadCert(rcac, BitFlags<CertDecodeFlags>(CertDecodeFlags::kIsTrustAnchor)));
+                Crypto::P256PublicKey rcacPublicKey(certificates.GetCertSet()[0].mPublicKey);
 
-            EXPECT_EQ(fabricInfo->GetFabricIndex(), 2);
-            EXPECT_EQ(fabricInfo->GetNodeId(), 66u);
-            EXPECT_EQ(fabricInfo->GetFabricId(), 2222u);
-            EXPECT_EQ(fabricInfo->GetVendorId(), kVendorId);
-            EXPECT_EQ(fabricInfo->GetFabricLabel().size(), 0u);
+                NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricIndex() == 2);
+                NL_TEST_ASSERT(inSuite, fabricInfo->GetNodeId() == 66);
+                NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricId() == 2222);
+                NL_TEST_ASSERT(inSuite, fabricInfo->GetVendorId() == kVendorId);
+                NL_TEST_ASSERT(inSuite, fabricInfo->GetFabricLabel().size() == 0);
 
-            Crypto::P256PublicKey rootPublicKeyOfFabric;
-            EXPECT_EQ(fabricTable.FetchRootPubkey(newFabricIndex, rootPublicKeyOfFabric), CHIP_NO_ERROR);
-            EXPECT_TRUE(rootPublicKeyOfFabric.Matches(rcacPublicKey));
+                Crypto::P256PublicKey rootPublicKeyOfFabric;
+                NL_TEST_ASSERT_SUCCESS(inSuite, fabricTable.FetchRootPubkey(newFabricIndex, rootPublicKeyOfFabric));
+                NL_TEST_ASSERT(inSuite, rootPublicKeyOfFabric.Matches(rcacPublicKey));
+            }
 
             // Make sure no additional storage yet
-            EXPECT_EQ(storage.GetNumKeys(), numStorageKeysAfterFirstAdd);
+            NL_TEST_ASSERT(inSuite, storage.GetNumKeys() == numStorageKeysAfterFirstAdd);
 
             // --> FORCE AN ERROR ON COMMIT that will BYPASS commit clean-up (similar to reboot during commit)
             fabricTable.SetForceAbortCommitForTest(true);
-            EXPECT_EQ(fabricTable.CommitPendingFabricData(), CHIP_ERROR_INTERNAL);
+            NL_TEST_ASSERT(inSuite, fabricTable.CommitPendingFabricData() == CHIP_ERROR_INTERNAL);
 
             // Check that there are more keys now, partially committed: at least a Commit Marker (+1)
             // and some more keys from the aborted process.
-            EXPECT_GT(storage.GetNumKeys(), (numStorageKeysAfterFirstAdd + 1));
+            NL_TEST_ASSERT(inSuite, storage.GetNumKeys() > (numStorageKeysAfterFirstAdd + 1));
         }
 #endif // CONFIG_BUILD_FOR_HOST_UNIT_TEST
     }
@@ -2944,19 +2945,19 @@ TEST_F(TestFabricTable, TestCommitMarker)
         // Initialize a FabricTable again. Make sure it succeeds in initing.
         ScopedFabricTable fabricTableHolder;
 
-        EXPECT_GT(storage.GetNumKeys(), (numStorageKeysAfterFirstAdd + 1));
+        NL_TEST_ASSERT(inSuite, storage.GetNumKeys() > (numStorageKeysAfterFirstAdd + 1));
 
-        EXPECT_EQ(fabricTableHolder.Init(&storage), CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, fabricTableHolder.Init(&storage) == CHIP_NO_ERROR);
         FabricTable & fabricTable = fabricTableHolder.GetFabricTable();
 
         // Make sure that after init, the fabricTable has only 1 fabric
-        EXPECT_EQ(fabricTable.FabricCount(), 1);
+        NL_TEST_ASSERT_EQUALS(inSuite, fabricTable.FabricCount(), 1);
 
         // Make sure it caught the last partially committed fabric
-        EXPECT_EQ(fabricTable.GetDeletedFabricFromCommitMarker(), 2);
+        NL_TEST_ASSERT(inSuite, fabricTable.GetDeletedFabricFromCommitMarker() == 2);
 
         // Second read must return kUndefinedFabricIndex
-        EXPECT_EQ(fabricTable.GetDeletedFabricFromCommitMarker(), kUndefinedFabricIndex);
+        NL_TEST_ASSERT(inSuite, fabricTable.GetDeletedFabricFromCommitMarker() == kUndefinedFabricIndex);
 
         {
             // Here we would do other clean-ups (e.g. see Server.cpp that uses the above) and then
@@ -2965,7 +2966,7 @@ TEST_F(TestFabricTable, TestCommitMarker)
         }
 
         // Make sure that all other pending storage got deleted
-        EXPECT_EQ(storage.GetNumKeys(), numStorageKeysAfterFirstAdd);
+        NL_TEST_ASSERT(inSuite, storage.GetNumKeys() == numStorageKeysAfterFirstAdd);
 
         // Verify we can only see 1 fabric with the iterator
         {
@@ -2977,8 +2978,8 @@ TEST_F(TestFabricTable, TestCommitMarker)
                 ++numFabricsIterated;
                 if (iterFabricInfo.GetFabricIndex() == 1)
                 {
-                    EXPECT_EQ(iterFabricInfo.GetNodeId(), 55u);
-                    EXPECT_EQ(iterFabricInfo.GetFabricId(), 1111u);
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetNodeId() == 55);
+                    NL_TEST_ASSERT(inSuite, iterFabricInfo.GetFabricId() == 1111);
                     saw1 = true;
                 }
                 if (iterFabricInfo.GetFabricIndex() == 2)
@@ -2987,12 +2988,90 @@ TEST_F(TestFabricTable, TestCommitMarker)
                 }
             }
 
-            EXPECT_EQ(numFabricsIterated, 1u);
-            EXPECT_TRUE(saw1);
-            EXPECT_FALSE(saw2);
+            NL_TEST_ASSERT(inSuite, numFabricsIterated == 1);
+            NL_TEST_ASSERT(inSuite, saw1 == true);
+            NL_TEST_ASSERT(inSuite, saw2 == false);
         }
     }
 #endif // CONFIG_BUILD_FOR_HOST_UNIT_TEST
 }
 
+// Test Suite
+
+/**
+ *  Test Suite that lists all the test functions.
+ */
+// clang-format off
+static const nlTest sTests[] =
+{
+    NL_TEST_DEF("Last Known Good Time Init", TestLastKnownGoodTimeInit),
+    NL_TEST_DEF("Update Last Known Good Time", TestUpdateLastKnownGoodTime),
+    NL_TEST_DEF("Set Last Known Good Time", TestSetLastKnownGoodTime),
+    NL_TEST_DEF("Test basic AddNOC flow", TestBasicAddNocUpdateNocFlow),
+    NL_TEST_DEF("Test adding multiple fabrics that chain to same root, different fabric ID", TestAddMultipleSameRootDifferentFabricId),
+    NL_TEST_DEF("Test adding multiple fabrics that chain to different roots, same fabric ID", TestAddMultipleSameFabricIdDifferentRoot),
+    NL_TEST_DEF("Validate fabrics are loaded from persistence at FabricTable::init", TestPersistence),
+    NL_TEST_DEF("Test fail-safe handling during AddNOC", TestAddNocFailSafe),
+    NL_TEST_DEF("Test fail-safe handling during UpdateNoc", TestUpdateNocFailSafe),
+    NL_TEST_DEF("Test fail-safe handling for root cert", TestAddRootCertFailSafe),
+    NL_TEST_DEF("Test interlock sequencing errors", TestSequenceErrors),
+    NL_TEST_DEF("Test fabric label changes", TestFabricLabelChange),
+    NL_TEST_DEF("Test compressed fabric ID is properly generated", TestCompressedFabricId),
+    NL_TEST_DEF("Test fabric lookup by <root public key, fabric ID>", TestFabricLookup),
+    NL_TEST_DEF("Test Fetching CATs", TestFetchCATs),
+    NL_TEST_DEF("Test AddNOC root collision", TestAddNocRootCollision),
+    NL_TEST_DEF("Test invalid chaining in AddNOC and UpdateNOC", TestInvalidChaining),
+    NL_TEST_DEF("Test ephemeral keys allocation", TestEphemeralKeys),
+    NL_TEST_DEF("Test proper detection of Commit Marker on init", TestCommitMarker),
+    NL_TEST_DEF("Test colliding fabrics in the fabric table", TestCollidingFabrics),
+
+    NL_TEST_SENTINEL()
+};
+
+// clang-format on
+
+int TestFabricTable_Setup(void * inContext);
+int TestFabricTable_Teardown(void * inContext);
+
+// clang-format off
+static nlTestSuite sSuite =
+{
+    "Test-CHIP-FabricTable",
+    &sTests[0],
+    TestFabricTable_Setup,
+    TestFabricTable_Teardown,
+};
+// clang-format on
+
+/**
+ *  Set up the test suite.
+ */
+int TestFabricTable_Setup(void * inContext)
+{
+    DeviceLayer::SetConfigurationMgr(&DeviceLayer::ConfigurationManagerImpl::GetDefaultInstance());
+    return chip::Platform::MemoryInit() == CHIP_NO_ERROR ? SUCCESS : FAILURE;
+}
+
+/**
+ *  Tear down the test suite.
+ */
+int TestFabricTable_Teardown(void * inContext)
+{
+    chip::Platform::MemoryShutdown();
+    return SUCCESS;
+}
+
 } // namespace
+
+/**
+ *  Main
+ */
+int TestFabricTable()
+{
+    // Run test suit against one context
+    nlTestRunner(&sSuite, nullptr);
+
+    return (nlTestRunnerStats(&sSuite));
+}
+
+CHIP_REGISTER_TEST_SUITE(TestFabricTable)

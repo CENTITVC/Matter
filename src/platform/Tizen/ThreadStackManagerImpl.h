@@ -28,6 +28,7 @@
 
 #include <thread.h>
 
+#include <app/AttributeAccessInterface.h>
 #include <inet/IPAddress.h>
 #include <lib/core/CHIPError.h>
 #include <lib/core/DataModelTypes.h>
@@ -91,12 +92,18 @@ public:
     bool _HaveMeshConnectivity();
 
     CHIP_ERROR _GetAndLogThreadStatsCounters();
+
     CHIP_ERROR _GetAndLogThreadTopologyMinimal();
+
     CHIP_ERROR _GetAndLogThreadTopologyFull();
+
     CHIP_ERROR _GetPrimary802154MACAddress(uint8_t * buf);
+
     CHIP_ERROR _GetExternalIPv6Address(chip::Inet::IPAddress & addr);
-    CHIP_ERROR _GetThreadVersion(uint16_t & version);
+
     CHIP_ERROR _GetPollPeriod(uint32_t & buf);
+
+    CHIP_ERROR _JoinerStart();
 
     void _ResetThreadNetworkDiagnosticsCounts();
 

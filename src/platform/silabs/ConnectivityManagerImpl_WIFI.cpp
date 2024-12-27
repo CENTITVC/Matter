@@ -45,6 +45,7 @@
 using namespace ::chip;
 using namespace ::chip::Inet;
 using namespace ::chip::System;
+using namespace ::chip::TLV;
 using namespace ::chip::DeviceLayer::Internal;
 
 namespace chip {
@@ -327,7 +328,7 @@ void ConnectivityManagerImpl::DriveStationState()
                     ChipLogProgress(DeviceLayer, "Attempting to connect WiFi");
                     if ((serr = wfx_connect_to_ap()) != SL_STATUS_OK)
                     {
-                        ChipLogError(DeviceLayer, "wfx_connect_to_ap() failed: %" PRId32, serr);
+                        ChipLogError(DeviceLayer, "wfx_connect_to_ap() failed.");
                     }
                     SuccessOrExit(serr);
 
@@ -357,26 +358,40 @@ exit:
 
 void ConnectivityManagerImpl::OnStationConnected()
 {
-    wfx_setup_ip6_link_local(SL_WFX_STA_INTERFACE);
-    NetworkCommissioning::SlWiFiDriver::GetInstance().OnConnectWiFiNetwork();
-
-    UpdateInternetConnectivityState();
-    // Alert other components of the new state.
     ChipDeviceEvent event;
+    wfx_setup_ip6_link_local(SL_WFX_STA_INTERFACE);
+
+    NetworkCommissioning::SlWiFiDriver::GetInstance().OnConnectWiFiNetwork();
+    // Alert other components of the new state.
     event.Type                          = DeviceEventType::kWiFiConnectivityChange;
     event.WiFiConnectivityChange.Result = kConnectivity_Established;
     (void) PlatformMgr().PostEvent(&event);
+    // Setting the rs911x in the power save mode
+#if (CHIP_CONFIG_ENABLE_ICD_SERVER && RS911X_WIFI)
+#if SLI_SI917
+    sl_status_t err = wfx_power_save(RSI_SLEEP_MODE_2, ASSOCIATED_POWER_SAVE);
+#else
+    sl_status_t err = wfx_power_save();
+#endif /* SLI_SI917 */
+    if (err != SL_STATUS_OK)
+    {
+        ChipLogError(DeviceLayer, "Power save config for Wifi failed");
+    }
+#endif /* CHIP_CONFIG_ENABLE_ICD_SERVER && RS911X_WIFI */
+    UpdateInternetConnectivityState();
 }
 
 void ConnectivityManagerImpl::OnStationDisconnected()
 {
     // TODO: Invoke WARM to perform actions that occur when the WiFi station interface goes down.
-    UpdateInternetConnectivityState();
+
     // Alert other components of the new state.
     ChipDeviceEvent event;
     event.Type                          = DeviceEventType::kWiFiConnectivityChange;
     event.WiFiConnectivityChange.Result = kConnectivity_Lost;
     (void) PlatformMgr().PostEvent(&event);
+
+    UpdateInternetConnectivityState();
 }
 
 void ConnectivityManagerImpl::DriveStationState(::chip::System::Layer * aLayer, void * aAppState)
@@ -426,6 +441,8 @@ void ConnectivityManagerImpl::UpdateInternetConnectivityState(void)
         event.InternetConnectivityChange.IPv6      = GetConnectivityChange(hadIPv6Conn, haveIPv6Conn);
         event.InternetConnectivityChange.ipAddress = addr;
 
+        (void) PlatformMgr().PostEvent(&event);
+
         if (haveIPv4Conn != hadIPv4Conn)
         {
             ChipLogProgress(DeviceLayer, "%s Internet connectivity %s", "IPv4", (haveIPv4Conn) ? "ESTABLISHED" : "LOST");
@@ -435,7 +452,6 @@ void ConnectivityManagerImpl::UpdateInternetConnectivityState(void)
         {
             ChipLogProgress(DeviceLayer, "%s Internet connectivity %s", "IPv6", (haveIPv6Conn) ? "ESTABLISHED" : "LOST");
         }
-        (void) PlatformMgr().PostEvent(&event);
     }
 }
 

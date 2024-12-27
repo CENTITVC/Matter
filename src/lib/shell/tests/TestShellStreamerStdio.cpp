@@ -15,11 +15,11 @@
  *    limitations under the License.
  */
 
-#include <pw_unit_test/framework.h>
+#include <nlunit-test.h>
 
-#include <lib/core/StringBuilderAdapters.h>
 #include <lib/shell/Engine.h>
 #include <lib/support/CodeUtils.h>
+#include <lib/support/UnitTestRegistration.h>
 
 #include <inttypes.h>
 #include <stdarg.h>
@@ -48,7 +48,7 @@ static const struct test_streamer_vector test_vector_streamer_out[] = {
 //      Unit tests
 // =================================
 
-TEST(TestShellStreamerStdio, TestStreamer_Output)
+static void TestStreamer_Output(nlTestSuite * inSuite, void * inContext)
 {
     int numOfTestVectors = ArraySize(test_vector_streamer_out);
     int numOfTestsRan    = 0;
@@ -64,8 +64,29 @@ TEST(TestShellStreamerStdio, TestStreamer_Output)
 
         num_chars = streamer_write(streamer_get(), output, strlen(output));
         // Let's assume that all our output lengths fit in ssize_t.
-        EXPECT_EQ(num_chars, static_cast<ssize_t>(strlen(output)));
+        NL_TEST_ASSERT(inSuite, num_chars == static_cast<ssize_t>(strlen(output)));
         numOfTestsRan++;
     }
-    EXPECT_GT(numOfTestsRan, 0);
+    NL_TEST_ASSERT(inSuite, numOfTestsRan > 0);
 }
+
+/**
+ *   Test Suite. It lists all the test functions.
+ */
+static const nlTest sTests[] = {
+
+    NL_TEST_DEF("Test Shell: TestStreamer_Output", TestStreamer_Output),
+
+    NL_TEST_SENTINEL()
+};
+
+int TestStreamerStdio()
+{
+    nlTestSuite theSuite = { "Test Shell: Streamer", &sTests[0], nullptr, nullptr };
+
+    // Run test suite against one context.
+    nlTestRunner(&theSuite, nullptr);
+    return nlTestRunnerStats(&theSuite);
+}
+
+CHIP_REGISTER_TEST_SUITE(TestStreamerStdio)

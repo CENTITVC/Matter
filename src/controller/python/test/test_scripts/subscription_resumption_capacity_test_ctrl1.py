@@ -19,7 +19,6 @@
 
 # Commissioning test.
 
-import asyncio
 import os
 import sys
 from optparse import OptionParser
@@ -32,7 +31,7 @@ TEST_SETUPPIN = 20202021
 TEST_ENDPOINT_ID = 0
 
 
-async def main():
+def main():
     optParser = OptionParser()
     optParser.add_option(
         "-t",
@@ -110,11 +109,11 @@ async def main():
         nodeid=112233, paaTrustStorePath=options.paaTrustStorePath, testCommissioner=True)
 
     FailIfNot(
-        await test.TestOnNetworkCommissioning(options.discriminator, options.setuppin, options.nodeid, options.deviceAddress),
-        "Failed on on-network commissioning")
+        test.TestOnNetworkCommissioning(options.discriminator, options.setuppin, options.nodeid, options.deviceAddress),
+        "Failed on on-network commissioing")
 
     FailIfNot(
-        await test.TestSubscriptionResumptionCapacityStep1(
+        test.TestSubscriptionResumptionCapacityStep1(
             options.nodeid, TEST_ENDPOINT_ID, options.setuppin, options.subscriptionCapacity),
         "Failed on step 1 of testing subscription resumption capacity")
 
@@ -129,7 +128,7 @@ async def main():
 
 if __name__ == "__main__":
     try:
-        asyncio.run(main())
+        main()
     except Exception as ex:
         logger.exception(ex)
         TestFail("Exception occurred when running tests.")

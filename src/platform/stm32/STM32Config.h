@@ -23,7 +23,6 @@
 
 #pragma once
 
-#include "flash_wb.h"
 #include <platform/internal/CHIPDeviceLayerInternal.h>
 
 namespace chip {
@@ -72,11 +71,11 @@ public:
     static constexpr Key kConfigKey_Max  = kConfigKey_UniqueId;
 
     static CHIP_ERROR Init();
-
     // Config value accessors.
-    static CHIP_ERROR ReadConfigValue(Key key, bool & val);
-    static CHIP_ERROR ReadConfigValue(Key key, uint32_t & val);
-    static CHIP_ERROR ReadConfigValue(Key key, uint64_t & val);
+    template <typename T>
+    // Config value accessors.
+    static CHIP_ERROR ReadConfigValue(Key key, T & val);
+    // Configuration methods used by the GenericConfigurationManagerImpl<> template.
     static CHIP_ERROR ReadConfigValueStr(Key key, char * buf, size_t bufSize, size_t & outLen);
     static CHIP_ERROR ReadConfigValueBin(Key key, uint8_t * buf, size_t bufSize, size_t & outLen);
     static CHIP_ERROR WriteConfigValue(Key key, uint32_t val);
@@ -87,7 +86,6 @@ public:
     static bool ConfigValueExists(Key key);
     static CHIP_ERROR FactoryResetConfig(void);
     static void RunConfigUnitTest(void);
-    static CHIP_ERROR PrintError(NVM_StatusTypeDef err);
 };
 
 } // namespace Internal

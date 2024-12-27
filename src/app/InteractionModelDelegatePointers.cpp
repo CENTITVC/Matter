@@ -31,12 +31,6 @@ app::TimedHandlerDelegate * GlobalInstanceProvider<app::TimedHandlerDelegate>::I
     return app::InteractionModelEngine::GetInstance();
 }
 
-template <>
-app::WriteHandlerDelegate * GlobalInstanceProvider<app::WriteHandlerDelegate>::InstancePointer()
-{
-    return app::InteractionModelEngine::GetInstance();
-}
-
 } // namespace chip
 
 #endif

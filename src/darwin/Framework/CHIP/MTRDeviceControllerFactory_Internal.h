@@ -24,16 +24,17 @@
 #import <Matter/MTRBaseDevice.h> // for MTRClusterPath
 #import <Matter/MTRDefines.h>
 #import <Matter/MTRDeviceController.h>
-#import <Matter/MTRDeviceControllerParameters.h>
 #import <Matter/MTRDiagnosticLogsType.h>
 #import <Matter/MTRServerEndpoint.h>
 
-#import "MTRDefines_Internal.h"
-#import "MTRDeviceControllerFactory.h"
-#import "MTRDeviceController_Concrete.h"
-#import "MTROperationalBrowser.h"
+#if MTR_PER_CONTROLLER_STORAGE_ENABLED
+#import <Matter/MTRDeviceControllerParameters.h>
+#else
+#import "MTRDeviceControllerParameters_Wrapper.h"
+#endif // MTR_PER_CONTROLLER_STORAGE_ENABLED
 
-#include <credentials/FabricTable.h>
+#import "MTRDeviceControllerFactory.h"
+
 #include <lib/core/CHIPPersistentStorageDelegate.h>
 #include <lib/core/DataModelTypes.h>
 #include <lib/core/PeerId.h>
@@ -48,30 +49,29 @@ namespace Credentials {
 
 NS_ASSUME_NONNULL_BEGIN
 
-MTR_DIRECT_MEMBERS
-@interface MTRDeviceControllerFactory ()
+@interface MTRDeviceControllerFactory (InternalMethods)
 
-- (void)controllerShuttingDown:(MTRDeviceController_Concrete *)controller;
+- (void)controllerShuttingDown:(MTRDeviceController *)controller;
 
 /**
  * Get the list of running controllers.  This will include controllers that are
  * in the middle of starting up or shutting down.
  */
-- (NSArray<MTRDeviceController_Concrete *> *)getRunningControllers;
+- (NSArray<MTRDeviceController *> *)getRunningControllers;
 
 /**
  * Find a running controller, if any, for the given fabric index.
  */
-- (nullable MTRDeviceController_Concrete *)runningControllerForFabricIndex:(chip::FabricIndex)fabricIndex;
+- (nullable MTRDeviceController *)runningControllerForFabricIndex:(chip::FabricIndex)fabricIndex;
 
 /**
  * Find a running controller, if any, for the given fabric index.  Allows
  * controlling whether to include a controller that is in the middle of startup
  * or shutdown.
  */
-- (nullable MTRDeviceController_Concrete *)runningControllerForFabricIndex:(chip::FabricIndex)fabricIndex
-                                               includeControllerStartingUp:(BOOL)includeControllerStartingUp
-                                             includeControllerShuttingDown:(BOOL)includeControllerShuttingDown;
+- (nullable MTRDeviceController *)runningControllerForFabricIndex:(chip::FabricIndex)fabricIndex
+                                      includeControllerStartingUp:(BOOL)includeControllerStartingUp
+                                    includeControllerShuttingDown:(BOOL)includeControllerShuttingDown;
 
 /**
  * Notify the controller factory that a new operational instance with the given
@@ -83,18 +83,18 @@ MTR_DIRECT_MEMBERS
  * Download log of the desired type from the device.
  */
 - (void)downloadLogFromNodeWithID:(NSNumber *)nodeID
-                       controller:(MTRDeviceController_Concrete *)controller
+                       controller:(MTRDeviceController *)controller
                              type:(MTRDiagnosticLogType)type
                           timeout:(NSTimeInterval)timeout
                             queue:(dispatch_queue_t)queue
                        completion:(void (^)(NSURL * _Nullable url, NSError * _Nullable error))completion;
 
 /**
- * Initialize an MTRDeviceController_Concrete with the given parameters.
+ * Initialize an MTRDeviceController with the given parameters.
  */
-- (nullable MTRDeviceController_Concrete *)initializeController:(MTRDeviceController_Concrete *)controller
-                                                 withParameters:(MTRDeviceControllerParameters *)parameters
-                                                          error:(NSError * __autoreleasing *)error;
+- (nullable MTRDeviceController *)initializeController:(MTRDeviceController *)controller
+                                        withParameters:(MTRDeviceControllerParameters *)parameters
+                                                 error:(NSError * __autoreleasing *)error;
 
 /**
  * Add a server endpoint.  This will verify that there is no existing server
@@ -108,33 +108,6 @@ MTR_DIRECT_MEMBERS
  * endpoint is complete.  Can be called on any thread.
  */
 - (void)removeServerEndpoint:(MTRServerEndpoint *)endpoint;
-
-@property (readonly) chip::PersistentStorageDelegate * storageDelegate;
-@property (readonly) chip::Credentials::GroupDataProvider * groupDataProvider;
-@property (readonly, assign) MTROperationalBrowser * operationalBrowser;
-
-// fabricTable must be gotten on the Matter queue.  May return null if there are
-// no controllers running.
-@property (readonly, nullable, assign) chip::FabricTable * fabricTable;
-
-// resetOperationalAdvertising must happen on the Matter queue.
-- (void)resetOperationalAdvertising;
-
-@end
-
-MTR_DIRECT_MEMBERS
-@interface MTRDeviceControllerFactoryParams ()
-/*
- * Initialize the device controller factory without storage.  In this mode,
- * device controllers will need to have per-controller storage provided to allow
- * storing controller-specific information.
- */
-- (instancetype)initWithoutStorage;
-@end
-
-// Methods accessed from MTRServerAccessControl linked into darwin-framework-tool
-// TODO: https://github.com/project-chip/connectedhomeip/issues/32991
-@interface MTRDeviceControllerFactory ()
 
 /**
  * Get the access grants that apply for the given fabric index and cluster path.
@@ -155,6 +128,18 @@ MTR_DIRECT_MEMBERS
  */
 - (nullable NSNumber *)neededReadPrivilegeForClusterID:(NSNumber *)clusterID attributeID:(NSNumber *)attributeID;
 
+@property (readonly) chip::PersistentStorageDelegate * storageDelegate;
+@property (readonly) chip::Credentials::GroupDataProvider * groupData;
+
+@end
+
+@interface MTRDeviceControllerFactoryParams ()
+/*
+ * Initialize the device controller factory without storage.  In this mode,
+ * device controllers will need to have per-controller storage provided to allow
+ * storing controller-specific information.
+ */
+- (instancetype)initWithoutStorage;
 @end
 
 NS_ASSUME_NONNULL_END

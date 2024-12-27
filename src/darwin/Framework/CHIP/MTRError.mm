@@ -19,7 +19,6 @@
 
 #import "MTRError.h"
 #import "MTRError_Internal.h"
-#import "MTRLogging_Internal.h"
 
 #import <app/MessageDef/StatusIB.h>
 #import <inet/InetError.h>
@@ -43,11 +42,6 @@ NSString * const MTRInteractionErrorDomain = @"MTRInteractionErrorDomain";
 @end
 
 @implementation MTRError
-
-+ (NSError *)errorWithCode:(MTRErrorCode)code
-{
-    return [NSError errorWithDomain:MTRErrorDomain code:code userInfo:nil];
-}
 
 + (NSError *)errorForCHIPErrorCode:(CHIP_ERROR)errorCode
 {
@@ -343,9 +337,3 @@ NSString * const MTRInteractionErrorDomain = @"MTRInteractionErrorDomain";
 }
 
 @end
-
-void MTRThrowInvalidArgument(NSString * reason)
-{
-    MTR_LOG_ERROR("Invalid argument: %@", reason);
-    @throw [NSException exceptionWithName:NSInvalidArgumentException reason:reason userInfo:nil];
-}

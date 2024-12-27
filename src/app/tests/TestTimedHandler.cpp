@@ -21,13 +21,17 @@
 #include <app/StatusResponse.h>
 #include <app/tests/AppTestContext.h>
 #include <lib/core/CHIPCore.h>
-#include <lib/core/StringBuilderAdapters.h>
 #include <lib/core/TLV.h>
+#include <lib/support/UnitTestContext.h>
+#include <lib/support/UnitTestRegistration.h>
 #include <lib/support/UnitTestUtils.h>
 #include <protocols/interaction_model/Constants.h>
-#include <pw_unit_test/framework.h>
 #include <system/TLVPacketBufferBackingStore.h>
 #include <transport/SessionManager.h>
+
+#include <nlunit-test.h>
+
+using TestContext = chip::Test::AppContext;
 
 namespace chip {
 namespace app {
@@ -35,15 +39,25 @@ namespace app {
 using namespace Messaging;
 using namespace Protocols::InteractionModel;
 
-namespace {
-
-class TestTimedHandler : public chip::Test::AppContext
+class TestTimedHandler
 {
 public:
-    void TestFollowingMessageFastEnough(MsgType aMsgType);
-    void TestFollowingMessageTooSlow(MsgType aMsgType);
-    void GenerateTimedRequest(uint16_t aTimeoutValue, System::PacketBufferHandle & aPayload);
+    static void TestInvokeFastEnough(nlTestSuite * aSuite, void * aContext);
+    static void TestWriteFastEnough(nlTestSuite * aSuite, void * aContext);
+
+    static void TestInvokeTooSlow(nlTestSuite * aSuite, void * aContext);
+    static void TestWriteTooSlow(nlTestSuite * aSuite, void * aContext);
+
+    static void TestInvokeNeverComes(nlTestSuite * aSuite, void * aContext);
+
+private:
+    static void TestFollowingMessageFastEnough(nlTestSuite * aSuite, void * aContext, MsgType aMsgType);
+    static void TestFollowingMessageTooSlow(nlTestSuite * aSuite, void * aContext, MsgType aMsgType);
+
+    static void GenerateTimedRequest(nlTestSuite * aSuite, uint16_t aTimeoutValue, System::PacketBufferHandle & aPayload);
 };
+
+namespace {
 
 class TestExchangeDelegate : public Messaging::ExchangeDelegate
 {
@@ -79,139 +93,148 @@ public:
 
 } // anonymous namespace
 
-void TestTimedHandler::GenerateTimedRequest(uint16_t aTimeoutValue, System::PacketBufferHandle & aPayload)
+void TestTimedHandler::GenerateTimedRequest(nlTestSuite * aSuite, uint16_t aTimeoutValue, System::PacketBufferHandle & aPayload)
 {
     aPayload = System::PacketBufferHandle::New(System::PacketBuffer::kMaxSize);
-    ASSERT_FALSE(aPayload.IsNull());
+    NL_TEST_ASSERT(aSuite, !aPayload.IsNull());
 
     System::PacketBufferTLVWriter writer;
     writer.Init(std::move(aPayload));
 
     TimedRequestMessage::Builder builder;
-    EXPECT_EQ(builder.Init(&writer), CHIP_NO_ERROR);
+    CHIP_ERROR err = builder.Init(&writer);
+    NL_TEST_ASSERT(aSuite, err == CHIP_NO_ERROR);
 
     builder.TimeoutMs(aTimeoutValue);
-    EXPECT_EQ(builder.GetError(), CHIP_NO_ERROR);
+    NL_TEST_ASSERT(aSuite, builder.GetError() == CHIP_NO_ERROR);
 
-    EXPECT_EQ(writer.Finalize(&aPayload), CHIP_NO_ERROR);
+    err = writer.Finalize(&aPayload);
+    NL_TEST_ASSERT(aSuite, err == CHIP_NO_ERROR);
 }
 
-void TestTimedHandler::TestFollowingMessageFastEnough(MsgType aMsgType)
+void TestTimedHandler::TestFollowingMessageFastEnough(nlTestSuite * aSuite, void * aContext, MsgType aMsgType)
 {
+    TestContext & ctx = *static_cast<TestContext *>(aContext);
 
     System::PacketBufferHandle payload;
-    GenerateTimedRequest(500, payload);
+    GenerateTimedRequest(aSuite, 500, payload);
 
     TestExchangeDelegate delegate;
-    ExchangeContext * exchange = NewExchangeToAlice(&delegate);
-    ASSERT_NE(exchange, nullptr);
+    ExchangeContext * exchange = ctx.NewExchangeToAlice(&delegate);
+    NL_TEST_ASSERT(aSuite, exchange != nullptr);
 
-    EXPECT_FALSE(delegate.mNewMessageReceived);
+    NL_TEST_ASSERT(aSuite, !delegate.mNewMessageReceived);
 
     delegate.mKeepExchangeOpen = true;
 
-    EXPECT_EQ(exchange->SendMessage(MsgType::TimedRequest, std::move(payload), SendMessageFlags::kExpectResponse), CHIP_NO_ERROR);
+    CHIP_ERROR err = exchange->SendMessage(MsgType::TimedRequest, std::move(payload), SendMessageFlags::kExpectResponse);
+    NL_TEST_ASSERT(aSuite, err == CHIP_NO_ERROR);
 
-    DrainAndServiceIO();
-    EXPECT_TRUE(delegate.mNewMessageReceived);
-    EXPECT_TRUE(delegate.mLastMessageWasStatus);
-    EXPECT_EQ(delegate.mError, CHIP_NO_ERROR);
+    ctx.DrainAndServiceIO();
+    NL_TEST_ASSERT(aSuite, delegate.mNewMessageReceived);
+    NL_TEST_ASSERT(aSuite, delegate.mLastMessageWasStatus);
+    NL_TEST_ASSERT(aSuite, delegate.mError == CHIP_NO_ERROR);
 
     // Send an empty payload, which will error out but not with the
-    // TIMEOUT status we expect if we miss our timeout.
+    // UNSUPPORTED_ACCESS status we expect if we miss our timeout.
     payload = MessagePacketBuffer::New(0);
-    ASSERT_FALSE(payload.IsNull());
+    NL_TEST_ASSERT(aSuite, !payload.IsNull());
 
     delegate.mKeepExchangeOpen   = false;
     delegate.mNewMessageReceived = false;
 
-    EXPECT_EQ(exchange->SendMessage(aMsgType, std::move(payload), SendMessageFlags::kExpectResponse), CHIP_NO_ERROR);
+    err = exchange->SendMessage(aMsgType, std::move(payload), SendMessageFlags::kExpectResponse);
+    NL_TEST_ASSERT(aSuite, err == CHIP_NO_ERROR);
 
-    DrainAndServiceIO();
-    EXPECT_TRUE(delegate.mNewMessageReceived);
-    EXPECT_TRUE(delegate.mLastMessageWasStatus);
-    EXPECT_NE(StatusIB(delegate.mError).mStatus, Status::Timeout);
+    ctx.DrainAndServiceIO();
+    NL_TEST_ASSERT(aSuite, delegate.mNewMessageReceived);
+    NL_TEST_ASSERT(aSuite, delegate.mLastMessageWasStatus);
+    NL_TEST_ASSERT(aSuite, StatusIB(delegate.mError).mStatus != Status::UnsupportedAccess);
 }
 
-TEST_F(TestTimedHandler, TestInvokeFastEnough)
+void TestTimedHandler::TestInvokeFastEnough(nlTestSuite * aSuite, void * aContext)
 {
-    TestFollowingMessageFastEnough(MsgType::InvokeCommandRequest);
+    TestFollowingMessageFastEnough(aSuite, aContext, MsgType::InvokeCommandRequest);
 }
 
-TEST_F(TestTimedHandler, TestWriteFastEnough)
+void TestTimedHandler::TestWriteFastEnough(nlTestSuite * aSuite, void * aContext)
 {
-    TestFollowingMessageFastEnough(MsgType::WriteRequest);
+    TestFollowingMessageFastEnough(aSuite, aContext, MsgType::WriteRequest);
 }
 
-void TestTimedHandler::TestFollowingMessageTooSlow(MsgType aMsgType)
+void TestTimedHandler::TestFollowingMessageTooSlow(nlTestSuite * aSuite, void * aContext, MsgType aMsgType)
 {
+    TestContext & ctx = *static_cast<TestContext *>(aContext);
 
     System::PacketBufferHandle payload;
-    GenerateTimedRequest(50, payload);
+    GenerateTimedRequest(aSuite, 50, payload);
 
     TestExchangeDelegate delegate;
-    ExchangeContext * exchange = NewExchangeToAlice(&delegate);
-    ASSERT_NE(exchange, nullptr);
+    ExchangeContext * exchange = ctx.NewExchangeToAlice(&delegate);
+    NL_TEST_ASSERT(aSuite, exchange != nullptr);
 
-    EXPECT_FALSE(delegate.mNewMessageReceived);
+    NL_TEST_ASSERT(aSuite, !delegate.mNewMessageReceived);
 
     delegate.mKeepExchangeOpen = true;
 
-    EXPECT_EQ(exchange->SendMessage(MsgType::TimedRequest, std::move(payload), SendMessageFlags::kExpectResponse), CHIP_NO_ERROR);
+    CHIP_ERROR err = exchange->SendMessage(MsgType::TimedRequest, std::move(payload), SendMessageFlags::kExpectResponse);
+    NL_TEST_ASSERT(aSuite, err == CHIP_NO_ERROR);
 
-    DrainAndServiceIO();
-    EXPECT_TRUE(delegate.mNewMessageReceived);
-    EXPECT_TRUE(delegate.mLastMessageWasStatus);
-    EXPECT_EQ(delegate.mError, CHIP_NO_ERROR);
+    ctx.DrainAndServiceIO();
+    NL_TEST_ASSERT(aSuite, delegate.mNewMessageReceived);
+    NL_TEST_ASSERT(aSuite, delegate.mLastMessageWasStatus);
+    NL_TEST_ASSERT(aSuite, delegate.mError == CHIP_NO_ERROR);
 
     // Sleep for > 50ms so we miss our time window.
     chip::test_utils::SleepMillis(75);
 
     // Send an empty payload, which will error out but not with the
-    // TIMEOUT status we expect if we miss our timeout.
+    // UNSUPPORTED_ACCESS status we expect if we miss our timeout.
     payload = MessagePacketBuffer::New(0);
-    EXPECT_FALSE(payload.IsNull());
+    NL_TEST_ASSERT(aSuite, !payload.IsNull());
 
     delegate.mKeepExchangeOpen   = false;
     delegate.mNewMessageReceived = false;
 
-    EXPECT_EQ(exchange->SendMessage(aMsgType, std::move(payload), SendMessageFlags::kExpectResponse), CHIP_NO_ERROR);
+    err = exchange->SendMessage(aMsgType, std::move(payload), SendMessageFlags::kExpectResponse);
+    NL_TEST_ASSERT(aSuite, err == CHIP_NO_ERROR);
 
-    DrainAndServiceIO();
-    EXPECT_TRUE(delegate.mNewMessageReceived);
-    EXPECT_TRUE(delegate.mLastMessageWasStatus);
-    EXPECT_EQ(StatusIB(delegate.mError).mStatus, Status::Timeout);
+    ctx.DrainAndServiceIO();
+    NL_TEST_ASSERT(aSuite, delegate.mNewMessageReceived);
+    NL_TEST_ASSERT(aSuite, delegate.mLastMessageWasStatus);
+    NL_TEST_ASSERT(aSuite, StatusIB(delegate.mError).mStatus == Status::UnsupportedAccess);
 }
 
-TEST_F(TestTimedHandler, TestInvokeTooSlow)
+void TestTimedHandler::TestInvokeTooSlow(nlTestSuite * aSuite, void * aContext)
 {
-    TestFollowingMessageTooSlow(MsgType::InvokeCommandRequest);
+    TestFollowingMessageTooSlow(aSuite, aContext, MsgType::InvokeCommandRequest);
 }
 
-// TEST(TestTimedHandler, TestTimedHandler::TestWriteTooSlow)
-TEST_F(TestTimedHandler, TestWriteTooSlow)
+void TestTimedHandler::TestWriteTooSlow(nlTestSuite * aSuite, void * aContext)
 {
-    TestFollowingMessageTooSlow(MsgType::WriteRequest);
+    TestFollowingMessageTooSlow(aSuite, aContext, MsgType::WriteRequest);
 }
 
-TEST_F(TestTimedHandler, TestInvokeNeverComes)
+void TestTimedHandler::TestInvokeNeverComes(nlTestSuite * aSuite, void * aContext)
 {
+    TestContext & ctx = *static_cast<TestContext *>(aContext);
 
     System::PacketBufferHandle payload;
-    GenerateTimedRequest(50, payload);
+    GenerateTimedRequest(aSuite, 50, payload);
 
     TestExchangeDelegate delegate;
-    ExchangeContext * exchange = NewExchangeToAlice(&delegate);
-    ASSERT_NE(exchange, nullptr);
+    ExchangeContext * exchange = ctx.NewExchangeToAlice(&delegate);
+    NL_TEST_ASSERT(aSuite, exchange != nullptr);
 
-    EXPECT_FALSE(delegate.mNewMessageReceived);
+    NL_TEST_ASSERT(aSuite, !delegate.mNewMessageReceived);
 
-    EXPECT_EQ(exchange->SendMessage(MsgType::TimedRequest, std::move(payload), SendMessageFlags::kExpectResponse), CHIP_NO_ERROR);
+    CHIP_ERROR err = exchange->SendMessage(MsgType::TimedRequest, std::move(payload), SendMessageFlags::kExpectResponse);
+    NL_TEST_ASSERT(aSuite, err == CHIP_NO_ERROR);
 
-    DrainAndServiceIO();
-    EXPECT_TRUE(delegate.mNewMessageReceived);
-    EXPECT_TRUE(delegate.mLastMessageWasStatus);
-    EXPECT_EQ(delegate.mError, CHIP_NO_ERROR);
+    ctx.DrainAndServiceIO();
+    NL_TEST_ASSERT(aSuite, delegate.mNewMessageReceived);
+    NL_TEST_ASSERT(aSuite, delegate.mLastMessageWasStatus);
+    NL_TEST_ASSERT(aSuite, delegate.mError == CHIP_NO_ERROR);
 
     // Do nothing else; exchange on the server remains open.  We are testing to
     // see whether shutdown cleans it up properly.
@@ -219,3 +242,40 @@ TEST_F(TestTimedHandler, TestInvokeNeverComes)
 
 } // namespace app
 } // namespace chip
+
+namespace {
+
+/**
+ *   Test Suite. It lists all the test functions.
+ */
+
+// clang-format off
+const nlTest sTests[] =
+{
+        NL_TEST_DEF("TimedHandlerTestInvokeFastEnough", chip::app::TestTimedHandler::TestInvokeFastEnough),
+        NL_TEST_DEF("TimedHandlerTestInvokeTooSlow", chip::app::TestTimedHandler::TestInvokeTooSlow),
+        NL_TEST_DEF("TimedHandlerTestInvokeNeverComes", chip::app::TestTimedHandler::TestInvokeNeverComes),
+        NL_TEST_SENTINEL()
+};
+// clang-format on
+
+// clang-format off
+nlTestSuite sSuite =
+{
+    "TestTimedHandler",
+    &sTests[0],
+    TestContext::nlTestSetUpTestSuite,
+    TestContext::nlTestTearDownTestSuite,
+    TestContext::nlTestSetUp,
+    TestContext::nlTestTearDown,
+};
+// clang-format on
+
+} // namespace
+
+int TestTimedHandler()
+{
+    return chip::ExecuteTestsWithContext<TestContext>(&sSuite);
+}
+
+CHIP_REGISTER_TEST_SUITE(TestTimedHandler)

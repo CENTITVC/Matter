@@ -33,11 +33,9 @@
 #include <lib/core/DataModelTypes.h>
 #include <lib/support/CodeUtils.h>
 #include <lib/support/SafeInt.h>
-#import <os/lock.h>
 #include <protocols/interaction_model/StatusCode.h>
 
-// TODO: These attribute-*.h and AttributeAccessInterfaceRegistry.h bits are a hack that should eventually go away.
-#include <app/AttributeAccessInterfaceRegistry.h>
+// TODO: These attribute-*.h bits are a hack that should eventually go away.
 #include <app/util/attribute-metadata.h>
 #include <app/util/attribute-storage.h>
 
@@ -252,8 +250,12 @@ static constexpr EmberAfAttributeMetadata sDescriptorAttributesMetadata[] = {
 
     MTRDeviceController * existingController = _deviceController;
     if (existingController != nil) {
+#if MTR_PER_CONTROLLER_STORAGE_ENABLED
         MTR_LOG_ERROR("Cannot associate MTRServerCluster with controller %@; already associated with controller %@",
             controller.uniqueIdentifier, existingController.uniqueIdentifier);
+#else
+        MTR_LOG_ERROR("Cannot associate MTRServerCluster with controller; already associated with a different controller");
+#endif
         return NO;
     }
 
@@ -346,8 +348,8 @@ static constexpr EmberAfAttributeMetadata sDescriptorAttributesMetadata[] = {
 
     _deviceController = controller;
 
-    MTR_LOG("Associated %@, attribute count %llu, with controller %@", [self _descriptionWhileLocked],
-        static_cast<unsigned long long>(attributeCount), controller);
+    MTR_LOG_DEFAULT("Associated %@, attribute count %llu, with controller", [self _descriptionWhileLocked],
+        static_cast<unsigned long long>(attributeCount));
 
     return YES;
 }
@@ -379,7 +381,7 @@ static constexpr EmberAfAttributeMetadata sDescriptorAttributesMetadata[] = {
 
     std::lock_guard lock(_lock);
 
-    if (!AttributeAccessInterfaceRegistry::Instance().Register(_attributeAccessInterface.get())) {
+    if (!registerAttributeAccessOverride(_attributeAccessInterface.get())) {
         // This should only happen if we somehow managed to register an
         // AttributeAccessInterface for the same (endpoint, cluster) pair.
         MTR_LOG_ERROR("Could not register AttributeAccessInterface for endpoint %u, cluster 0x%llx",
@@ -394,7 +396,7 @@ static constexpr EmberAfAttributeMetadata sDescriptorAttributesMetadata[] = {
     std::lock_guard lock(_lock);
 
     if (_attributeAccessInterface != nullptr) {
-        AttributeAccessInterfaceRegistry::Instance().Unregister(_attributeAccessInterface.get());
+        unregisterAttributeAccessOverride(_attributeAccessInterface.get());
     }
 }
 

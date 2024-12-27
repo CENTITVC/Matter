@@ -35,13 +35,10 @@ CHIP_ERROR IOContext::Init()
     InitSystemLayer();
     InitNetwork();
 
-    mSystemLayer = &gSystemLayer;
-#if INET_CONFIG_ENABLE_TCP_ENDPOINT
+    mSystemLayer        = &gSystemLayer;
     mTCPEndPointManager = &gTCP;
-#endif
-#if INET_CONFIG_ENABLE_UDP_ENDPOINT
     mUDPEndPointManager = &gUDP;
-#endif
+
     return err;
 }
 

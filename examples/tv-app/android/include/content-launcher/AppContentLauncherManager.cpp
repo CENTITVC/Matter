@@ -21,9 +21,7 @@
 #include <app/util/config.h>
 #include <json/json.h>
 
-#include <list>
-#include <string>
-
+using namespace std;
 using namespace chip::app;
 using namespace chip::app::Clusters;
 using namespace chip::app::DataModel;
@@ -31,8 +29,7 @@ using namespace chip::app::Clusters::ContentLauncher;
 using ContentAppAttributeDelegate = chip::AppPlatform::ContentAppAttributeDelegate;
 
 AppContentLauncherManager::AppContentLauncherManager(ContentAppAttributeDelegate * attributeDelegate,
-                                                     std::list<std::string> acceptHeaderList,
-                                                     uint32_t supportedStreamingProtocols) :
+                                                     list<std::string> acceptHeaderList, uint32_t supportedStreamingProtocols) :
     mAttributeDelegate(attributeDelegate)
 {
     mAcceptHeaderList            = acceptHeaderList;
@@ -46,7 +43,7 @@ void AppContentLauncherManager::HandleLaunchContent(CommandResponseHelper<Launch
                                                     bool useCurrentContext)
 {
     ChipLogProgress(Zcl, "AppContentLauncherManager::HandleLaunchContent for endpoint %d", mEndpointId);
-    std::string dataString(data.data(), data.size());
+    string dataString(data.data(), data.size());
 
     ChipLogProgress(Zcl, " AutoPlay=%s", (autoplay ? "true" : "false"));
 
@@ -76,8 +73,8 @@ void AppContentLauncherManager::HandleLaunchUrl(CommandResponseHelper<LaunchResp
 {
     ChipLogProgress(Zcl, "AppContentLauncherManager::HandleLaunchUrl");
 
-    std::string contentUrlString(contentUrl.data(), contentUrl.size());
-    std::string displayStringString(displayString.data(), displayString.size());
+    string contentUrlString(contentUrl.data(), contentUrl.size());
+    string displayStringString(displayString.data(), displayString.size());
 
     // TODO: Insert code here
     LaunchResponseType response;
@@ -100,7 +97,7 @@ CHIP_ERROR AppContentLauncherManager::HandleGetAcceptHeaderList(AttributeValueEn
         Json::Value value;
         if (reader.parse(resStr, value))
         {
-            std::string attrId = std::to_string(chip::app::Clusters::ContentLauncher::Attributes::AcceptHeader::Id);
+            std::string attrId = to_string(chip::app::Clusters::ContentLauncher::Attributes::AcceptHeader::Id);
             ChipLogProgress(Zcl, "AppContentLauncherManager::HandleGetAcceptHeaderList response parsing done. reading attr %s",
                             attrId.c_str());
             if (value[attrId].isArray())
@@ -146,7 +143,7 @@ uint32_t AppContentLauncherManager::HandleGetSupportedStreamingProtocols()
     {
         return mSupportedStreamingProtocols;
     }
-    std::string attrId = std::to_string(chip::app::Clusters::ContentLauncher::Attributes::SupportedStreamingProtocols::Id);
+    std::string attrId = to_string(chip::app::Clusters::ContentLauncher::Attributes::SupportedStreamingProtocols::Id);
     ChipLogProgress(Zcl, "AppContentLauncherManager::HandleGetSupportedStreamingProtocols response parsing done. reading attr %s",
                     attrId.c_str());
     if (!value[attrId].empty() && value[attrId].isInt())

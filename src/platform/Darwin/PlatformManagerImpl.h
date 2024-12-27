@@ -24,16 +24,11 @@
 #pragma once
 
 #include <lib/core/Global.h>
-#include <platform/Darwin/BleScannerDelegate.h>
-
-#if CHIP_SYSTEM_CONFIG_USE_DISPATCH
 #include <platform/internal/GenericPlatformManagerImpl.h>
-#else
-#include <platform/internal/GenericPlatformManagerImpl_POSIX.h>
-#endif // CHIP_SYSTEM_CONFIG_USE_DISPATCH
 
-#include <atomic>
 #include <dispatch/dispatch.h>
+
+static constexpr const char * const CHIP_CONTROLLER_QUEUE = "org.csa-iot.matter.framework.controller.workqueue";
 
 namespace chip {
 namespace DeviceLayer {
@@ -43,12 +38,7 @@ class BleScannerDelegate;
 /**
  * Concrete implementation of the PlatformManager singleton object for Darwin platforms.
  */
-class PlatformManagerImpl final : public PlatformManager,
-#if CHIP_SYSTEM_CONFIG_USE_DISPATCH
-                                  public Internal::GenericPlatformManagerImpl<PlatformManagerImpl>
-#else
-                                  public Internal::GenericPlatformManagerImpl_POSIX<PlatformManagerImpl>
-#endif // CHIP_SYSTEM_CONFIG_USE_DISPATCH
+class PlatformManagerImpl final : public PlatformManager, public Internal::GenericPlatformManagerImpl<PlatformManagerImpl>
 {
     // Allow the PlatformManager interface class to delegate method calls to
     // the implementation methods provided by this class.
@@ -57,19 +47,20 @@ class PlatformManagerImpl final : public PlatformManager,
 public:
     // ===== Platform-specific members that may be accessed directly by the application.
 
-    dispatch_queue_t GetWorkQueue() { return mWorkQueue; }
+    dispatch_queue_t GetWorkQueue();
     bool IsWorkQueueCurrentQueue() const;
 
-    CHIP_ERROR StartBleScan(BleScannerDelegate * delegate, BleScanMode mode = BleScanMode::kDefault);
+    CHIP_ERROR StartBleScan(BleScannerDelegate * delegate = nullptr);
     CHIP_ERROR StopBleScan();
+    CHIP_ERROR PrepareCommissioning();
 
     System::Clock::Timestamp GetStartTime() { return mStartTime; }
 
 private:
     // ===== Methods that implement the PlatformManager abstract interface.
     CHIP_ERROR _InitChipStack();
+    void _Shutdown();
 
-#if CHIP_SYSTEM_CONFIG_USE_DISPATCH
     CHIP_ERROR _StartChipTimer(System::Clock::Timeout delay) { return CHIP_ERROR_NOT_IMPLEMENTED; };
     CHIP_ERROR _StartEventLoopTask();
     CHIP_ERROR _StopEventLoopTask();
@@ -79,7 +70,6 @@ private:
     bool _TryLockChipStack() { return false; };
     void _UnlockChipStack(){};
     CHIP_ERROR _PostEvent(const ChipDeviceEvent * event);
-#endif // CHIP_SYSTEM_CONFIG_USE_DISPATCH
 
 #if CHIP_STACK_LOCK_TRACKING_ENABLED
     bool _IsChipStackLockedByCurrentThread() const;
@@ -90,26 +80,21 @@ private:
     friend PlatformManager & PlatformMgr(void);
     friend PlatformManagerImpl & PlatformMgrImpl(void);
 
-    friend AtomicGlobal<PlatformManagerImpl>;
-    static AtomicGlobal<PlatformManagerImpl> sInstance;
-
-    PlatformManagerImpl();
+    static Global<PlatformManagerImpl> sInstance;
 
     System::Clock::Timestamp mStartTime = System::Clock::kZero;
 
-    dispatch_queue_t mWorkQueue;
-
-    enum class WorkQueueState
-    {
-        kSuspended,
-        kRunning,
-        kSuspensionPending,
-    };
-
-    std::atomic<WorkQueueState> mWorkQueueState = WorkQueueState::kSuspended;
-
+    dispatch_queue_t mWorkQueue = nullptr;
     // Semaphore used to implement blocking behavior in _RunEventLoop.
     dispatch_semaphore_t mRunLoopSem;
+
+    bool mIsWorkQueueSuspended = false;
+    // TODO: mIsWorkQueueSuspensionPending might need to be an atomic and use
+    // atomic ops, if we're worried about calls to StopEventLoopTask() from
+    // multiple threads racing somehow...
+    bool mIsWorkQueueSuspensionPending = false;
+
+    inline ImplClass * Impl() { return static_cast<PlatformManagerImpl *>(this); }
 };
 
 /**
@@ -127,7 +112,7 @@ inline PlatformManager & PlatformMgr(void)
  * Returns the platform-specific implementation of the PlatformManager singleton object.
  *
  * chip applications can use this to gain access to features of the PlatformManager
- * that are specific to the platform.
+ * that are specific to the ESP32 platform.
  */
 inline PlatformManagerImpl & PlatformMgrImpl(void)
 {

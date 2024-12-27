@@ -1,12 +1,13 @@
-#include <limits>
+#include <protocols/bdx/BdxMessages.h>
 
-#include <pw_unit_test/framework.h>
+#include <nlunit-test.h>
 
-#include <lib/core/StringBuilderAdapters.h>
 #include <lib/support/BufferWriter.h>
 #include <lib/support/CHIPMem.h>
 #include <lib/support/CodeUtils.h>
-#include <protocols/bdx/BdxMessages.h>
+#include <lib/support/UnitTestRegistration.h>
+
+#include <limits>
 
 using namespace chip;
 using namespace chip::bdx;
@@ -16,40 +17,29 @@ using namespace chip::bdx;
  * is identical to the origianl.
  */
 template <class MsgType>
-void TestHelperWrittenAndParsedMatch(MsgType & testMsg)
+void TestHelperWrittenAndParsedMatch(nlTestSuite * inSuite, void * inContext, MsgType & testMsg)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
 
     size_t msgSize = testMsg.MessageSize();
     Encoding::LittleEndian::PacketBufferWriter bbuf(System::PacketBufferHandle::New(msgSize));
-    ASSERT_FALSE(bbuf.IsNull());
+    NL_TEST_ASSERT(inSuite, !bbuf.IsNull());
 
     testMsg.WriteToBuffer(bbuf);
-    EXPECT_TRUE(bbuf.Fit());
+    NL_TEST_ASSERT(inSuite, bbuf.Fit());
 
     System::PacketBufferHandle msgBuf = bbuf.Finalize();
-    ASSERT_FALSE(msgBuf.IsNull());
+    NL_TEST_ASSERT(inSuite, !msgBuf.IsNull());
     System::PacketBufferHandle rcvBuf = System::PacketBufferHandle::NewWithData(msgBuf->Start(), msgSize);
-    ASSERT_FALSE(rcvBuf.IsNull());
+    NL_TEST_ASSERT(inSuite, !rcvBuf.IsNull());
 
     MsgType testMsgRcvd;
     err = testMsgRcvd.Parse(std::move(rcvBuf));
-    EXPECT_EQ(err, CHIP_NO_ERROR);
-    EXPECT_EQ(testMsgRcvd, testMsg);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, testMsgRcvd == testMsg);
 }
 
-struct TestBdxMessages : public ::testing::Test
-{
-    static void SetUpTestSuite()
-    {
-        CHIP_ERROR error = chip::Platform::MemoryInit();
-        ASSERT_EQ(error, CHIP_NO_ERROR);
-    }
-
-    static void TearDownTestSuite() { chip::Platform::MemoryShutdown(); }
-};
-
-TEST_F(TestBdxMessages, TestTransferInitMessage)
+void TestTransferInitMessage(nlTestSuite * inSuite, void * inContext)
 {
     TransferInit testMsg;
 
@@ -70,10 +60,10 @@ TEST_F(TestBdxMessages, TestTransferInitMessage)
     testMsg.MetadataLength = 5;
     testMsg.Metadata       = reinterpret_cast<uint8_t *>(fakeData);
 
-    TestHelperWrittenAndParsedMatch<TransferInit>(testMsg);
+    TestHelperWrittenAndParsedMatch<TransferInit>(inSuite, inContext, testMsg);
 }
 
-TEST_F(TestBdxMessages, TestSendAcceptMessage)
+void TestSendAcceptMessage(nlTestSuite * inSuite, void * inContext)
 {
     SendAccept testMsg;
 
@@ -85,10 +75,10 @@ TEST_F(TestBdxMessages, TestSendAcceptMessage)
     testMsg.MetadataLength = 5;
     testMsg.Metadata       = reinterpret_cast<uint8_t *>(fakeData);
 
-    TestHelperWrittenAndParsedMatch<SendAccept>(testMsg);
+    TestHelperWrittenAndParsedMatch<SendAccept>(inSuite, inContext, testMsg);
 }
 
-TEST_F(TestBdxMessages, TestReceiveAcceptMessage)
+void TestReceiveAcceptMessage(nlTestSuite * inSuite, void * inContext)
 {
     ReceiveAccept testMsg;
 
@@ -105,19 +95,19 @@ TEST_F(TestBdxMessages, TestReceiveAcceptMessage)
     testMsg.MetadataLength = 5;
     testMsg.Metadata       = reinterpret_cast<uint8_t *>(fakeData);
 
-    TestHelperWrittenAndParsedMatch<ReceiveAccept>(testMsg);
+    TestHelperWrittenAndParsedMatch<ReceiveAccept>(inSuite, inContext, testMsg);
 }
 
-TEST_F(TestBdxMessages, TestCounterMessage)
+void TestCounterMessage(nlTestSuite * inSuite, void * inContext)
 {
     CounterMessage testMsg;
 
     testMsg.BlockCounter = 4;
 
-    TestHelperWrittenAndParsedMatch<CounterMessage>(testMsg);
+    TestHelperWrittenAndParsedMatch<CounterMessage>(inSuite, inContext, testMsg);
 }
 
-TEST_F(TestBdxMessages, TestDataBlockMessage)
+void TestDataBlockMessage(nlTestSuite * inSuite, void * inContext)
 {
     DataBlock testMsg;
 
@@ -126,15 +116,77 @@ TEST_F(TestBdxMessages, TestDataBlockMessage)
     testMsg.DataLength   = 5;
     testMsg.Data         = reinterpret_cast<uint8_t *>(fakeData);
 
-    TestHelperWrittenAndParsedMatch<DataBlock>(testMsg);
+    TestHelperWrittenAndParsedMatch<DataBlock>(inSuite, inContext, testMsg);
 }
 
-TEST_F(TestBdxMessages, TestBlockQueryWithSkipMessage)
+void TestBlockQueryWithSkipMessage(nlTestSuite * inSuite, void * inContext)
 {
     BlockQueryWithSkip testMsg;
 
     testMsg.BlockCounter = 5;
     testMsg.BytesToSkip  = 16;
 
-    TestHelperWrittenAndParsedMatch<BlockQueryWithSkip>(testMsg);
+    TestHelperWrittenAndParsedMatch<BlockQueryWithSkip>(inSuite, inContext, testMsg);
 }
+
+// Test Suite
+
+/**
+ *  Test Suite that lists all the test functions.
+ */
+// clang-format off
+static const nlTest sTests[] =
+{
+    NL_TEST_DEF("TestTransferInitMessage", TestTransferInitMessage),
+    NL_TEST_DEF("TestSendAcceptMessage", TestSendAcceptMessage),
+    NL_TEST_DEF("TestReceiveAcceptMessage", TestReceiveAcceptMessage),
+    NL_TEST_DEF("TestCounterMessage", TestCounterMessage),
+    NL_TEST_DEF("TestDataBlockMessage", TestDataBlockMessage),
+    NL_TEST_DEF("TestBlockQueryWithSkipMessage", TestBlockQueryWithSkipMessage),
+
+    NL_TEST_SENTINEL()
+};
+// clang-format on
+
+/**
+ *  Set up the test suite.
+ */
+static int TestSetup(void * inContext)
+{
+    CHIP_ERROR error = chip::Platform::MemoryInit();
+    if (error != CHIP_NO_ERROR)
+        return FAILURE;
+    return SUCCESS;
+}
+
+/**
+ *  Tear down the test suite.
+ */
+static int TestTeardown(void * inContext)
+{
+    chip::Platform::MemoryShutdown();
+    return SUCCESS;
+}
+
+// clang-format off
+static nlTestSuite sSuite =
+{
+    "Test-CHIP-BdxMessages",
+    &sTests[0],
+    TestSetup,
+    TestTeardown,
+};
+// clang-format on
+
+/**
+ *  Main
+ */
+int TestBdxMessages()
+{
+    // Run test suit against one context
+    nlTestRunner(&sSuite, nullptr);
+
+    return (nlTestRunnerStats(&sSuite));
+}
+
+CHIP_REGISTER_TEST_SUITE(TestBdxMessages)

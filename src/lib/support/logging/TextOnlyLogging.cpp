@@ -149,8 +149,6 @@ static const char ModuleNames[kLogModule_Max][kMaxModuleNameLen + 1] = {
     "OSS", // OperationalSessionSetup
     "ATM", // Automation
     "CSM", // CASESessionManager
-    "ICD", // ICD
-    "FS",  // FabricSync
 };
 
 } // namespace

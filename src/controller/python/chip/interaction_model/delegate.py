@@ -16,14 +16,14 @@
 
 import ctypes
 import threading
+import typing
 from ctypes import CFUNCTYPE, POINTER, c_uint8, c_uint32, c_uint64, c_void_p
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
 
 import chip.exceptions
 import chip.native
 import chip.tlv
-from construct import Int8ul, Int16ul, Int32ul, Int64ul, Struct  # type: ignore
+from construct import Int8ul, Int16ul, Int32ul, Int64ul, Struct
 
 # The type should match CommandStatus in interaction_model/Delegate.h
 # CommandStatus should not contain padding
@@ -101,14 +101,14 @@ class EventPath:
 class AttributeReadResult:
     path: AttributePath
     status: int
-    value: 'Any'
+    value: 'typing.Any'
     dataVersion: int
 
 
 @dataclass
 class EventReadResult:
     path: EventPath
-    value: 'Any'
+    value: 'typing.Any'
 
 
 @dataclass
@@ -119,12 +119,12 @@ class AttributeWriteResult:
 
 @dataclass
 class SessionParameters:
-    sessionIdleInterval: Optional[int]
-    sessionActiveInterval: Optional[int]
-    sessionActiveThreshold: Optional[int]
-    dataModelRevision: Optional[int]
-    interactionModelRevision: Optional[int]
-    specficiationVersion: Optional[int]
+    sessionIdleInterval: typing.Optional[int]
+    sessionActiveInterval: typing.Optional[int]
+    sessionActiveThreshold: typing.Optional[int]
+    dataModelRevision: typing.Optional[int]
+    interactionModelRevision: typing.Optional[int]
+    specficiationVersion: typing.Optional[int]
     maxPathsPerInvoke: int
 
 
@@ -244,15 +244,15 @@ _OnCommandResponseProtocolErrorFunct = CFUNCTYPE(None, c_uint64, c_uint8)
 _OnCommandResponseFunct = CFUNCTYPE(None, c_uint64, c_uint32)
 _OnWriteResponseStatusFunct = CFUNCTYPE(None, c_void_p, c_uint32)
 
-_commandStatusDict: Dict[int, Any] = dict()
-_commandIndexStatusDict: Dict[int, Any] = dict()
+_commandStatusDict = dict()
+_commandIndexStatusDict = dict()
 _commandStatusLock = threading.RLock()
 _commandStatusCV = threading.Condition(_commandStatusLock)
 
-_attributeDict: Dict[int, Any] = dict()
+_attributeDict = dict()
 _attributeDictLock = threading.RLock()
 
-_writeStatusDict: Dict[int, Any] = dict()
+_writeStatusDict = dict()
 _writeStatusDictLock = threading.RLock()
 
 # A placeholder commandHandle, will be removed once we decouple CommandSender with CHIPClusters
@@ -330,7 +330,7 @@ def InitIMDelegate():
         setter.Set("pychip_InteractionModelDelegate_SetCommandResponseErrorCallback", None, [
                    _OnCommandResponseFunct])
         setter.Set("pychip_InteractionModel_GetCommandSenderHandle",
-                   chip.native.PyChipError, [ctypes.POINTER(c_uint64)])
+                   c_uint32, [ctypes.POINTER(c_uint64)])
         setter.Set("pychip_InteractionModelDelegate_SetOnWriteResponseStatusCallback", None, [
                    _OnWriteResponseStatusFunct])
 
@@ -389,8 +389,10 @@ def WaitCommandIndexStatus(commandHandle: int, commandIndex: int):
 def GetCommandSenderHandle() -> int:
     handle = chip.native.GetLibraryHandle()
     resPointer = c_uint64()
-    handle.pychip_InteractionModel_GetCommandSenderHandle(
-        ctypes.pointer(resPointer)).raise_on_error()
+    res = handle.pychip_InteractionModel_GetCommandSenderHandle(
+        ctypes.pointer(resPointer))
+    if res != 0:
+        raise chip.exceptions.ChipStackError(res)
     ClearCommandStatus(resPointer.value)
     return resPointer.value
 

@@ -16,9 +16,6 @@ name: Darwin Tests
 
 on:
     push:
-        branches:
-            - master
-            - 'v*-branch'
     pull_request:
     merge_group:
     workflow_dispatch:
@@ -38,7 +35,7 @@ jobs:
 
         strategy:
             matrix:
-                build_variant: [no-ble-no-shell-asan-clang]
+                build_variant: [no-ble-asan-clang]
         env:
             BUILD_VARIANT: ${{matrix.build_variant}}
 
@@ -52,7 +49,7 @@ jobs:
             LSAN_OPTIONS: detect_leaks=1 malloc_context_size=40 suppressions=scripts/tests/chiptest/lsan-mac-suppressions.txt
 
         if: github.actor != 'restyled-io[bot]'
-        runs-on: macos-13
+        runs-on: macos-latest
 
         steps:
             - name: Checkout
@@ -75,7 +72,15 @@ jobs:
 
             - name: Run macOS Darwin Framework Tool Build Debug
               working-directory: src/darwin/Framework
-              run: xcodebuild -target "darwin-framework-tool" -sdk macosx -configuration Debug
+              # Keep whatever Xcode settings
+              # for OTHER_CFLAGS exist by using ${inherited}.
+              #
+              # Enable -Wconversion by hand as well, because it seems to not be
+              # enabled by default in the Xcode config.
+              #
+              # Disable availability annotations, since we are not building against a system
+              # Matter.framework.
+              run: xcodebuild -target "darwin-framework-tool" -sdk macosx -configuration Debug OTHER_CFLAGS='${inherited} -Wconversion' GCC_PREPROCESSOR_DEFINITIONS='${inherited} MTR_NO_AVAILABILITY=1'
             - name: Delete Defaults
               run: defaults delete com.apple.dt.xctest.tool
               continue-on-error: true
@@ -96,7 +101,6 @@ jobs:
                         --target darwin-x64-lit-icd-${BUILD_VARIANT} \
                         --target darwin-x64-microwave-oven-${BUILD_VARIANT} \
                         --target darwin-x64-rvc-${BUILD_VARIANT} \
-                        --target darwin-x64-network-manager-${BUILD_VARIANT} \
                         build \
                         --copy-artifacts-to objdir-clone \
                      "
@@ -118,7 +122,6 @@ jobs:
                      --bridge-app ./out/darwin-x64-bridge-${BUILD_VARIANT}/chip-bridge-app \
                      --microwave-oven-app ./out/darwin-x64-microwave-oven-${BUILD_VARIANT}/chip-microwave-oven-app \
                      --rvc-app ./out/darwin-x64-rvc-${BUILD_VARIANT}/chip-rvc-app \
-                     --network-manager-app ./out/darwin-x64-network-manager-${BUILD_VARIANT}/matter-network-manager-app \
                   "
             - name: Run OTA Test
               run: |

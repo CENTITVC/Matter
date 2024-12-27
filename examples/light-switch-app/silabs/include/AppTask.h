@@ -28,7 +28,7 @@
 
 #include "AppEvent.h"
 #include "BaseApplication.h"
-#include <ble/Ble.h>
+#include <ble/BLEEndPoint.h>
 #include <cmsis_os2.h>
 #include <lib/core/CHIPError.h>
 #include <platform/CHIPDeviceLayer.h>

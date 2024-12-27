@@ -19,7 +19,6 @@
 #pragma once
 
 #include <app/clusters/audio-output-server/audio-output-server.h>
-#include <string>
 #include <vector>
 
 class AudioOutputManager : public chip::app::Clusters::AudioOutput::Delegate

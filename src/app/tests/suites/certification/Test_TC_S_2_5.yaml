@@ -17,6 +17,7 @@ name: 132.2.5. [TC-S-2.5] RemainingCapacity functionality with DUT as Server
 
 PICS:
     - S.S
+    - S.S.F03
 
 config:
     nodeId: 0x12344321
@@ -249,7 +250,7 @@ tests:
           to 20000 (20s) and no extension field sets."
       PICS: S.S.C00.Rsp
       verification: |
-          scenesmanagement add-scene 0x0001 0x01 20000 scene1 [] 1 1
+          ./chip-tool scenesmanagement add-scene 0x0001 0x01 20000 scene1 [] 1 1
 
           Verify the AddSceneResponse with following fields:
           Status is SUCCESS
@@ -330,7 +331,7 @@ tests:
           8a."
       PICS: S.S.C04.Rsp
       verification: |
-          scenesmanagement store-scene 0x0001 0x02 1 1
+          ./chiptool scenesmanagement store-scene 0x0001 0x02  1 1
 
           Verify the StoreSceneResponse with following fields:
           Status is SUCCESS
@@ -411,7 +412,7 @@ tests:
           field sets. If RemainingCapacity is 0, continue to Step 8a."
       PICS: S.S.C00.Rsp
       verification: |
-          scenesmanagement add-scene 0x0001 0x03 20000 scene1 [] 1 1
+          ./chip-tool scenesmanagement add-scene 0x0001 0x03 20000 scene1 [] 1 1
 
           Verify the AddSceneResponse with following fields:
           Status is SUCCESS
@@ -490,7 +491,7 @@ tests:
           set to G1 and the SceneID field set to 0x01."
       PICS: S.S.C02.Rsp
       verification: |
-          scenesmanagement remove-scene 0x0001 0x01 1 1
+          ./chip-tool scenesmanagement remove-scene 0x0001 0x01 1 1
 
           Verify the RemoveScenesResponse with following fields:
           Status is SUCCESS
@@ -645,7 +646,7 @@ tests:
           KeySetRemove command to the GroupKeyManagement cluster with the
           GroupKeySetID field set to 0x01a1"
       verification: |
-          groupkeymanagement key-set-remove 0x01a1 1 0
+          ./chip-tool groupkeymanagement key-set-remove 0x01a1 1 0
 
           Verify DUT responds with SUCCESS status response on the TH(Chip-tool)  Log  and below is the sample log provided for the raspi platform:
 
