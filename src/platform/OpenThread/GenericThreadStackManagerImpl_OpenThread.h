@@ -40,7 +40,6 @@
 #include <app/icd/server/ICDServerConfig.h>
 #include <lib/dnssd/Advertiser.h>
 #include <lib/dnssd/platform/Dnssd.h>
-#include <platform/GeneralFaults.h>
 #include <platform/NetworkCommissioning.h>
 
 namespace chip {
@@ -70,7 +69,7 @@ public:
 
     otInstance * OTInstance() const;
     static void OnOpenThreadStateChange(uint32_t flags, void * context);
-    inline void OverrunErrorTally();
+    inline void OverrunErrorTally(void);
     void
     SetNetworkStatusChangeCallback(NetworkCommissioning::Internal::BaseDriver::NetworkStatusChangeCallback * statusChangeCallback)
     {
@@ -80,21 +79,21 @@ public:
 protected:
     // ===== Methods that implement the ThreadStackManager abstract interface.
 
-    void _ProcessThreadActivity();
+    void _ProcessThreadActivity(void);
     bool _HaveRouteToAddress(const Inet::IPAddress & destAddr);
     void _OnPlatformEvent(const ChipDeviceEvent * event);
-    bool _IsThreadEnabled();
+    bool _IsThreadEnabled(void);
     CHIP_ERROR _SetThreadEnabled(bool val);
 
-    bool _IsThreadProvisioned();
-    bool _IsThreadAttached();
+    bool _IsThreadProvisioned(void);
+    bool _IsThreadAttached(void);
     CHIP_ERROR _GetThreadProvision(Thread::OperationalDataset & dataset);
     CHIP_ERROR _SetThreadProvision(ByteSpan netInfo);
     CHIP_ERROR _AttachToThreadNetwork(const Thread::OperationalDataset & dataset,
                                       NetworkCommissioning::Internal::WirelessDriver::ConnectCallback * callback);
-    void _OnThreadAttachFinished();
-    void _ErasePersistentInfo();
-    ConnectivityManager::ThreadDeviceType _GetThreadDeviceType();
+    void _OnThreadAttachFinished(void);
+    void _ErasePersistentInfo(void);
+    ConnectivityManager::ThreadDeviceType _GetThreadDeviceType(void);
     CHIP_ERROR _SetThreadDeviceType(ConnectivityManager::ThreadDeviceType deviceType);
     CHIP_ERROR _StartThreadScan(NetworkCommissioning::ThreadDriver::ScanCallback * callback);
     static void _OnNetworkScanFinished(otActiveScanResult * aResult, void * aContext);
@@ -105,17 +104,16 @@ protected:
     CHIP_ERROR _SetPollingInterval(System::Clock::Milliseconds32 pollingInterval);
 #endif // CHIP_CONFIG_ENABLE_ICD_SERVER
 
-    bool _HaveMeshConnectivity();
-    CHIP_ERROR _GetAndLogThreadStatsCounters();
-    CHIP_ERROR _GetAndLogThreadTopologyMinimal();
-    CHIP_ERROR _GetAndLogThreadTopologyFull();
+    bool _HaveMeshConnectivity(void);
+    CHIP_ERROR _GetAndLogThreadStatsCounters(void);
+    CHIP_ERROR _GetAndLogThreadTopologyMinimal(void);
+    CHIP_ERROR _GetAndLogThreadTopologyFull(void);
     CHIP_ERROR _GetPrimary802154MACAddress(uint8_t * buf);
     CHIP_ERROR _GetExternalIPv6Address(chip::Inet::IPAddress & addr);
-    CHIP_ERROR _GetThreadVersion(uint16_t & version);
-    void _ResetThreadNetworkDiagnosticsCounts();
+    void _ResetThreadNetworkDiagnosticsCounts(void);
     CHIP_ERROR _GetPollPeriod(uint32_t & buf);
-    void _OnWoBLEAdvertisingStart();
-    void _OnWoBLEAdvertisingStop();
+    void _OnWoBLEAdvertisingStart(void);
+    void _OnWoBLEAdvertisingStop(void);
 
 #if CHIP_DEVICE_CONFIG_ENABLE_THREAD_SRP_CLIENT
     CHIP_ERROR _AddSrpService(const char * aInstanceName, const char * aName, uint16_t aPort,
@@ -143,10 +141,11 @@ protected:
 
     // ===== Members available to the implementation subclass.
 
-    CHIP_ERROR ConfigureThreadStack(otInstance * otInst);
     CHIP_ERROR DoInit(otInstance * otInst);
-    bool IsThreadAttachedNoLock();
-    bool IsThreadInterfaceUpNoLock();
+    bool IsThreadAttachedNoLock(void);
+    bool IsThreadInterfaceUpNoLock(void);
+
+    CHIP_ERROR _JoinerStart(void);
 
 private:
     // ===== Private members for use by this class only.
@@ -265,7 +264,8 @@ private:
 #endif // CHIP_DEVICE_CONFIG_ENABLE_THREAD_DNS_CLIENT
 #endif // CHIP_DEVICE_CONFIG_ENABLE_THREAD_SRP_CLIENT
 
-    GeneralFaults<kMaxNetworkFaults> mNetworkFaults;
+    static void OnJoinerComplete(otError aError, void * aContext);
+    void OnJoinerComplete(otError aError);
 
     inline ImplClass * Impl() { return static_cast<ImplClass *>(this); }
 };
@@ -283,19 +283,19 @@ inline otInstance * GenericThreadStackManagerImpl_OpenThread<ImplClass>::OTInsta
 }
 
 template <class ImplClass>
-inline void GenericThreadStackManagerImpl_OpenThread<ImplClass>::OverrunErrorTally()
+inline void GenericThreadStackManagerImpl_OpenThread<ImplClass>::OverrunErrorTally(void)
 {
     mOverrunCount++;
 }
 
 template <class ImplClass>
-inline void GenericThreadStackManagerImpl_OpenThread<ImplClass>::_OnWoBLEAdvertisingStart()
+inline void GenericThreadStackManagerImpl_OpenThread<ImplClass>::_OnWoBLEAdvertisingStart(void)
 {
     // Do nothing by default.
 }
 
 template <class ImplClass>
-inline void GenericThreadStackManagerImpl_OpenThread<ImplClass>::_OnWoBLEAdvertisingStop()
+inline void GenericThreadStackManagerImpl_OpenThread<ImplClass>::_OnWoBLEAdvertisingStop(void)
 {
     // Do nothing by default.
 }

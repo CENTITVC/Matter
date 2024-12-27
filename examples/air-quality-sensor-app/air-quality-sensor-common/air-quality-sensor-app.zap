@@ -1,6 +1,6 @@
 {
   "fileFormat": 2,
-  "featureLevel": 103,
+  "featureLevel": 100,
   "creator": "zap",
   "keyValuePairs": [
     {
@@ -29,7 +29,6 @@
       "pathRelativity": "relativeToZap",
       "path": "../../../src/app/zap-templates/app-templates.json",
       "type": "gen-templates-json",
-      "category": "matter",
       "version": "chip-v1"
     }
   ],
@@ -769,6 +768,24 @@
               "source": "client",
               "isIncoming": 0,
               "isEnabled": 1
+            }
+          ],
+          "attributes": [
+            {
+              "name": "ClusterRevision",
+              "code": 65533,
+              "mfgCode": null,
+              "side": "client",
+              "type": "int16u",
+              "included": 1,
+              "storageOption": "RAM",
+              "singleton": 0,
+              "bounded": 0,
+              "defaultValue": "1",
+              "reportable": 1,
+              "minInterval": 0,
+              "maxInterval": 65344,
+              "reportableChange": 0
             }
           ]
         },
@@ -2725,7 +2742,7 @@
           ]
         },
         {
-          "name": "Wi-Fi Network Diagnostics",
+          "name": "WiFi Network Diagnostics",
           "code": 54,
           "mfgCode": null,
           "define": "WIFI_NETWORK_DIAGNOSTICS_CLUSTER",

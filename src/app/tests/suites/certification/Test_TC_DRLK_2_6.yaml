@@ -107,38 +107,40 @@ tests:
           error: INVALID_COMMAND
 
     - label:
-          "Step 5: TH sends GetHolidaySchedule Command to DUT with Invalid
-          HolidayIndex > number_holiday_sch_supported ."
+          "Step 5: TH sends Get Holiday Schedule Command to DUT with Invalid
+          HolidayIndex as 15"
       PICS: DRLK.S.F0b && DRLK.S.C12.Rsp && DRLK.S.C12.Tx
       command: "GetHolidaySchedule"
       arguments:
           values:
               - name: "HolidayIndex"
-                value: NumberOfHolidaySchedulesSupportedValue + 1
+                value: 15
       response:
           values:
+              - name: "HolidayIndex"
+                value: 15
               - name: "Status"
-                value: 0x85
+                value: 133
 
     - label:
-          "Step 6: TH sends GetHolidaySchedule Command to DUT with the
-          HolidayIndex as any value that is different from 1 and value <=
-          number_holiday_sch_supported"
+          "Step 6: TH sends Get Holiday Schedule Command to DUT with the
+          HolidayIndex as 10 (value is in the the range of step 1 but Holiday
+          Schedule entry not available)"
       PICS: DRLK.S.F0b && DRLK.S.C12.Rsp && DRLK.S.C12.Tx
       command: "GetHolidaySchedule"
       arguments:
           values:
               - name: "HolidayIndex"
-                value: NumberOfHolidaySchedulesSupportedValue
+                value: 10
       response:
           values:
               - name: "HolidayIndex"
-                value: NumberOfHolidaySchedulesSupportedValue
+                value: 10
               - name: "Status"
-                value: 0x8B
+                value: 139
 
     - label:
-          "Step 7a: TH send Clear Holiday Schedule Command to DUT with
+          "Step 7: TH send Clear Holiday Schedule Command to DUT with
           HolidayIndex as 1"
       PICS: DRLK.S.F0b && DRLK.S.C13.Rsp
       command: "ClearHolidaySchedule"
@@ -146,18 +148,6 @@ tests:
           values:
               - name: "HolidayIndex"
                 value: 1
-
-    - label:
-          "Step 7b: TH send Clear Holiday Schedule Command to DUT with
-          HolidayIndex as 0"
-      PICS: DRLK.S.F0b && DRLK.S.C13.Rsp
-      command: "ClearHolidaySchedule"
-      arguments:
-          values:
-              - name: "HolidayIndex"
-                value: 0
-      response:
-          error: INVALID_COMMAND
 
     - label:
           "Step 8: TH sends Get Holiday Schedule Command to DUT with

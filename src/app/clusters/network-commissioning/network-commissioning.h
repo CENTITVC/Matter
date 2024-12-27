@@ -22,7 +22,6 @@
 #include <app/AttributeAccessInterface.h>
 #include <app/CommandHandlerInterface.h>
 #include <app/data-model/Nullable.h>
-#include <lib/support/IntrusiveList.h>
 #include <lib/support/ThreadOperationalDataset.h>
 #include <lib/support/Variant.h>
 #include <platform/NetworkCommissioning.h>
@@ -34,17 +33,9 @@ namespace app {
 namespace Clusters {
 namespace NetworkCommissioning {
 
-// Instance inherits privately from this class to participate in Instance::sInstances
-class InstanceListNode : public IntrusiveListNodeBase<>
-{
-};
-
 // TODO: Use macro to disable some wifi or thread
 class Instance : public CommandHandlerInterface,
                  public AttributeAccessInterface,
-#if CHIP_DEVICE_CONFIG_SUPPORTS_CONCURRENT_CONNECTION
-                 private InstanceListNode,
-#endif
                  public DeviceLayer::NetworkCommissioning::Internal::BaseDriver::NetworkStatusChangeCallback,
                  public DeviceLayer::NetworkCommissioning::Internal::WirelessDriver::ConnectCallback,
                  public DeviceLayer::NetworkCommissioning::WiFiDriver::ScanCallback,
@@ -90,17 +81,6 @@ private:
     void SendNonConcurrentConnectNetworkResponse();
 #endif
 
-// TODO: This could be guarded by a separate multi-interface condition instead
-#if CHIP_DEVICE_CONFIG_SUPPORTS_CONCURRENT_CONNECTION
-    class NetworkInstanceList : public IntrusiveList<InstanceListNode>
-    {
-    public:
-        ~NetworkInstanceList() { this->Clear(); }
-    };
-
-    static NetworkInstanceList sInstances;
-#endif
-
     EndpointId mEndpointId = kInvalidEndpointId;
     const BitFlags<Feature> mFeatureFlags;
 
@@ -131,11 +111,6 @@ private:
     void SetLastNetworkId(ByteSpan lastNetworkId);
     void ReportNetworksListChanged() const;
 
-#if CHIP_DEVICE_CONFIG_SUPPORTS_CONCURRENT_CONNECTION
-    // Disconnect if the current connection is not in the Networks list
-    void DisconnectLingeringConnection();
-#endif
-
     // Commits the breadcrumb value saved in mCurrentOperationBreadcrumb to the breadcrumb attribute in GeneralCommissioning
     // cluster. Will set mCurrentOperationBreadcrumb to NullOptional.
     void CommitSavedBreadcrumb();
@@ -158,15 +133,7 @@ public:
     Instance(EndpointId aEndpointId, DeviceLayer::NetworkCommissioning::WiFiDriver * apDelegate);
     Instance(EndpointId aEndpointId, DeviceLayer::NetworkCommissioning::ThreadDriver * apDelegate);
     Instance(EndpointId aEndpointId, DeviceLayer::NetworkCommissioning::EthernetDriver * apDelegate);
-    virtual ~Instance()
-    {
-#if CHIP_DEVICE_CONFIG_SUPPORTS_CONCURRENT_CONNECTION
-        if (IsInList())
-        {
-            sInstances.Remove(this);
-        }
-#endif
-    }
+    virtual ~Instance() = default;
 };
 
 // NetworkDriver for the devices that don't have / don't need a real network driver.

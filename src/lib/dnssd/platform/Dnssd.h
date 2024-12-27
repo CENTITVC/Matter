@@ -26,12 +26,12 @@
 #pragma once
 
 #include <algorithm>
-#include <optional>
 #include <stdint.h>
 
 #include <inet/IPAddress.h>
 #include <inet/InetInterface.h>
 #include <lib/core/CHIPError.h>
+#include <lib/core/Optional.h>
 #include <lib/dnssd/Constants.h>
 #include <lib/dnssd/ServiceNaming.h>
 #include <system/TimeSource.h>
@@ -77,12 +77,11 @@ struct DnssdService
     size_t mTextEntrySize;
     const char ** mSubTypes;
     size_t mSubTypeSize;
-    std::optional<chip::Inet::IPAddress> mAddress;
+    Optional<chip::Inet::IPAddress> mAddress;
     // Time to live in seconds. Per rfc6762 section 10, because we have a hostname, our default TTL is 120 seconds
     uint32_t mTtlSeconds = 120;
 
-    void ToDiscoveredCommissionNodeData(const Span<Inet::IPAddress> & addresses, DiscoveredNodeData & nodeData);
-    void ToDiscoveredOperationalNodeBrowseData(DiscoveredNodeData & nodeData);
+    void ToDiscoveredNodeData(const Span<Inet::IPAddress> & addresses, DiscoveredNodeData & nodeData);
 };
 
 /**
@@ -289,7 +288,8 @@ CHIP_ERROR ChipDnssdResolve(DnssdService * browseResult, chip::Inet::InterfaceId
  * @retval Error code                   The resolve fails.
  *
  */
-CHIP_ERROR ChipDnssdResolve(DnssdService * browseResult, chip::Inet::InterfaceId interface, DiscoverNodeDelegate * delegate);
+CHIP_ERROR ChipDnssdResolve(DnssdService * browseResult, chip::Inet::InterfaceId interface,
+                            CommissioningResolveDelegate * delegate);
 #endif // CHIP_DEVICE_LAYER_TARGET_DARWIN
 
 /**

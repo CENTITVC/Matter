@@ -34,7 +34,6 @@
 #include <app/server/OnboardingCodesUtil.h>
 #include <app/server/Server.h>
 #include <app/util/attribute-storage.h>
-#include <app/util/endpoint-config-api.h>
 #include <assert.h>
 #include <lega_rtos_api.h>
 #include <platform/ASR/NetworkCommissioningDriver.h>
@@ -42,7 +41,6 @@
 #include <protocols/interaction_model/StatusCode.h>
 #include <setup_payload/QRCodeSetupPayloadGenerator.h>
 #include <setup_payload/SetupPayload.h>
-#include <static-supported-modes-manager.h>
 #include <static-supported-temperature-levels.h>
 
 using chip::Protocols::InteractionModel::Status;
@@ -67,7 +65,6 @@ app::Clusters::NetworkCommissioning::Instance
     sWiFiNetworkCommissioningInstance(kNetworkCommissioningEndpointMain /* Endpoint Id */,
                                       &(NetworkCommissioning::ASRWiFiDriver::GetInstance()));
 app::Clusters::TemperatureControl::AppSupportedTemperatureLevelsDelegate sAppSupportedTemperatureLevelsDelegate;
-app::Clusters::ModeSelect::StaticSupportedModesManager sStaticSupportedModesManager;
 } // namespace
 
 AppTask AppTask::sAppTask;
@@ -133,7 +130,6 @@ CHIP_ERROR AppTask::Init()
 #endif /* CONFIG_NETWORK_LAYER_BLE */
 
     app::Clusters::TemperatureControl::SetInstance(&sAppSupportedTemperatureLevelsDelegate);
-    app::Clusters::ModeSelect::setSupportedModesManager(&sStaticSupportedModesManager);
 
     return CHIP_NO_ERROR;
 }

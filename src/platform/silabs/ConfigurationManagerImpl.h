@@ -46,8 +46,6 @@ public:
     CHIP_ERROR GetTotalOperationalHours(uint32_t & totalOperationalHours);
     CHIP_ERROR StoreTotalOperationalHours(uint32_t totalOperationalHours);
 
-    void ClearThreadStack();
-
 private:
     // ===== Members that implement the ConfigurationManager public interface.
 

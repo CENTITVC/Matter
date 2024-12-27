@@ -20,6 +20,7 @@
 #include <lib/core/CHIPCore.h>
 #include <lib/shell/Commands.h>
 #include <lib/shell/Engine.h>
+#include <lib/shell/commands/Help.h>
 #include <lib/support/CHIPArgParser.hpp>
 #include <lib/support/CHIPMem.h>
 #include <lib/support/CodeUtils.h>
@@ -128,13 +129,6 @@ static CHIP_ERROR RendezvousStringToFlag(char * str, chip::RendezvousInformation
         *aRendezvousFlags = chip::RendezvousInformationFlag::kOnNetwork;
         return CHIP_NO_ERROR;
     }
-#if CHIP_DEVICE_CONFIG_ENABLE_WIFIPAF
-    if (strcmp(str, "wifipaf") == 0)
-    {
-        *aRendezvousFlags = chip::RendezvousInformationFlag::kWiFiPAF;
-        return CHIP_NO_ERROR;
-    }
-#endif
     return CHIP_ERROR_INVALID_ARGUMENT;
 }
 
@@ -176,12 +170,14 @@ static CHIP_ERROR OnboardingHandler(int argc, char ** argv)
 
 void RegisterOnboardingCodesCommands()
 {
-    static constexpr Command deviceComand = {
+
+    static const shell_command_t sDeviceComand = {
         &OnboardingHandler, "onboardingcodes",
         "Dump device onboarding codes. Usage: onboardingcodes none|softap|ble|onnetwork [qrcode|qrcodeurl|manualpairingcode]"
     };
 
-    Engine::Root().RegisterCommands(&deviceComand, 1);
+    // Register the root `device` command with the top-level shell.
+    Engine::Root().RegisterCommands(&sDeviceComand, 1);
 }
 
 } // namespace Shell

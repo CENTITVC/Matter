@@ -21,11 +21,11 @@
  *      one) for a fabric.
  */
 
-#include <pw_unit_test/framework.h>
-
 #include "messaging/ExchangeDelegate.h"
 #include "system/SystemClock.h"
-#include <lib/core/StringBuilderAdapters.h>
+#include <lib/support/UnitTestContext.h>
+#include <lib/support/UnitTestRegistration.h>
+#include <lib/support/UnitTestUtils.h>
 #include <messaging/ExchangeContext.h>
 #include <messaging/ExchangeHolder.h>
 #include <messaging/ExchangeMgr.h>
@@ -69,7 +69,9 @@ using namespace chip::Messaging;
 using namespace chip::System;
 using namespace chip::Protocols;
 
-using TestExchangeHolder = chip::Test::LoopbackMessagingContext;
+using TestContext = Test::LoopbackMessagingContext;
+
+TestContext * gCtx = nullptr;
 
 class MockProtocolResponder : public ExchangeDelegate, public Messaging::UnsolicitedMessageHandler
 {
@@ -85,27 +87,26 @@ public:
     };
 
     template <typename... Args>
-    MockProtocolResponder(TestExchangeHolder & ctx, BehaviorModifier modifier1, Args &&... args) :
-        mExchangeCtx(*this), mBehaviorModifier(modifier1, std::forward<Args>(args)...), testExchangeHolder(ctx)
+    MockProtocolResponder(BehaviorModifier modifier1, Args &&... args) :
+        mExchangeCtx(*this), mBehaviorModifier(modifier1, std::forward<Args>(args)...)
     {
-        testExchangeHolder.GetExchangeManager().RegisterUnsolicitedMessageHandlerForProtocol(chip::Protocols::MockProtocol::Id,
-                                                                                             this);
+        VerifyOrDie(gCtx != nullptr);
+        gCtx->GetExchangeManager().RegisterUnsolicitedMessageHandlerForProtocol(chip::Protocols::MockProtocol::Id, this);
         ChipLogDetail(ExchangeManager, "[%p] MockProtocolResponder: %p", this, &mExchangeCtx);
     }
 
-    MockProtocolResponder(TestExchangeHolder & ctx, BehaviorModifier modifier = BehaviorModifier::kNone) :
-        mExchangeCtx(*this), testExchangeHolder(ctx)
+    MockProtocolResponder(BehaviorModifier modifier = BehaviorModifier::kNone) : mExchangeCtx(*this)
     {
+        VerifyOrDie(gCtx != nullptr);
         mBehaviorModifier.Set(modifier);
-        testExchangeHolder.GetExchangeManager().RegisterUnsolicitedMessageHandlerForProtocol(chip::Protocols::MockProtocol::Id,
-                                                                                             this);
+        gCtx->GetExchangeManager().RegisterUnsolicitedMessageHandlerForProtocol(chip::Protocols::MockProtocol::Id, this);
         ChipLogDetail(ExchangeManager, "[%p] MockProtocolResponder: %p", this, &mExchangeCtx);
     }
 
     ~MockProtocolResponder()
     {
         ChipLogDetail(ExchangeManager, "[%p] ~MockProtocolResponder", this);
-        testExchangeHolder.GetExchangeManager().UnregisterUnsolicitedMessageHandlerForProtocol(chip::Protocols::MockProtocol::Id);
+        gCtx->GetExchangeManager().UnregisterUnsolicitedMessageHandlerForProtocol(chip::Protocols::MockProtocol::Id);
     }
 
     bool DidInteractionSucceed() { return mInteractionSucceeded; }
@@ -125,7 +126,6 @@ private:
     ExchangeHolder mExchangeCtx;
     BitFlags<BehaviorModifier> mBehaviorModifier = BehaviorModifier::kNone;
     bool mInteractionSucceeded                   = false;
-    TestExchangeHolder & testExchangeHolder;
 };
 
 class MockProtocolInitiator : public ExchangeDelegate
@@ -144,16 +144,15 @@ public:
         kExpireSessionAfterMsg3Send  = 0x18,
     };
 
-    MockProtocolInitiator(TestExchangeHolder & ctx, BehaviorModifier modifier = BehaviorModifier::kNone) :
-        mExchangeCtx(*this), testExchangeHolder(ctx)
+    MockProtocolInitiator(BehaviorModifier modifier = BehaviorModifier::kNone) : mExchangeCtx(*this)
     {
         mBehaviorModifier.Set(modifier);
         ChipLogDetail(ExchangeManager, "[%p] MockProtocolInitiator: %p", this, &mExchangeCtx);
     }
 
     template <typename... Args>
-    MockProtocolInitiator(TestExchangeHolder & ctx, BehaviorModifier modifier1, Args &&... args) :
-        mExchangeCtx(*this), mBehaviorModifier(modifier1, std::forward<Args>(args)...), testExchangeHolder(ctx)
+    MockProtocolInitiator(BehaviorModifier modifier1, Args &&... args) :
+        mExchangeCtx(*this), mBehaviorModifier(modifier1, std::forward<Args>(args)...)
     {
         ChipLogDetail(ExchangeManager, "[%p] MockProtocolInitiator: %p", this, &mExchangeCtx);
     }
@@ -173,7 +172,6 @@ private:
     ExchangeHolder mExchangeCtx;
     BitFlags<BehaviorModifier> mBehaviorModifier = BehaviorModifier::kNone;
     bool mInteractionSucceeded                   = false;
-    TestExchangeHolder & testExchangeHolder;
 };
 
 CHIP_ERROR MockProtocolResponder::OnMessageReceived(ExchangeContext * ec, const PayloadHeader & payloadHeader,
@@ -250,7 +248,7 @@ CHIP_ERROR MockProtocolInitiator::StartInteraction(SessionHandle & sessionHandle
     PacketBufferHandle buffer = MessagePacketBuffer::New(0);
     VerifyOrReturnError(!buffer.IsNull(), CHIP_ERROR_NO_MEMORY);
 
-    auto exchange = testExchangeHolder.GetExchangeManager().NewContext(sessionHandle, this);
+    auto exchange = gCtx->GetExchangeManager().NewContext(sessionHandle, this);
     VerifyOrReturnError(exchange != nullptr, CHIP_ERROR_NO_MEMORY);
 
     //
@@ -346,11 +344,15 @@ CHIP_ERROR MockProtocolInitiator::OnMessageReceived(ExchangeContext * ec, const 
     return err;
 }
 
-TEST_F(TestExchangeHolder, TestExchangeHolder)
+void TestExchangeHolder(nlTestSuite * inSuite, void * inContext)
 {
-    auto sessionHandle = GetSessionAliceToBob();
+    TestContext & ctx = *reinterpret_cast<TestContext *>(inContext);
 
-    SetMRPMode(chip::Test::MessagingContext::MRPMode::kResponsive);
+    gCtx = &ctx;
+
+    auto sessionHandle = ctx.GetSessionAliceToBob();
+
+    ctx.SetMRPMode(chip::Test::MessagingContext::MRPMode::kResponsive);
 
     //
     // #1: Initiator (AllocExchange)
@@ -364,14 +366,14 @@ TEST_F(TestExchangeHolder, TestExchangeHolder)
         ChipLogProgress(ExchangeManager, "-------- #1: Initiator (AllocExchange) ----------");
 
         {
-            MockProtocolInitiator initiator(*this, MockProtocolInitiator::BehaviorModifier::kDontSendMsg1);
-            MockProtocolResponder responder(*this);
+            MockProtocolInitiator initiator(MockProtocolInitiator::BehaviorModifier::kDontSendMsg1);
+            MockProtocolResponder responder;
 
             auto err = initiator.StartInteraction(sessionHandle);
-            EXPECT_EQ(err, CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
         }
 
-        EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
+        NL_TEST_ASSERT(inSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
     }
 
     //
@@ -387,19 +389,19 @@ TEST_F(TestExchangeHolder, TestExchangeHolder)
         ChipLogProgress(ExchangeManager, "-------- #2: Initiator --X (SendErr) Msg1 --------- ");
 
         {
-            MockProtocolInitiator initiator(*this, MockProtocolInitiator::BehaviorModifier::kErrMsg1);
-            MockProtocolResponder responder(*this);
+            MockProtocolInitiator initiator(MockProtocolInitiator::BehaviorModifier::kErrMsg1);
+            MockProtocolResponder responder;
 
             auto err = initiator.StartInteraction(sessionHandle);
-            EXPECT_NE(err, CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
         }
 
         //
         // Service IO AFTER the objects above cease to exist to prevent Msg1 from getting to Responder. This also
         // flush any pending messages in the queue.
         //
-        DrainAndServiceIO();
-        EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
+        ctx.DrainAndServiceIO();
+        NL_TEST_ASSERT(inSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
     }
 
     //
@@ -415,19 +417,19 @@ TEST_F(TestExchangeHolder, TestExchangeHolder)
         ChipLogProgress(ExchangeManager, "-------- #3: Initiator --X (SessionReleased before) Msg1 --------- ");
 
         {
-            MockProtocolInitiator initiator(*this, MockProtocolInitiator::BehaviorModifier::kExpireSessionBeforeMsg1Send);
-            MockProtocolResponder responder(*this);
+            MockProtocolInitiator initiator(MockProtocolInitiator::BehaviorModifier::kExpireSessionBeforeMsg1Send);
+            MockProtocolResponder responder;
 
             auto err = initiator.StartInteraction(sessionHandle);
-            EXPECT_NE(err, CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
         }
 
         //
         // Service IO AFTER the objects above cease to exist to prevent Msg1 from getting to Responder. This also
         // flush any pending messages in the queue.
         //
-        DrainAndServiceIO();
-        EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
+        ctx.DrainAndServiceIO();
+        NL_TEST_ASSERT(inSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
     }
 
     //
@@ -443,20 +445,20 @@ TEST_F(TestExchangeHolder, TestExchangeHolder)
         ChipLogProgress(ExchangeManager, "-------- #4: Initiator --X (SendErr + SessionReleased after) Msg1 --------- ");
 
         {
-            MockProtocolInitiator initiator(*this, MockProtocolInitiator::BehaviorModifier::kExpireSessionAfterMsg1Send,
+            MockProtocolInitiator initiator(MockProtocolInitiator::BehaviorModifier::kExpireSessionAfterMsg1Send,
                                             MockProtocolInitiator::BehaviorModifier::kErrMsg1);
-            MockProtocolResponder responder(*this);
+            MockProtocolResponder responder;
 
             auto err = initiator.StartInteraction(sessionHandle);
-            EXPECT_NE(err, CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
         }
 
         //
         // Service IO AFTER the objects above cease to exist to prevent Msg1 from getting to Responder. This also
         // flush any pending messages in the queue.
         //
-        DrainAndServiceIO();
-        EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
+        ctx.DrainAndServiceIO();
+        NL_TEST_ASSERT(inSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
     }
 
     //
@@ -472,19 +474,19 @@ TEST_F(TestExchangeHolder, TestExchangeHolder)
         ChipLogProgress(ExchangeManager, "-------- #5: Initiator >-- Msg1 --X Responder ---------");
 
         {
-            MockProtocolInitiator initiator(*this);
-            MockProtocolResponder responder(*this);
+            MockProtocolInitiator initiator;
+            MockProtocolResponder responder;
 
             auto err = initiator.StartInteraction(sessionHandle);
-            EXPECT_EQ(err, CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
         }
 
         //
         // Service IO AFTER the objects above cease to exist to prevent Msg1 from getting to Responder. This also
         // flush any pending messages in the queue.
         //
-        DrainAndServiceIO();
-        EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
+        ctx.DrainAndServiceIO();
+        NL_TEST_ASSERT(inSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
     }
 
     //
@@ -500,16 +502,16 @@ TEST_F(TestExchangeHolder, TestExchangeHolder)
         {
             ChipLogProgress(ExchangeManager, "-------- #6: Initiator >-- Msg1 --> Responder (WillSend) ---------");
 
-            MockProtocolInitiator initiator(*this);
-            MockProtocolResponder responder(*this, MockProtocolResponder::BehaviorModifier::kHoldMsg2);
+            MockProtocolInitiator initiator;
+            MockProtocolResponder responder(MockProtocolResponder::BehaviorModifier::kHoldMsg2);
 
             auto err = initiator.StartInteraction(sessionHandle);
-            EXPECT_EQ(err, CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
-            DrainAndServiceIO();
+            ctx.DrainAndServiceIO();
         }
 
-        EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
+        NL_TEST_ASSERT(inSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
     }
 
     //
@@ -527,16 +529,16 @@ TEST_F(TestExchangeHolder, TestExchangeHolder)
         {
             ChipLogProgress(ExchangeManager, "-------- #7: Msg2 (SendFailure) X-- Responder ---------");
 
-            MockProtocolInitiator initiator(*this);
-            MockProtocolResponder responder(*this, MockProtocolResponder::BehaviorModifier::kErrMsg2);
+            MockProtocolInitiator initiator;
+            MockProtocolResponder responder(MockProtocolResponder::BehaviorModifier::kErrMsg2);
 
             auto err = initiator.StartInteraction(sessionHandle);
-            EXPECT_EQ(err, CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
-            DrainAndServiceIO();
+            ctx.DrainAndServiceIO();
         }
 
-        EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
+        NL_TEST_ASSERT(inSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
     }
 
     //
@@ -552,16 +554,16 @@ TEST_F(TestExchangeHolder, TestExchangeHolder)
         {
             ChipLogProgress(ExchangeManager, "-------- #8: Msg2 (SessionReleased Before) X-- Responder ---------");
 
-            MockProtocolInitiator initiator(*this);
-            MockProtocolResponder responder(*this, MockProtocolResponder::BehaviorModifier::kExpireSessionBeforeMsg2Send);
+            MockProtocolInitiator initiator;
+            MockProtocolResponder responder(MockProtocolResponder::BehaviorModifier::kExpireSessionBeforeMsg2Send);
 
             auto err = initiator.StartInteraction(sessionHandle);
-            EXPECT_EQ(err, CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
-            DrainAndServiceIO();
+            ctx.DrainAndServiceIO();
         }
 
-        EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
+        NL_TEST_ASSERT(inSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
     }
 
     //
@@ -577,17 +579,17 @@ TEST_F(TestExchangeHolder, TestExchangeHolder)
         {
             ChipLogProgress(ExchangeManager, "-------- #9: Msg2 (SendErr + SessionReleased after) X-- Responder ---------");
 
-            MockProtocolInitiator initiator(*this);
-            MockProtocolResponder responder(*this, MockProtocolResponder::BehaviorModifier::kErrMsg2,
+            MockProtocolInitiator initiator;
+            MockProtocolResponder responder(MockProtocolResponder::BehaviorModifier::kErrMsg2,
                                             MockProtocolResponder::BehaviorModifier::kExpireSessionAfterMsg2Send);
 
             auto err = initiator.StartInteraction(sessionHandle);
-            EXPECT_EQ(err, CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
-            DrainAndServiceIO();
+            ctx.DrainAndServiceIO();
         }
 
-        EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
+        NL_TEST_ASSERT(inSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
     }
 
     //
@@ -603,16 +605,16 @@ TEST_F(TestExchangeHolder, TestExchangeHolder)
         {
             ChipLogProgress(ExchangeManager, "-------- #10: (WillSend) Initiator <-- Msg2 <-- Responder ---------");
 
-            MockProtocolInitiator initiator(*this, MockProtocolInitiator::BehaviorModifier::kHoldMsg3);
-            MockProtocolResponder responder(*this);
+            MockProtocolInitiator initiator(MockProtocolInitiator::BehaviorModifier::kHoldMsg3);
+            MockProtocolResponder responder;
 
             auto err = initiator.StartInteraction(sessionHandle);
-            EXPECT_EQ(err, CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
-            DrainAndServiceIO();
+            ctx.DrainAndServiceIO();
         }
 
-        EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
+        NL_TEST_ASSERT(inSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
     }
 
     //
@@ -628,16 +630,16 @@ TEST_F(TestExchangeHolder, TestExchangeHolder)
         {
             ChipLogProgress(ExchangeManager, "-------- #11: Initiator --X (SessionReleased before) Msg3 ------------");
 
-            MockProtocolInitiator initiator(*this, MockProtocolInitiator::BehaviorModifier::kExpireSessionBeforeMsg3Send);
-            MockProtocolResponder responder(*this);
+            MockProtocolInitiator initiator(MockProtocolInitiator::BehaviorModifier::kExpireSessionBeforeMsg3Send);
+            MockProtocolResponder responder;
 
             auto err = initiator.StartInteraction(sessionHandle);
-            EXPECT_NE(err, CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
 
-            DrainAndServiceIO();
+            ctx.DrainAndServiceIO();
         }
 
-        EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
+        NL_TEST_ASSERT(inSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
     }
 
     //
@@ -655,17 +657,17 @@ TEST_F(TestExchangeHolder, TestExchangeHolder)
         {
             ChipLogProgress(ExchangeManager, "-------- #12: Initiator --X (SendErr + SessionReleased after) Msg3 ------------");
 
-            MockProtocolInitiator initiator(*this, MockProtocolInitiator::BehaviorModifier::kErrMsg3,
+            MockProtocolInitiator initiator(MockProtocolInitiator::BehaviorModifier::kErrMsg3,
                                             MockProtocolInitiator::BehaviorModifier::kExpireSessionAfterMsg3Send);
-            MockProtocolResponder responder(*this);
+            MockProtocolResponder responder;
 
             auto err = initiator.StartInteraction(sessionHandle);
-            EXPECT_EQ(err, CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
-            DrainAndServiceIO();
+            ctx.DrainAndServiceIO();
         }
 
-        EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
+        NL_TEST_ASSERT(inSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
     }
 
     //
@@ -683,16 +685,16 @@ TEST_F(TestExchangeHolder, TestExchangeHolder)
         {
             ChipLogProgress(ExchangeManager, "-------- #13: Initiator >-- Msg3 -->  Responder ---------");
 
-            MockProtocolInitiator initiator(*this);
-            MockProtocolResponder responder(*this);
+            MockProtocolInitiator initiator;
+            MockProtocolResponder responder;
 
             auto err = initiator.StartInteraction(sessionHandle);
-            EXPECT_EQ(err, CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
-            DrainAndServiceIO();
+            ctx.DrainAndServiceIO();
         }
 
-        EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
+        NL_TEST_ASSERT(inSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
     }
 
     //
@@ -709,13 +711,13 @@ TEST_F(TestExchangeHolder, TestExchangeHolder)
         {
             ChipLogProgress(ExchangeManager, "-------- #14: Initiator >-- Msg3 -->  Responder (SessionReleased) ---------");
 
-            MockProtocolInitiator initiator(*this);
-            MockProtocolResponder responder(*this, MockProtocolResponder::BehaviorModifier::kExpireSessionAfterMsg3Receive);
+            MockProtocolInitiator initiator;
+            MockProtocolResponder responder(MockProtocolResponder::BehaviorModifier::kExpireSessionAfterMsg3Receive);
 
             auto err = initiator.StartInteraction(sessionHandle);
-            EXPECT_EQ(err, CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
-            DrainAndServiceIO();
+            ctx.DrainAndServiceIO();
 
             //
             // Because of the session expiration right after Msg3 is received, it causes an abort of the underlying EC
@@ -728,11 +730,11 @@ TEST_F(TestExchangeHolder, TestExchangeHolder)
             // entry has been removed. To make this happen, drive the IO forward enough that a single re-transmission happens. This
             // will result in a duplicate message ACK being delivered by the responder, causing the EC to finally get released.
             //
-            GetIOContext().DriveIOUntil(System::Clock::Seconds16(5),
-                                        [&]() { return GetExchangeManager().GetNumActiveExchanges() == 0; });
+            ctx.GetIOContext().DriveIOUntil(System::Clock::Seconds16(5),
+                                            [&]() { return ctx.GetExchangeManager().GetNumActiveExchanges() == 0; });
         }
 
-        EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
+        NL_TEST_ASSERT(inSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
     }
 
     //
@@ -748,22 +750,22 @@ TEST_F(TestExchangeHolder, TestExchangeHolder)
         {
             ChipLogProgress(ExchangeManager, "-------- #15: Initiator >-- Msg1 -->  Responder (WillSend) X2 ---------");
 
-            MockProtocolInitiator initiator(*this);
-            MockProtocolResponder responder(*this, MockProtocolResponder::BehaviorModifier::kHoldMsg2);
+            MockProtocolInitiator initiator;
+            MockProtocolResponder responder(MockProtocolResponder::BehaviorModifier::kHoldMsg2);
 
             auto err = initiator.StartInteraction(sessionHandle);
-            EXPECT_EQ(err, CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
-            DrainAndServiceIO();
+            ctx.DrainAndServiceIO();
 
             err = initiator.StartInteraction(sessionHandle);
-            EXPECT_EQ(err, CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
-            DrainAndServiceIO();
+            ctx.DrainAndServiceIO();
         }
 
-        DrainAndServiceIO();
-        EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
+        ctx.DrainAndServiceIO();
+        NL_TEST_ASSERT(inSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
     }
 
     //
@@ -782,21 +784,58 @@ TEST_F(TestExchangeHolder, TestExchangeHolder)
         {
             ChipLogProgress(ExchangeManager, "-------- #16: Initiator >-- Msg3 -->  Responder X2 ---------");
 
-            MockProtocolInitiator initiator(*this);
-            MockProtocolResponder responder(*this);
+            MockProtocolInitiator initiator;
+            MockProtocolResponder responder;
 
             auto err = initiator.StartInteraction(sessionHandle);
-            EXPECT_EQ(err, CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
-            DrainAndServiceIO();
+            ctx.DrainAndServiceIO();
 
             err = initiator.StartInteraction(sessionHandle);
-            EXPECT_EQ(err, CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
-            DrainAndServiceIO();
+            ctx.DrainAndServiceIO();
         }
 
-        EXPECT_EQ(GetExchangeManager().GetNumActiveExchanges(), 0u);
+        NL_TEST_ASSERT(inSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
     }
 }
+
+// Test Suite
+
+/**
+ *  Test Suite that lists all the test functions.
+ */
+// clang-format off
+const nlTest sTests[] =
+{
+    NL_TEST_DEF("TestExchangeHolder", TestExchangeHolder),
+
+    NL_TEST_SENTINEL()
+};
+// clang-format on
+
+// clang-format off
+nlTestSuite sSuite =
+{
+    "Test-TestExchangeHolder",
+    &sTests[0],
+    TestContext::nlTestSetUpTestSuite,
+    TestContext::nlTestTearDownTestSuite,
+    TestContext::nlTestSetUp,
+    TestContext::nlTestTearDown,
+};
+// clang-format on
+
 } // anonymous namespace
+
+/**
+ *  Main
+ */
+int TestExchangeHolder()
+{
+    return chip::ExecuteTestsWithContext<TestContext>(&sSuite);
+}
+
+CHIP_REGISTER_TEST_SUITE(TestExchangeHolder);

@@ -28,6 +28,7 @@ Source files for these tools are located at `scripts/tools`.
 
 ../scripts/tools/memory/README
 ../scripts/tools/spake2p/README
+../src/tools/interop/idt/README
 
 ```
 
@@ -49,8 +50,6 @@ Source files for these tools are located at `scripts/tools`.
 :maxdepth: 1
 
 ../scripts/tools/silabs/README
-../scripts/tools/silabs/ota/README
-../scripts/tools/silabs/factory_data_generator/README
 
 ```
 

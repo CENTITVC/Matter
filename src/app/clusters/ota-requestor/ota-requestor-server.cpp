@@ -21,7 +21,6 @@
  */
 
 #include <app/AttributeAccessInterface.h>
-#include <app/AttributeAccessInterfaceRegistry.h>
 #include <app/CommandHandler.h>
 #include <app/EventLogging.h>
 #include <app/clusters/ota-requestor/OTARequestorInterface.h>
@@ -115,24 +114,20 @@ CHIP_ERROR OtaSoftwareUpdateRequestorAttrAccess::WriteDefaultOtaProviders(const 
         return CHIP_ERROR_NOT_FOUND;
     }
 
-    if (!aPath.IsListOperation() || aPath.mListOp == ConcreteDataAttributePath::ListOperation::ReplaceAll)
+    switch (aPath.mListOp)
     {
+    case ConcreteDataAttributePath::ListOperation::ReplaceAll: {
         DataModel::DecodableList<OtaSoftwareUpdateRequestor::Structs::ProviderLocation::DecodableType> list;
         ReturnErrorOnFailure(aDecoder.Decode(list));
 
-        ReturnErrorOnFailure(requestor->ClearDefaultOtaProviderList(aDecoder.AccessingFabricIndex()));
-
-        auto iter = list.begin();
-        while (iter.Next())
-        {
-            ReturnErrorOnFailure(requestor->AddDefaultOtaProvider(iter.GetValue()));
-        }
-
-        return iter.GetStatus();
+        // With chunking, a single large list is converted to a list of AttributeDataIBs. The first AttributeDataIB contains an
+        // empty list (to signal this is a replace so clear out contents) followed by a succession of single AttributeDataIBs for
+        // each entry to be added.
+        size_t count = 0;
+        ReturnErrorOnFailure(list.ComputeSize(&count));
+        VerifyOrReturnError(count == 0, CHIP_ERROR_INVALID_ARGUMENT);
+        return requestor->ClearDefaultOtaProviderList(aDecoder.AccessingFabricIndex());
     }
-
-    switch (aPath.mListOp)
-    {
     case ConcreteDataAttributePath::ListOperation::ReplaceItem:
         return CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE;
     case ConcreteDataAttributePath::ListOperation::DeleteItem:
@@ -295,5 +290,5 @@ bool emberAfOtaSoftwareUpdateRequestorClusterAnnounceOTAProviderCallback(
 
 void MatterOtaSoftwareUpdateRequestorPluginServerInitCallback()
 {
-    AttributeAccessInterfaceRegistry::Instance().Register(&gAttrAccess);
+    registerAttributeAccessOverride(&gAttrAccess);
 }

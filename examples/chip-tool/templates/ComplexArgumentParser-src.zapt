@@ -5,8 +5,6 @@
 {{#zcl_structs}}
 {{#if has_more_than_one_cluster}}
 {{> struct_parser_impl namespace="detail"}}
-{{else if has_no_clusters}}
-{{> struct_parser_impl namespace="Globals"}}
 {{/if}}
 {{/zcl_structs}}
 

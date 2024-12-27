@@ -125,8 +125,9 @@ Optional<ReliableMessageProtocolConfig> GetLocalMRPConfig()
                                              : Optional<ReliableMessageProtocolConfig>::Value(config);
 }
 
-System::Clock::Timeout GetRetransmissionTimeout(System::Clock::Timeout activeInterval, System::Clock::Timeout idleInterval,
-                                                System::Clock::Timeout lastActivityTime, System::Clock::Timeout activityThreshold)
+System::Clock::Timestamp GetRetransmissionTimeout(System::Clock::Timestamp activeInterval, System::Clock::Timestamp idleInterval,
+                                                  System::Clock::Timestamp lastActivityTime,
+                                                  System::Clock::Timestamp activityThreshold)
 {
     auto timeSinceLastActivity = (System::SystemClock().GetMonotonicTimestamp() - lastActivityTime);
 

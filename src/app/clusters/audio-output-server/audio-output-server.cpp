@@ -27,7 +27,6 @@
 
 #include <app-common/zap-generated/attributes/Accessors.h>
 #include <app/AttributeAccessInterface.h>
-#include <app/AttributeAccessInterfaceRegistry.h>
 #include <app/CommandHandler.h>
 #include <app/ConcreteCommandPath.h>
 #include <app/data-model/Encode.h>
@@ -244,5 +243,5 @@ exit:
 
 void MatterAudioOutputPluginServerInitCallback()
 {
-    app::AttributeAccessInterfaceRegistry::Instance().Register(&gAudioOutputAttrAccess);
+    registerAttributeAccessOverride(&gAudioOutputAttrAccess);
 }

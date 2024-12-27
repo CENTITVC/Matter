@@ -37,8 +37,6 @@
 
 #include <protocols/secure_channel/Constants.h>
 
-using namespace chip::Protocols::SecureChannel;
-
 namespace chip {
 namespace app {
 
@@ -52,12 +50,8 @@ CHIP_ERROR CheckInHandler::Init(Messaging::ExchangeManager * exchangeManager, IC
 {
     VerifyOrReturnError(exchangeManager != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
     VerifyOrReturnError(clientStorage != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
-    VerifyOrReturnError(delegate != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
-    VerifyOrReturnError(engine != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
     VerifyOrReturnError(mpExchangeManager == nullptr, CHIP_ERROR_INCORRECT_STATE);
     VerifyOrReturnError(mpICDClientStorage == nullptr, CHIP_ERROR_INCORRECT_STATE);
-    VerifyOrReturnError(mpCheckInDelegate == nullptr, CHIP_ERROR_INCORRECT_STATE);
-    VerifyOrReturnError(mpImEngine == nullptr, CHIP_ERROR_INCORRECT_STATE);
 
     mpExchangeManager  = exchangeManager;
     mpICDClientStorage = clientStorage;
@@ -117,7 +111,6 @@ CHIP_ERROR CheckInHandler::OnMessageReceived(Messaging::ExchangeContext * ec, co
 
     if (refreshKey)
     {
-        ChipLogProgress(ICD, "Key Refresh is required");
         RefreshKeySender * refreshKeySender = mpCheckInDelegate->OnKeyRefreshNeeded(clientInfo, mpICDClientStorage);
         if (refreshKeySender == nullptr)
         {
@@ -135,7 +128,6 @@ CHIP_ERROR CheckInHandler::OnMessageReceived(Messaging::ExchangeContext * ec, co
     }
     else
     {
-        mpICDClientStorage->StoreEntry(clientInfo);
         mpCheckInDelegate->OnCheckInComplete(clientInfo);
 #if CHIP_CONFIG_ENABLE_READ_CLIENT
         mpImEngine->OnActiveModeNotification(clientInfo.peer_node);

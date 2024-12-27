@@ -47,7 +47,7 @@ tests:
       PICS: WNCV.S.F00 && WNCV.S.F02 && WNCV.S.C05.Rsp
       arguments:
           values:
-              - name: "LiftPercent100thsValue"
+              - name: "liftPercent100thsValue"
                 value: 9000
 
     #
@@ -83,7 +83,7 @@ tests:
       PICS: WNCV.S.F01 && WNCV.S.F04 && WNCV.S.C08.Rsp
       arguments:
           values:
-              - name: "TiltPercent100thsValue"
+              - name: "tiltPercent100thsValue"
                 value: 9000
 
     #

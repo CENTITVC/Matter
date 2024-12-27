@@ -32,7 +32,7 @@
 
 #include <app/EventLogging.h>
 #include <app/util/af-types.h>
-#include <app/util/attribute-storage.h>
+#include <app/util/af.h>
 
 #if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
 #include <app/clusters/ota-requestor/BDXDownloader.h>
@@ -49,16 +49,8 @@
 
 #include <app/server/OnboardingCodesUtil.h>
 
-#include <app/TestEventTriggerDelegate.h>
-#include <app/clusters/general-diagnostics-server/GenericFaultTestEventTriggerHandler.h>
-#include <src/platform/cc13xx_26xx/DefaultTestEventTriggerDelegate.h>
-
 #include <ti/drivers/apps/Button.h>
 #include <ti/drivers/apps/LED.h>
-
-#if CHIP_CONFIG_ENABLE_ICD_UAT
-#include "app/icd/server/ICDNotifier.h"
-#endif
 
 /* syscfg */
 #include <ti_drivers_config.h>
@@ -71,15 +63,6 @@
 #define ONOFF_CLUSTER_ENDPOINT 1
 #define EXTENDED_DISCOVERY_TIMEOUT_SEC 20
 
-#if (CHIP_CONFIG_ENABLE_ICD_SERVER == 1)
-#define LED_ENABLE 0
-#else
-#define LED_ENABLE 1
-#endif
-#define BUTTON_ENABLE 1
-
-#define OTAREQUESTOR_INIT_TIMER_DELAY_MS 10000
-
 using namespace chip;
 using namespace chip::app;
 using namespace chip::Credentials;
@@ -89,24 +72,15 @@ using namespace chip::app::Clusters;
 
 static TaskHandle_t sAppTaskHandle;
 static QueueHandle_t sAppEventQueue;
-#if (LED_ENABLE == 1)
+
 static LED_Handle sAppRedHandle;
 static LED_Handle sAppGreenHandle;
-#endif
 static Button_Handle sAppLeftHandle;
 static Button_Handle sAppRightHandle;
 
 AppTask AppTask::sAppTask;
 
 static DeviceCallbacks sDeviceCallbacks;
-
-#if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
-void StartTimer(uint32_t aTimeoutMs);
-void CancelTimer(void);
-#endif
-
-uint8_t sTestEventTriggerEnableKey[TestEventTriggerDelegate::kEnableKeyLength] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
-                                                                                   0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff };
 
 #if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
 static DefaultOTARequestor sRequestorCore;
@@ -126,63 +100,13 @@ void InitializeOTARequestor(void)
     sDownloader.SetImageProcessorDelegate(&sImageProcessor);
     sRequestorUser.Init(&sRequestorCore, &sImageProcessor);
 }
-
-TimerHandle_t sOTAInitTimer = 0;
 #endif
-
-// The OTA Init Timer is only started upon the first Thread State Change
-// detected if the device is already on a Thread Network, or during the AppTask
-// Init sequence if the device is not yet on a Thread Network. Once the timer
-// has been started once, it does not need to be started again so the flag will
-// be set to false.
-bool isAppStarting = true;
 
 static const chip::EndpointId sIdentifyEndpointId = 0;
 static const uint32_t sIdentifyBlinkRateMs        = 500;
 
 ::Identify stIdentify = { sIdentifyEndpointId, AppTask::IdentifyStartHandler, AppTask::IdentifyStopHandler,
                           Clusters::Identify::IdentifyTypeEnum::kVisibleIndicator, AppTask::TriggerIdentifyEffectHandler };
-
-void DeviceEventCallback(const ChipDeviceEvent * event, intptr_t arg)
-{
-    switch (event->Type)
-    {
-    case DeviceEventType::kCHIPoBLEConnectionEstablished:
-        PLAT_LOG("CHIPoBLE connection established");
-        break;
-
-    case DeviceEventType::kCHIPoBLEConnectionClosed:
-        PLAT_LOG("CHIPoBLE disconnected");
-        break;
-
-    case DeviceEventType::kCommissioningComplete:
-        PLAT_LOG("Commissioning complete");
-        break;
-    case DeviceEventType::kThreadStateChange:
-        PLAT_LOG("Thread State Change");
-        bool isThreadAttached = ThreadStackMgrImpl().IsThreadAttached();
-
-        if (isThreadAttached)
-        {
-            PLAT_LOG("Device is on the Thread Network");
-#if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
-            if (isAppStarting)
-            {
-                StartTimer(OTAREQUESTOR_INIT_TIMER_DELAY_MS);
-                isAppStarting = false;
-            }
-#endif
-        }
-        break;
-    }
-}
-
-#if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
-void OTAInitTimerEventHandler(TimerHandle_t xTimer)
-{
-    InitializeOTARequestor();
-}
-#endif
 
 int AppTask::StartAppTask()
 {
@@ -209,13 +133,13 @@ int AppTask::StartAppTask()
 
 int AppTask::Init()
 {
+    LED_Params ledParams;
+    Button_Params buttonParams;
+
     cc13xx_26xxLogInit();
 
     // Init Chip memory management before the stack
     Platform::MemoryInit();
-
-    PLAT_LOG("Software Version: %d", CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION);
-    PLAT_LOG("Software Version String: %s", CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION_STRING);
 
     CHIP_ERROR ret = PlatformMgr().InitChipStack();
     if (ret != CHIP_NO_ERROR)
@@ -224,25 +148,6 @@ int AppTask::Init()
         while (true)
             ;
     }
-
-#if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
-    // Create FreeRTOS sw timer for OTA timer.
-    sOTAInitTimer = xTimerCreate("OTAInitTmr",                     // Just a text name, not used by the RTOS kernel
-                                 OTAREQUESTOR_INIT_TIMER_DELAY_MS, // timer period (mS)
-                                 false,                            // no timer reload (==one-shot)
-                                 (void *) this,                    // init timer id = light obj context
-                                 OTAInitTimerEventHandler          // timer callback handler
-    );
-
-    if (sOTAInitTimer == NULL)
-    {
-        PLAT_LOG("sOTAInitTimer timer create failed");
-    }
-    else
-    {
-        PLAT_LOG("sOTAInitTimer timer created successfully ");
-    }
-#endif
 
     ret = ThreadStackMgr().InitThreadStack();
     if (ret != CHIP_NO_ERROR)
@@ -254,12 +159,11 @@ int AppTask::Init()
 
 #if CHIP_DEVICE_CONFIG_THREAD_FTD
     ret = ConnectivityMgr().SetThreadDeviceType(ConnectivityManager::kThreadDeviceType_Router);
-#elif CHIP_CONFIG_ENABLE_ICD_SERVER
+#elif CONFIG_OPENTHREAD_MTD_SED
     ret = ConnectivityMgr().SetThreadDeviceType(ConnectivityManager::kThreadDeviceType_SleepyEndDevice);
 #else
     ret = ConnectivityMgr().SetThreadDeviceType(ConnectivityManager::kThreadDeviceType_MinimalEndDevice);
 #endif
-
     if (ret != CHIP_NO_ERROR)
     {
         PLAT_LOG("ConnectivityMgr().SetThreadDeviceType() failed");
@@ -275,9 +179,33 @@ int AppTask::Init()
             ;
     }
 
-    PlatformMgr().AddEventHandler(DeviceEventCallback, reinterpret_cast<intptr_t>(nullptr));
+    // Initialize LEDs
+    PLAT_LOG("Initialize LEDs");
+    LED_init();
 
-    uiInit();
+    LED_Params_init(&ledParams); // default PWM LED
+    sAppRedHandle = LED_open(CONFIG_LED_RED, &ledParams);
+    LED_setOff(sAppRedHandle);
+
+    LED_Params_init(&ledParams); // default PWM LED
+    sAppGreenHandle = LED_open(CONFIG_LED_GREEN, &ledParams);
+    LED_setOff(sAppGreenHandle);
+
+    // Initialize buttons
+    PLAT_LOG("Initialize buttons");
+    Button_init();
+
+    Button_Params_init(&buttonParams);
+    buttonParams.buttonEventMask   = Button_EV_CLICKED | Button_EV_LONGPRESSED;
+    buttonParams.longPressDuration = 5000U; // ms
+    sAppLeftHandle                 = Button_open(CONFIG_BTN_LEFT, &buttonParams);
+    Button_setCallback(sAppLeftHandle, ButtonLeftEventHandler);
+
+    Button_Params_init(&buttonParams);
+    buttonParams.buttonEventMask   = Button_EV_CLICKED;
+    buttonParams.longPressDuration = 1000U; // ms
+    sAppRightHandle                = Button_open(CONFIG_BTN_RIGHT, &buttonParams);
+    Button_setCallback(sAppRightHandle, ButtonRightEventHandler);
 
     // Initialize device attestation config
 #ifdef CC13X4_26X4_ATTESTATION_CREDENTIALS
@@ -303,26 +231,15 @@ int AppTask::Init()
 #endif
 
     // Init ZCL Data Model
-    PLAT_LOG("Initialize Server");
-    static CommonCaseDeviceServerInitParams initParams;
-    static DefaultTestEventTriggerDelegate sTestEventTriggerDelegate{ ByteSpan(sTestEventTriggerEnableKey) };
-    initParams.testEventTriggerDelegate = &sTestEventTriggerDelegate;
-
+    static chip::CommonCaseDeviceServerInitParams initParams;
     (void) initParams.InitializeStaticResourcesBeforeServerInit();
-
     chip::Server::GetInstance().Init(initParams);
 
     ConfigurationMgr().LogDeviceConfig();
 
-    bool isThreadEnabled = ThreadStackMgrImpl().IsThreadEnabled();
-    if (!isThreadEnabled && isAppStarting)
-    {
 #if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
-        PLAT_LOG("Thread is Disabled, enable OTA Requestor");
-        StartTimer(OTAREQUESTOR_INIT_TIMER_DELAY_MS);
-        isAppStarting = false;
+    InitializeOTARequestor();
 #endif
-    }
 
     // QR code will be used with CHIP Tool
     PrintOnboardingCodes(RendezvousInformationFlags(RendezvousInformationFlag::kBLE));
@@ -363,33 +280,41 @@ void AppTask::PostEvent(const AppEvent * aEvent)
     }
 }
 
-#if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
-void StartTimer(uint32_t aTimeoutMs)
+void AppTask::ButtonLeftEventHandler(Button_Handle handle, Button_EventMask events)
 {
-    PLAT_LOG("Start OTA Init Timer")
-    if (xTimerIsTimerActive(sOTAInitTimer))
-    {
-        PLAT_LOG("app timer already started!");
-        CancelTimer();
-    }
+    AppEvent event;
+    event.Type = AppEvent::kEventType_ButtonLeft;
 
-    // timer is not active, change its period to required value (== restart).
-    // FreeRTOS- Block for a maximum of 100 ticks if the change period command
-    // cannot immediately be sent to the timer command queue.
-    if (xTimerChangePeriod(sOTAInitTimer, pdMS_TO_TICKS(aTimeoutMs), 100) != pdPASS)
+    if (events & Button_EV_CLICKED)
     {
-        PLAT_LOG("sOTAInitTimer timer start() failed");
+        event.ButtonEvent.Type = AppEvent::kAppEventButtonType_Clicked;
+    }
+    else if (events & Button_EV_LONGPRESSED)
+    {
+        event.ButtonEvent.Type = AppEvent::kAppEventButtonType_LongPressed;
+    }
+    // button callbacks are in ISR context
+    if (xQueueSendFromISR(sAppEventQueue, &event, NULL) != pdPASS)
+    {
+        /* Failed to post the message */
     }
 }
 
-void CancelTimer(void)
+void AppTask::ButtonRightEventHandler(Button_Handle handle, Button_EventMask events)
 {
-    if (xTimerStop(sOTAInitTimer, 0) == pdFAIL)
+    AppEvent event;
+    event.Type = AppEvent::kEventType_ButtonRight;
+
+    if (events & Button_EV_CLICKED)
     {
-        PLAT_LOG("sOTAInitTimer stop() failed");
+        event.ButtonEvent.Type = AppEvent::kAppEventButtonType_Clicked;
+    }
+    // button callbacks are in ISR context
+    if (xQueueSendFromISR(sAppEventQueue, &event, NULL) != pdPASS)
+    {
+        /* Failed to post the message */
     }
 }
-#endif
 
 void AppTask::ActionInitiated(PumpManager::Action_t aAction, int32_t aActor)
 {
@@ -405,12 +330,11 @@ void AppTask::ActionInitiated(PumpManager::Action_t aAction, int32_t aActor)
         PLAT_LOG("Stop initiated");
         ; // TODO
     }
-#if (LED_ENABLE == 1)
+
     LED_setOn(sAppGreenHandle, LED_BRIGHTNESS_MAX);
     LED_startBlinking(sAppGreenHandle, 50 /* ms */, LED_BLINK_FOREVER);
     LED_setOn(sAppRedHandle, LED_BRIGHTNESS_MAX);
     LED_startBlinking(sAppRedHandle, 110 /* ms */, LED_BLINK_FOREVER);
-#endif
 }
 
 void AppTask::ActionCompleted(PumpManager::Action_t aAction, int32_t aActor)
@@ -421,24 +345,20 @@ void AppTask::ActionCompleted(PumpManager::Action_t aAction, int32_t aActor)
     if (aAction == PumpManager::START_ACTION)
     {
         PLAT_LOG("Pump start completed");
-#if (LED_ENABLE == 1)
         LED_stopBlinking(sAppGreenHandle);
         LED_setOn(sAppGreenHandle, LED_BRIGHTNESS_MAX);
         LED_stopBlinking(sAppRedHandle);
         LED_setOn(sAppRedHandle, LED_BRIGHTNESS_MAX);
-#endif
         // Signal to the PCC cluster, that the pump is running
         sAppTask.UpdateClusterState();
     }
     else if (aAction == PumpManager::STOP_ACTION)
     {
         PLAT_LOG("Pump stop completed");
-#if (LED_ENABLE == 1)
         LED_stopBlinking(sAppGreenHandle);
         LED_setOff(sAppGreenHandle);
         LED_stopBlinking(sAppRedHandle);
         LED_setOff(sAppRedHandle);
-#endif
         // Signal to the PCC cluster, that the pump is NOT running
         sAppTask.UpdateClusterState();
     }
@@ -464,12 +384,6 @@ void AppTask::DispatchEvent(AppEvent * aEvent)
             {
                 PumpMgr().InitiateAction(0, PumpManager::START_ACTION);
             }
-        }
-        else if (AppEvent::kAppEventButtonType_LongClicked == aEvent->ButtonEvent.Type)
-        {
-#if CHIP_CONFIG_ENABLE_ICD_UAT
-            PlatformMgr().ScheduleWork([](intptr_t) { app::ICDNotifier::GetInstance().NotifyNetworkActivityNotification(); });
-#endif
         }
         break;
 
@@ -500,23 +414,21 @@ void AppTask::DispatchEvent(AppEvent * aEvent)
                 PLAT_LOG("Disabled BLE Advertisements");
             }
         }
-        else if (AppEvent::kAppEventButtonType_LongClicked == aEvent->ButtonEvent.Type)
+        else if (AppEvent::kAppEventButtonType_LongPressed == aEvent->ButtonEvent.Type)
         {
             chip::Server::GetInstance().ScheduleFactoryReset();
         }
         break;
 
     case AppEvent::kEventType_IdentifyStart:
-#if (LED_ENABLE == 1)
         LED_setOn(sAppGreenHandle, LED_BRIGHTNESS_MAX);
         LED_startBlinking(sAppGreenHandle, sIdentifyBlinkRateMs, LED_BLINK_FOREVER);
-#endif
         PLAT_LOG("Identify started");
         break;
 
     case AppEvent::kEventType_IdentifyStop:
-#if (LED_ENABLE == 1)
         LED_stopBlinking(sAppGreenHandle);
+
         if (!PumpMgr().IsStopped())
         {
             LED_setOn(sAppGreenHandle, LED_BRIGHTNESS_MAX);
@@ -525,7 +437,6 @@ void AppTask::DispatchEvent(AppEvent * aEvent)
         {
             LED_setOff(sAppGreenHandle);
         }
-#endif
         PLAT_LOG("Identify stopped");
         break;
 
@@ -768,86 +679,4 @@ void AppTask::TriggerIdentifyEffectHandler(::Identify * identify)
     default:
         PLAT_LOG("No identifier effect");
     }
-}
-
-#if (BUTTON_ENABLE == 1)
-void AppTask::ButtonLeftEventHandler(Button_Handle handle, Button_EventMask events)
-{
-    AppEvent event;
-    event.Type = AppEvent::kEventType_ButtonLeft;
-
-    if (events & Button_EV_CLICKED)
-    {
-        event.ButtonEvent.Type = AppEvent::kAppEventButtonType_Clicked;
-    }
-    else if (events & Button_EV_LONGCLICKED)
-    {
-        event.ButtonEvent.Type = AppEvent::kAppEventButtonType_LongClicked;
-    }
-    // button callbacks are in ISR context
-    if (xQueueSendFromISR(sAppEventQueue, &event, NULL) != pdPASS)
-    {
-        /* Failed to post the message */
-    }
-}
-
-void AppTask::ButtonRightEventHandler(Button_Handle handle, Button_EventMask events)
-{
-    AppEvent event;
-    event.Type = AppEvent::kEventType_ButtonRight;
-
-    if (events & Button_EV_CLICKED)
-    {
-        event.ButtonEvent.Type = AppEvent::kAppEventButtonType_Clicked;
-    }
-    else if (events & Button_EV_LONGCLICKED)
-    {
-        event.ButtonEvent.Type = AppEvent::kAppEventButtonType_LongClicked;
-    }
-    // button callbacks are in ISR context
-    if (xQueueSendFromISR(sAppEventQueue, &event, NULL) != pdPASS)
-    {
-        /* Failed to post the message */
-    }
-}
-#endif // BUTTON_ENABLE
-
-void AppTask::uiInit(void)
-{
-#if (LED_ENABLE == 1)
-
-    LED_Params ledParams;
-
-    // Initialize LEDs
-    PLAT_LOG("Initialize LEDs");
-    LED_init();
-
-    LED_Params_init(&ledParams); // default PWM LED
-    sAppRedHandle = LED_open(CONFIG_LED_RED, &ledParams);
-    LED_setOff(sAppRedHandle);
-
-    LED_Params_init(&ledParams); // default PWM LED
-    sAppGreenHandle = LED_open(CONFIG_LED_GREEN, &ledParams);
-    LED_setOff(sAppGreenHandle);
-#endif // LED ENABLE
-
-#if (BUTTON_ENABLE == 1)
-    Button_Params buttonParams;
-
-    // Initialize buttons
-    PLAT_LOG("Initialize buttons");
-    Button_init();
-
-    Button_Params_init(&buttonParams);
-    buttonParams.buttonEventMask   = Button_EV_CLICKED | Button_EV_LONGCLICKED;
-    buttonParams.longPressDuration = 1000U; // ms
-    sAppLeftHandle                 = Button_open(CONFIG_BTN_LEFT, &buttonParams);
-    Button_setCallback(sAppLeftHandle, ButtonLeftEventHandler);
-
-    Button_Params_init(&buttonParams);
-    buttonParams.buttonEventMask   = Button_EV_CLICKED | Button_EV_LONGCLICKED;
-    buttonParams.longPressDuration = 1000U; // ms
-    sAppRightHandle                = Button_open(CONFIG_BTN_RIGHT, &buttonParams);
-    Button_setCallback(sAppRightHandle, ButtonRightEventHandler);
-#endif // BUTTON ENABLE
 }

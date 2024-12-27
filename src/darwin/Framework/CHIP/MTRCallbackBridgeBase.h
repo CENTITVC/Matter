@@ -83,7 +83,7 @@ protected:
 
         [device.deviceController getSessionForCommissioneeDevice:device.nodeID
                                                       completion:^(chip::Messaging::ExchangeManager * exchangeManager,
-                                                          const chip::Optional<chip::SessionHandle> & session, NSError * _Nullable error, NSNumber * _Nullable retryDelay) {
+                                                          const chip::Optional<chip::SessionHandle> & session, NSError * error) {
                                                           MaybeDoAction(exchangeManager, session, error);
                                                       }];
     }
@@ -93,8 +93,8 @@ protected:
         LogRequestStart();
 
         [controller getSessionForNode:nodeID
-                           completion:^(chip::Messaging::ExchangeManager * _Nullable exchangeManager,
-                               const chip::Optional<chip::SessionHandle> & session, NSError * _Nullable error, NSNumber * _Nullable retryDelay) {
+                           completion:^(chip::Messaging::ExchangeManager * exchangeManager,
+                               const chip::Optional<chip::SessionHandle> & session, NSError * error) {
                                MaybeDoAction(exchangeManager, session, error);
                            }];
     }

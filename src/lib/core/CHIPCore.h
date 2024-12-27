@@ -29,8 +29,10 @@
 
 #include <system/SystemLayer.h>
 
+#include <ble/BleConfig.h>
+
 #if CONFIG_NETWORK_LAYER_BLE
-#include <ble/Ble.h>
+#include <ble/BleLayer.h>
 #endif // CONFIG_NETWORK_LAYER_BLE
 
 #define CHIP_CORE_IDENTITY "chip-core"

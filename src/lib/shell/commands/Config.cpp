@@ -17,9 +17,9 @@
 
 #include <inttypes.h>
 #include <lib/core/CHIPCore.h>
-#include <lib/shell/CommandSet.h>
 #include <lib/shell/Commands.h>
 #include <lib/shell/Engine.h>
+#include <lib/shell/commands/Help.h>
 #include <lib/support/CHIPArgParser.hpp>
 #include <lib/support/CHIPMem.h>
 #include <lib/support/CodeUtils.h>
@@ -28,8 +28,18 @@
 #include <platform/CommissionableDataProvider.h>
 #include <platform/DeviceInstanceInfoProvider.h>
 
+using chip::DeviceLayer::ConfigurationMgr;
+
 namespace chip {
 namespace Shell {
+
+static chip::Shell::Engine sShellConfigSubcommands;
+
+CHIP_ERROR ConfigHelpHandler(int argc, char ** argv)
+{
+    sShellConfigSubcommands.ForEachCommand(PrintCommandHelp, nullptr);
+    return CHIP_NO_ERROR;
+}
 
 static CHIP_ERROR ConfigGetVendorId(bool printHeader)
 {
@@ -142,7 +152,7 @@ static CHIP_ERROR ConfigSetSetupDiscriminator(char * argv)
     }
     else
     {
-        streamer_printf(sout, "Setup discriminator setting failed with code: %d\r\n", error.AsInteger());
+        streamer_printf(sout, "Setup discriminator setting failed with code: %d\r\n", error);
     }
 
     return error;
@@ -172,7 +182,28 @@ static CHIP_ERROR PrintAllConfigs()
 
 static CHIP_ERROR ConfigHandler(int argc, char ** argv)
 {
-    static constexpr Command subCommands[] = {
+    switch (argc)
+    {
+    case 0:
+        return PrintAllConfigs();
+    case 1:
+        if ((strcmp(argv[0], "help") == 0) || (strcmp(argv[0], "-h") == 0))
+        {
+            return ConfigHelpHandler(argc, argv);
+        }
+    }
+    return sShellConfigSubcommands.ExecCommand(argc, argv);
+}
+
+void RegisterConfigCommands()
+{
+
+    static const shell_command_t sConfigComand = { &ConfigHandler, "config",
+                                                   "Manage device configuration. Usage to dump value: config [param_name] and "
+                                                   "to set some values (discriminator): config [param_name] [param_value]." };
+
+    static const shell_command_t sConfigSubCommands[] = {
+        { &ConfigHelpHandler, "help", "Usage: config <subcommand>" },
         { &ConfigVendorId, "vendorid", "Get VendorId. Usage: config vendorid" },
         { &ConfigProductId, "productid", "Get ProductId. Usage: config productid" },
         { &ConfigHardwareVersion, "hardwarever", "Get HardwareVersion. Usage: config hardwarever" },
@@ -180,18 +211,11 @@ static CHIP_ERROR ConfigHandler(int argc, char ** argv)
         { &ConfigDiscriminator, "discriminator", "Get/Set commissioning discriminator. Usage: config discriminator [value]" },
     };
 
-    static constexpr CommandSet subShell(subCommands);
+    // Register `config` subcommands with the local shell dispatcher.
+    sShellConfigSubcommands.RegisterCommands(sConfigSubCommands, ArraySize(sConfigSubCommands));
 
-    return argc ? subShell.ExecCommand(argc, argv) : PrintAllConfigs();
-}
-
-void RegisterConfigCommands()
-{
-    static constexpr Command configCommand = { &ConfigHandler, "config",
-                                               "Manage device configuration. Usage to dump value: config [param_name] and "
-                                               "to set some values (discriminator): config [param_name] [param_value]." };
-
-    Engine::Root().RegisterCommands(&configCommand, 1);
+    // Register the root `config` command with the top-level shell.
+    Engine::Root().RegisterCommands(&sConfigComand, 1);
 }
 
 } // namespace Shell

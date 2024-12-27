@@ -12,15 +12,15 @@ open class GenericChipDeviceListener : ChipDeviceController.CompletionListener {
     // No op
   }
 
-  override fun onPairingComplete(code: Long) {
+  override fun onPairingComplete(code: Int) {
     // No op
   }
 
-  override fun onPairingDeleted(code: Long) {
+  override fun onPairingDeleted(code: Int) {
     // No op
   }
 
-  override fun onCommissioningComplete(nodeId: Long, errorCode: Long) {
+  override fun onCommissioningComplete(nodeId: Long, errorCode: Int) {
     // No op
   }
 
@@ -33,7 +33,7 @@ open class GenericChipDeviceListener : ChipDeviceController.CompletionListener {
     // No op
   }
 
-  override fun onCommissioningStatusUpdate(nodeId: Long, stage: String, errorCode: Long) {
+  override fun onCommissioningStatusUpdate(nodeId: Long, stage: String, errorCode: Int) {
     // No op
   }
 
@@ -57,7 +57,7 @@ open class GenericChipDeviceListener : ChipDeviceController.CompletionListener {
     // No op
   }
 
-  override fun onICDRegistrationComplete(errorCode: Long, icdDeviceInfo: ICDDeviceInfo) {
+  override fun onICDRegistrationComplete(errorCode: Int, icdDeviceInfo: ICDDeviceInfo) {
     // No op
   }
 }

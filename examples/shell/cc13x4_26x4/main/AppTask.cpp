@@ -41,7 +41,6 @@
 #include <lib/support/CHIPPlatformMemory.h>
 
 #include <app/server/OnboardingCodesUtil.h>
-#include <static-supported-modes-manager.h>
 
 /* syscfg */
 #include <ti_drivers_config.h>
@@ -55,7 +54,6 @@ using namespace ::chip::DeviceLayer;
 using chip::Shell::Engine;
 
 AppTask AppTask::sAppTask;
-Clusters::ModeSelect::StaticSupportedModesManager sStaticSupportedModesManager;
 
 static TaskHandle_t sAppTaskHandle;
 
@@ -124,7 +122,7 @@ CHIP_ERROR AppTask::Init()
             ;
     }
 
-#ifdef CHIP_CONFIG_ENABLE_ICD_SERVER
+#ifdef CONFIG_OPENTHREAD_MTD_SED
     ret = ConnectivityMgr().SetThreadDeviceType(ConnectivityManager::kThreadDeviceType_SleepyEndDevice);
 #elif CONFIG_OPENTHREAD_MTD
     ret = ConnectivityMgr().SetThreadDeviceType(ConnectivityManager::kThreadDeviceType_MinimalEndDevice);
@@ -132,6 +130,13 @@ CHIP_ERROR AppTask::Init()
     ret = ConnectivityMgr().SetThreadDeviceType(ConnectivityManager::kThreadDeviceType_Router);
 #endif
 
+    if (ret != CHIP_NO_ERROR)
+    {
+        while (true)
+            ;
+    }
+
+    ret = PlatformMgr().StartEventLoopTask();
     if (ret != CHIP_NO_ERROR)
     {
         while (true)
@@ -163,17 +168,9 @@ CHIP_ERROR AppTask::Init()
     (void) initParams.InitializeStaticResourcesBeforeServerInit();
     chip::Server::GetInstance().Init(initParams);
 
-    ret = PlatformMgr().StartEventLoopTask();
-    if (ret != CHIP_NO_ERROR)
-    {
-        while (true)
-            ;
-    }
-
 #if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
     InitializeOTARequestor();
 #endif
-    Clusters::ModeSelect::setSupportedModesManager(&sStaticSupportedModesManager);
     return err;
 }
 

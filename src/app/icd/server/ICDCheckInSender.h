@@ -32,7 +32,7 @@ class ICDCheckInSender : public AddressResolve::NodeListener
 {
 public:
     ICDCheckInSender(Messaging::ExchangeManager * exchangeManager);
-    ~ICDCheckInSender() = default;
+    ~ICDCheckInSender(){};
 
     CHIP_ERROR RequestResolve(ICDMonitoringEntry & entry, FabricTable * fabricTable, uint32_t counter);
 

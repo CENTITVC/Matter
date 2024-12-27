@@ -16,238 +16,301 @@
  */
 #include "TestHelpers.h"
 
-#include <pw_unit_test/framework.h>
-
 #include <nlbyteorder.h>
+#include <nlunit-test.h>
 
-#include <lib/core/StringBuilderAdapters.h>
 #include <lib/support/ScopedBuffer.h>
+#include <lib/support/UnitTestContext.h>
+#include <lib/support/UnitTestRegistration.h>
 
 using namespace chip;
+using namespace std;
 
 namespace {
 
-class TestQRCodeTLV : public ::testing::Test
-{
-public:
-    static void SetUpTestSuite() { ASSERT_EQ(chip::Platform::MemoryInit(), CHIP_NO_ERROR); }
-    static void TearDownTestSuite() { chip::Platform::MemoryShutdown(); }
-};
-
-TEST_F(TestQRCodeTLV, TestOptionalDataAddRemove)
+void TestOptionalDataAddRemove(nlTestSuite * inSuite, void * inContext)
 {
     SetupPayload payload = GetDefaultPayload();
-    std::vector<OptionalQRCodeInfo> optionalData;
+    vector<OptionalQRCodeInfo> optionalData;
     CHIP_ERROR err;
 
     optionalData = payload.getAllOptionalVendorData();
-    EXPECT_TRUE(optionalData.empty());
+    NL_TEST_ASSERT(inSuite, optionalData.empty());
 
     err = payload.addOptionalVendorData(kOptionalDefaultStringTag, kOptionalDefaultStringValue);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
     optionalData = payload.getAllOptionalVendorData();
-    EXPECT_TRUE(optionalData.size());
+    NL_TEST_ASSERT(inSuite, optionalData.size() == 1);
 
     err = payload.addOptionalVendorData(kOptionalDefaultIntTag, kOptionalDefaultIntValue);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
     optionalData = payload.getAllOptionalVendorData();
-    EXPECT_EQ(optionalData.size(), 2u);
+    NL_TEST_ASSERT(inSuite, optionalData.size() == 2);
 
     err = payload.removeOptionalVendorData(kOptionalDefaultStringTag);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
     optionalData = payload.getAllOptionalVendorData();
-    EXPECT_EQ(optionalData.size(), 1u);
+    NL_TEST_ASSERT(inSuite, optionalData.size() == 1);
 
     payload.removeOptionalVendorData(kOptionalDefaultIntTag);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
     optionalData = payload.getAllOptionalVendorData();
-    EXPECT_TRUE(optionalData.empty());
+    NL_TEST_ASSERT(inSuite, optionalData.empty());
 
     err = payload.removeOptionalVendorData(kOptionalDefaultStringTag);
-    EXPECT_EQ(err, CHIP_ERROR_KEY_NOT_FOUND);
+    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_KEY_NOT_FOUND);
 
     optionalData = payload.getAllOptionalVendorData();
-    EXPECT_TRUE(optionalData.empty());
+    NL_TEST_ASSERT(inSuite, optionalData.empty());
 
     err = payload.removeOptionalVendorData(kOptionalDefaultIntTag);
-    EXPECT_EQ(err, CHIP_ERROR_KEY_NOT_FOUND);
+    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_KEY_NOT_FOUND);
 
     optionalData = payload.getAllOptionalVendorData();
-    EXPECT_TRUE(optionalData.empty());
+    NL_TEST_ASSERT(inSuite, optionalData.empty());
 }
 
-TEST_F(TestQRCodeTLV, TestSimpleWrite)
+void TestSimpleWrite(nlTestSuite * inSuite, void * inContext)
 {
     SetupPayload inPayload = GetDefaultPayload();
 
     QRCodeSetupPayloadGenerator generator(inPayload);
-    std::string result;
+    string result;
     CHIP_ERROR err = generator.payloadBase38Representation(result);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
-    std::string result2;
+    string result2;
     err = generator.payloadBase38RepresentationWithAutoTLVBuffer(result2);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
-    EXPECT_EQ(result, result2);
+    NL_TEST_ASSERT(inSuite, result == result2);
 }
 
-TEST_F(TestQRCodeTLV, TestSimpleRead)
+void TestSimpleRead(nlTestSuite * inSuite, void * inContext)
 {
     SetupPayload inPayload = GetDefaultPayload();
     SetupPayload outPayload;
 
     QRCodeSetupPayloadGenerator generator(inPayload);
-    std::string result;
+    string result;
     CHIP_ERROR err = generator.payloadBase38Representation(result);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
     QRCodeSetupPayloadParser parser = QRCodeSetupPayloadParser(result);
     err                             = parser.populatePayload(outPayload);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
-    EXPECT_TRUE(inPayload == outPayload);
+    NL_TEST_ASSERT(inSuite, inPayload == outPayload);
 }
 
-TEST_F(TestQRCodeTLV, TestOptionalTagValues)
+void TestOptionalTagValues(nlTestSuite * inSuite, void * inContext)
 {
     SetupPayload payload = GetDefaultPayload();
     CHIP_ERROR err;
 
     err = payload.addOptionalVendorData(kOptionalDefaultStringTag, kOptionalDefaultStringValue); // Vendor specific tag
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
     err = payload.addOptionalVendorData(0x80, kOptionalDefaultStringValue); // Vendor specific tag
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
     err = payload.addOptionalVendorData(0x82, kOptionalDefaultStringValue); // Vendor specific tag
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
     err = payload.addOptionalVendorData(127, kOptionalDefaultStringValue); // Common tag
-    EXPECT_EQ(err, CHIP_ERROR_INVALID_ARGUMENT);
+    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_INVALID_ARGUMENT);
 
     err = payload.addOptionalVendorData(0, kOptionalDefaultStringValue); // Common tag
-    EXPECT_EQ(err, CHIP_ERROR_INVALID_ARGUMENT);
+    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_INVALID_ARGUMENT);
 }
 
-TEST_F(TestQRCodeTLV, TestSerialNumberAddRemove)
+void TestSerialNumberAddRemove(nlTestSuite * inSuite, void * inContext)
 {
     SetupPayload inPayload = GetDefaultPayload();
 
-    std::string sn;
-    EXPECT_EQ(inPayload.getSerialNumber(sn), CHIP_ERROR_KEY_NOT_FOUND);
-    EXPECT_EQ(inPayload.removeSerialNumber(), CHIP_ERROR_KEY_NOT_FOUND);
+    string sn;
+    NL_TEST_ASSERT(inSuite, inPayload.getSerialNumber(sn) == CHIP_ERROR_KEY_NOT_FOUND);
+    NL_TEST_ASSERT(inSuite, inPayload.removeSerialNumber() == CHIP_ERROR_KEY_NOT_FOUND);
 
-    EXPECT_EQ(inPayload.addSerialNumber(kSerialNumberDefaultStringValue), CHIP_NO_ERROR);
-    EXPECT_EQ(inPayload.getSerialNumber(sn), CHIP_NO_ERROR);
-    EXPECT_EQ(sn, kSerialNumberDefaultStringValue);
+    NL_TEST_ASSERT(inSuite, inPayload.addSerialNumber(kSerialNumberDefaultStringValue) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, inPayload.getSerialNumber(sn) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, sn == kSerialNumberDefaultStringValue);
 
-    EXPECT_EQ(inPayload.addSerialNumber(kSerialNumberDefaultUInt32Value), CHIP_NO_ERROR);
-    EXPECT_EQ(inPayload.getSerialNumber(sn), CHIP_NO_ERROR);
-    EXPECT_EQ(sn, std::to_string(kSerialNumberDefaultUInt32Value));
+    NL_TEST_ASSERT(inSuite, inPayload.addSerialNumber(kSerialNumberDefaultUInt32Value) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, inPayload.getSerialNumber(sn) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, sn == to_string(kSerialNumberDefaultUInt32Value));
 
-    EXPECT_EQ(inPayload.removeSerialNumber(), CHIP_NO_ERROR);
-    EXPECT_EQ(inPayload.getSerialNumber(sn), CHIP_ERROR_KEY_NOT_FOUND);
-    EXPECT_EQ(inPayload.removeSerialNumber(), CHIP_ERROR_KEY_NOT_FOUND);
+    NL_TEST_ASSERT(inSuite, inPayload.removeSerialNumber() == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, inPayload.getSerialNumber(sn) == CHIP_ERROR_KEY_NOT_FOUND);
+    NL_TEST_ASSERT(inSuite, inPayload.removeSerialNumber() == CHIP_ERROR_KEY_NOT_FOUND);
 }
 
-TEST_F(TestQRCodeTLV, TestOptionalDataWriteSerial)
+void TestOptionalDataWriteSerial(nlTestSuite * inSuite, void * inContext)
 {
     CHIP_ERROR err         = CHIP_NO_ERROR;
     SetupPayload inPayload = GetDefaultPayload();
     err                    = inPayload.addSerialNumber("1");
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
     QRCodeSetupPayloadGenerator generator(inPayload);
-    std::string result;
+    string result;
     err = generator.payloadBase38Representation(result);
-    EXPECT_NE(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
 
     uint8_t optionalInfo[kDefaultBufferSizeInBytes];
     err = generator.payloadBase38Representation(result, optionalInfo, sizeof(optionalInfo));
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
-    std::string result2;
+    string result2;
     err = generator.payloadBase38RepresentationWithAutoTLVBuffer(result2);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
-    EXPECT_EQ(result, result2);
+    NL_TEST_ASSERT(inSuite, result == result2);
 }
 
-TEST_F(TestQRCodeTLV, TestOptionalDataWrite)
+void TestOptionalDataWrite(nlTestSuite * inSuite, void * inContext)
 {
     SetupPayload inPayload = GetDefaultPayloadWithOptionalDefaults();
 
     QRCodeSetupPayloadGenerator generator(inPayload);
-    std::string result;
+    string result;
     uint8_t optionalInfo[kDefaultBufferSizeInBytes];
     CHIP_ERROR err = generator.payloadBase38Representation(result, optionalInfo, sizeof(optionalInfo));
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
-    std::string result2;
+    string result2;
     err = generator.payloadBase38RepresentationWithAutoTLVBuffer(result2);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
-    EXPECT_EQ(result, result2);
+    NL_TEST_ASSERT(inSuite, result == result2);
 }
 
-TEST_F(TestQRCodeTLV, TestOptionalDataReadSerial)
+void TestOptionalDataReadSerial(nlTestSuite * inSuite, void * inContext)
 {
     SetupPayload inPayload = GetDefaultPayload();
 
     inPayload.addSerialNumber(kSerialNumberDefaultStringValue);
-    EXPECT_TRUE(CheckWriteRead(inPayload));
+    NL_TEST_ASSERT(inSuite, CheckWriteRead(inPayload));
 
     inPayload.addSerialNumber(kSerialNumberDefaultUInt32Value);
-    EXPECT_TRUE(CheckWriteRead(inPayload));
+    NL_TEST_ASSERT(inSuite, CheckWriteRead(inPayload));
 }
 
-TEST_F(TestQRCodeTLV, TestOptionalDataReadVendorInt)
+void TestOptionalDataReadVendorInt(nlTestSuite * inSuite, void * inContext)
 {
     SetupPayload inPayload = GetDefaultPayload();
     inPayload.addOptionalVendorData(kOptionalDefaultIntTag, kOptionalDefaultIntValue);
 
-    EXPECT_TRUE(CheckWriteRead(inPayload));
+    NL_TEST_ASSERT(inSuite, CheckWriteRead(inPayload));
 }
 
-TEST_F(TestQRCodeTLV, TestOptionalDataReadVendorString)
+void TestOptionalDataReadVendorString(nlTestSuite * inSuite, void * inContext)
 {
     SetupPayload inPayload = GetDefaultPayload();
     inPayload.addOptionalVendorData(kOptionalDefaultStringTag, kOptionalDefaultStringValue);
 
-    EXPECT_TRUE(CheckWriteRead(inPayload));
+    NL_TEST_ASSERT(inSuite, CheckWriteRead(inPayload));
 }
 
-TEST_F(TestQRCodeTLV, TestOptionalDataRead)
+void TestOptionalDataRead(nlTestSuite * inSuite, void * inContext)
 {
     SetupPayload inPayload = GetDefaultPayloadWithOptionalDefaults();
 
-    EXPECT_TRUE(CheckWriteRead(inPayload));
+    NL_TEST_ASSERT(inSuite, CheckWriteRead(inPayload));
 }
 
-TEST_F(TestQRCodeTLV, TestOptionalDataWriteNoBuffer)
+void TestOptionalDataWriteNoBuffer(nlTestSuite * inSuite, void * inContext)
 {
     SetupPayload inPayload = GetDefaultPayloadWithOptionalDefaults();
 
     QRCodeSetupPayloadGenerator generator(inPayload);
-    std::string result;
+    string result;
     CHIP_ERROR err = generator.payloadBase38Representation(result);
-    EXPECT_NE(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
 }
 
-TEST_F(TestQRCodeTLV, TestOptionalDataWriteSmallBuffer)
+void TestOptionalDataWriteSmallBuffer(nlTestSuite * inSuite, void * inContext)
 {
     SetupPayload inPayload = GetDefaultPayloadWithOptionalDefaults();
 
     QRCodeSetupPayloadGenerator generator(inPayload);
-    std::string result;
+    string result;
     uint8_t optionalInfo[kSmallBufferSizeInBytes];
     CHIP_ERROR err = generator.payloadBase38Representation(result, optionalInfo, sizeof(optionalInfo));
-    EXPECT_NE(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
+}
+
+// Test Suite
+
+/**
+ *  Test Suite that lists all the test functions.
+ */
+// clang-format off
+const nlTest sTests[] =
+{
+    NL_TEST_DEF("Test Simple Write",                TestSimpleWrite),
+    NL_TEST_DEF("Test Simple Read",                 TestSimpleRead),
+    NL_TEST_DEF("Test Optional Add Remove",         TestOptionalDataAddRemove),
+    NL_TEST_DEF("Test Serial Number Add Remove",    TestSerialNumberAddRemove),
+    NL_TEST_DEF("Test Optional Write",              TestOptionalDataWrite),
+    NL_TEST_DEF("Test Optional Write Serial",       TestOptionalDataWriteSerial),
+    NL_TEST_DEF("Test Optional Write No Buffer",    TestOptionalDataWriteNoBuffer),
+    NL_TEST_DEF("Test Optional Write Small Buffer", TestOptionalDataWriteSmallBuffer),
+    NL_TEST_DEF("Test Optional Read Serial",        TestOptionalDataReadSerial),
+    NL_TEST_DEF("Test Optional Read Vendor String", TestOptionalDataReadVendorString),
+    NL_TEST_DEF("Test Optional Read Vendor Int",    TestOptionalDataReadVendorInt),
+    NL_TEST_DEF("Test Optional Read",               TestOptionalDataRead),
+    NL_TEST_DEF("Test Optional Tag Values",         TestOptionalTagValues),
+
+    NL_TEST_SENTINEL()
+};
+// clang-format on
+
+/**
+ *  Set up the test suite.
+ */
+int TestQRCodeTLV_Setup(void * inContext)
+{
+    CHIP_ERROR error = chip::Platform::MemoryInit();
+    if (error != CHIP_NO_ERROR)
+        return FAILURE;
+    return SUCCESS;
+}
+
+/**
+ *  Tear down the test suite.
+ */
+int TestQRCodeTLV_Teardown(void * inContext)
+{
+    chip::Platform::MemoryShutdown();
+    return SUCCESS;
 }
 
 } // namespace
+
+/**
+ *  Main
+ */
+int TestQRCodeTLV()
+{
+    // clang-format off
+    nlTestSuite theSuite =
+    {
+        "chip-qrcode-optional-info-tests",
+        &sTests[0],
+        TestQRCodeTLV_Setup,
+        TestQRCodeTLV_Teardown
+    };
+    // clang-format on
+
+    // Generate machine-readable, comma-separated value (CSV) output.
+    nl_test_set_output_style(OUTPUT_CSV);
+
+    return chip::ExecuteTestsWithoutContext(&theSuite);
+}
+
+CHIP_REGISTER_TEST_SUITE(TestQRCodeTLV);

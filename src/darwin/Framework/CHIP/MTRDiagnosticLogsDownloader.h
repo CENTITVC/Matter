@@ -20,8 +20,6 @@
 #import <Matter/MTRDeviceController.h>
 #import <Matter/MTRDiagnosticLogsType.h>
 
-#import "MTRDeviceController_Concrete.h"
-
 namespace chip {
 namespace bdx {
     class BDXTransferServerDelegate;
@@ -33,17 +31,12 @@ NS_ASSUME_NONNULL_BEGIN
 @interface MTRDiagnosticLogsDownloader : NSObject
 - (chip::bdx::BDXTransferServerDelegate *)getBridge;
 
-// Must be called on Matter queue
 - (void)downloadLogFromNodeWithID:(NSNumber *)nodeID
-                       controller:(MTRDeviceController_Concrete *)controller
+                       controller:(MTRDeviceController *)controller
                              type:(MTRDiagnosticLogType)type
                           timeout:(NSTimeInterval)timeout
                             queue:(dispatch_queue_t)queue
                        completion:(void (^)(NSURL * _Nullable url, NSError * _Nullable error))completion;
-
-// Must be called on Matter queue
-- (void)abortDownloadsForController:(MTRDeviceController_Concrete *)controller;
-
 @end
 
 NS_ASSUME_NONNULL_END

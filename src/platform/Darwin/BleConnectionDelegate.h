@@ -17,8 +17,7 @@
 
 #pragma once
 
-#include <ble/Ble.h>
-#include <platform/Darwin/BleScannerDelegate.h>
+#include <ble/BleConnectionDelegate.h>
 
 namespace chip {
 namespace DeviceLayer {
@@ -27,12 +26,11 @@ namespace Internal {
 class BleConnectionDelegateImpl : public Ble::BleConnectionDelegate
 {
 public:
-    void StartScan(BleScannerDelegate * delegate, BleScanMode mode = BleScanMode::kDefault);
+    void StartScan(BleScannerDelegate * delegate = nullptr);
     void StopScan();
-
-    void NewConnection(Ble::BleLayer * bleLayer, void * appState, const SetupDiscriminator & connDiscriminator) override;
-    void NewConnection(Ble::BleLayer * bleLayer, void * appState, BLE_CONNECTION_OBJECT connObj) override;
-    CHIP_ERROR CancelConnection() override;
+    virtual void NewConnection(Ble::BleLayer * bleLayer, void * appState, const SetupDiscriminator & connDiscriminator);
+    virtual void NewConnection(Ble::BleLayer * bleLayer, void * appState, BLE_CONNECTION_OBJECT connObj);
+    virtual CHIP_ERROR CancelConnection();
 
 private:
     CHIP_ERROR DoCancel();

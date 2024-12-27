@@ -25,8 +25,6 @@
 #include <protocols/secure_channel/CheckinMessage.h>
 #include <protocols/secure_channel/Constants.h>
 
-using namespace chip::Crypto;
-
 namespace chip {
 namespace Protocols {
 namespace SecureChannel {

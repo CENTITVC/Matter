@@ -17,7 +17,6 @@
 
 #include <app/clusters/scenes-server/SceneTable.h>
 #include <app/util/attribute-storage.h>
-#include <app/util/types_stub.h>
 #include <lib/core/DataModelTypes.h>
 
 namespace chip {
@@ -36,8 +35,8 @@ class DefaultSceneHandlerImpl : public scenes::SceneHandler
     template <typename T>
     using DecodableList = app::DataModel::DecodableList<T>;
 
-    using AttributeValuePairType          = app::Clusters::ScenesManagement::Structs::AttributeValuePairStruct::Type;
-    using AttributeValuePairDecodableType = app::Clusters::ScenesManagement::Structs::AttributeValuePairStruct::DecodableType;
+    using AttributeValuePairType          = app::Clusters::ScenesManagement::Structs::AttributeValuePair::Type;
+    using AttributeValuePairDecodableType = app::Clusters::ScenesManagement::Structs::AttributeValuePair::DecodableType;
     using ExtensionFieldSetDecodableType  = app::Clusters::ScenesManagement::Structs::ExtensionFieldSet::DecodableType;
     using ExtensionFieldSetType           = app::Clusters::ScenesManagement::Structs::ExtensionFieldSet::Type;
 

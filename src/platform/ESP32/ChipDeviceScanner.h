@@ -17,13 +17,13 @@
 
 #pragma once
 
-#include <ble/Ble.h>
+#include <ble/CHIPBleServiceData.h>
 #include <lib/core/CHIPError.h>
 #include <system/SystemLayer.h>
 
-#ifdef CONFIG_BT_NIMBLE_ENABLED
+#if CONFIG_BT_NIMBLE_ENABLED
 #include "host/ble_hs.h"
-#elif defined(CONFIG_BT_BLUEDROID_ENABLED)
+#elif CONFIG_BT_BLUEDROID_ENABLED
 #include "esp_bt.h"
 #include "esp_bt_main.h"
 #include "esp_gap_ble_api.h"
@@ -32,6 +32,7 @@
 #include "esp_gattc_api.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
+#include <ble/CHIPBleServiceData.h>
 #include <lib/core/CHIPError.h>
 #include <system/SystemLayer.h>
 #endif
@@ -47,7 +48,7 @@ public:
     virtual ~ChipDeviceScannerDelegate() {}
 
     // Called when a CHIP device was found
-#ifdef CONFIG_BT_NIMBLE_ENABLED
+#if CONFIG_BT_NIMBLE_ENABLED
     virtual void OnDeviceScanned(const struct ble_hs_adv_fields & fields, const ble_addr_t & addr,
                                  const chip::Ble::ChipBLEDeviceIdentificationInfo & info) = 0;
 #else
@@ -90,7 +91,7 @@ public:
     CHIP_ERROR StopScan();
 
     bool mIsScanning = false;
-#ifdef CONFIG_BT_NIMBLE_ENABLED
+#if CONFIG_BT_NIMBLE_ENABLED
     void ReportDevice(const struct ble_hs_adv_fields & fields, const ble_addr_t & addr);
 #else
     void ReportDevice(esp_ble_gap_cb_param_t & fields, esp_bd_addr_t & addr);

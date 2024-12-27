@@ -31,7 +31,6 @@ public:
      */
     static MigrationManager & GetMigrationInstance();
     static void applyMigrations();
-    static void MigrateUint32(uint32_t old_key, uint32_t new_key);
 
 private:
     MigrationManager(){};
@@ -44,7 +43,6 @@ private:
  */
 void MigrateKvsMap(void);
 void MigrateDacProvider(void);
-void MigrateCounterConfigs(void);
 
 } // namespace Silabs
 } // namespace DeviceLayer

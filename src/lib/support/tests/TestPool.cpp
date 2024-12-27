@@ -25,12 +25,12 @@
 
 #include <set>
 
-#include <pw_unit_test/framework.h>
-
-#include <lib/core/StringBuilderAdapters.h>
 #include <lib/support/Pool.h>
 #include <lib/support/PoolWrapper.h>
+#include <lib/support/UnitTestRegistration.h>
 #include <system/SystemConfig.h>
+
+#include <nlunit-test.h>
 
 namespace chip {
 
@@ -51,67 +51,60 @@ namespace {
 
 using namespace chip;
 
-class TestPool : public ::testing::Test
-{
-public:
-    static void SetUpTestSuite() { ASSERT_EQ(chip::Platform::MemoryInit(), CHIP_NO_ERROR); }
-    static void TearDownTestSuite() { chip::Platform::MemoryShutdown(); }
-};
-
 template <typename T, size_t N, ObjectPoolMem P>
-void TestReleaseNull()
+void TestReleaseNull(nlTestSuite * inSuite, void * inContext)
 {
     ObjectPool<T, N, P> pool;
     pool.ReleaseObject(nullptr);
-    EXPECT_EQ(GetNumObjectsInUse(pool), 0u);
-    EXPECT_EQ(pool.Allocated(), 0u);
+    NL_TEST_ASSERT(inSuite, GetNumObjectsInUse(pool) == 0);
+    NL_TEST_ASSERT(inSuite, pool.Allocated() == 0);
 }
 
-TEST_F(TestPool, TestReleaseNullStatic)
+void TestReleaseNullStatic(nlTestSuite * inSuite, void * inContext)
 {
-    TestReleaseNull<uint32_t, 10, ObjectPoolMem::kInline>();
+    TestReleaseNull<uint32_t, 10, ObjectPoolMem::kInline>(inSuite, inContext);
 }
 
 #if CHIP_SYSTEM_CONFIG_POOL_USE_HEAP
-TEST_F(TestPool, TestReleaseNullDynamic)
+void TestReleaseNullDynamic(nlTestSuite * inSuite, void * inContext)
 {
-    TestReleaseNull<uint32_t, 10, ObjectPoolMem::kHeap>();
+    TestReleaseNull<uint32_t, 10, ObjectPoolMem::kHeap>(inSuite, inContext);
 }
 #endif // CHIP_SYSTEM_CONFIG_POOL_USE_HEAP
 
 template <typename T, size_t N, ObjectPoolMem P>
-void TestCreateReleaseObject()
+void TestCreateReleaseObject(nlTestSuite * inSuite, void * inContext)
 {
     ObjectPool<uint32_t, N, ObjectPoolMem::kInline> pool;
     uint32_t * obj[N];
 
-    EXPECT_EQ(pool.Allocated(), 0u);
+    NL_TEST_ASSERT(inSuite, pool.Allocated() == 0);
     for (int t = 0; t < 2; ++t)
     {
         pool.ReleaseAll();
-        EXPECT_EQ(pool.Allocated(), 0u);
+        NL_TEST_ASSERT(inSuite, pool.Allocated() == 0);
 
         for (size_t i = 0; i < N; ++i)
         {
             obj[i] = pool.CreateObject();
-            ASSERT_NE(obj[i], nullptr);
-            EXPECT_EQ(GetNumObjectsInUse(pool), i + 1);
-            EXPECT_EQ(pool.Allocated(), i + 1);
+            NL_TEST_ASSERT(inSuite, obj[i] != nullptr);
+            NL_TEST_ASSERT(inSuite, GetNumObjectsInUse(pool) == i + 1);
+            NL_TEST_ASSERT(inSuite, pool.Allocated() == i + 1);
         }
     }
 
     for (size_t i = 0; i < N; ++i)
     {
         pool.ReleaseObject(obj[i]);
-        EXPECT_EQ(GetNumObjectsInUse(pool), N - i - 1);
-        EXPECT_EQ(pool.Allocated(), N - i - 1);
+        NL_TEST_ASSERT(inSuite, GetNumObjectsInUse(pool) == N - i - 1);
+        NL_TEST_ASSERT(inSuite, pool.Allocated() == N - i - 1);
     }
 }
 
-TEST_F(TestPool, TestCreateReleaseObjectStatic)
+void TestCreateReleaseObjectStatic(nlTestSuite * inSuite, void * inContext)
 {
     constexpr const size_t kSize = 100;
-    TestCreateReleaseObject<uint32_t, kSize, ObjectPoolMem::kInline>();
+    TestCreateReleaseObject<uint32_t, kSize, ObjectPoolMem::kInline>(inSuite, inContext);
 
     ObjectPool<uint32_t, kSize, ObjectPoolMem::kInline> pool;
     uint32_t * obj[kSize];
@@ -119,44 +112,44 @@ TEST_F(TestPool, TestCreateReleaseObjectStatic)
     for (size_t i = 0; i < kSize; ++i)
     {
         obj[i] = pool.CreateObject();
-        ASSERT_NE(obj[i], nullptr);
-        EXPECT_EQ(GetNumObjectsInUse(pool), i + 1);
-        EXPECT_EQ(pool.Allocated(), i + 1);
+        NL_TEST_ASSERT(inSuite, obj[i] != nullptr);
+        NL_TEST_ASSERT(inSuite, GetNumObjectsInUse(pool) == i + 1);
+        NL_TEST_ASSERT(inSuite, pool.Allocated() == i + 1);
     }
 
     uint32_t * fail = pool.CreateObject();
-    EXPECT_EQ(fail, nullptr);
-    EXPECT_EQ(GetNumObjectsInUse(pool), kSize);
-    EXPECT_EQ(pool.Allocated(), kSize);
-    EXPECT_TRUE(pool.Exhausted());
+    NL_TEST_ASSERT(inSuite, fail == nullptr);
+    NL_TEST_ASSERT(inSuite, GetNumObjectsInUse(pool) == kSize);
+    NL_TEST_ASSERT(inSuite, pool.Allocated() == kSize);
+    NL_TEST_ASSERT(inSuite, pool.Exhausted());
 
     pool.ReleaseObject(obj[55]);
-    EXPECT_EQ(GetNumObjectsInUse(pool), kSize - 1);
-    EXPECT_EQ(pool.Allocated(), kSize - 1);
-    EXPECT_FALSE(pool.Exhausted());
-    EXPECT_EQ(obj[55], pool.CreateObject());
-    EXPECT_EQ(GetNumObjectsInUse(pool), kSize);
-    EXPECT_EQ(pool.Allocated(), kSize);
-    EXPECT_TRUE(pool.Exhausted());
+    NL_TEST_ASSERT(inSuite, GetNumObjectsInUse(pool) == kSize - 1);
+    NL_TEST_ASSERT(inSuite, pool.Allocated() == kSize - 1);
+    NL_TEST_ASSERT(inSuite, !pool.Exhausted());
+    NL_TEST_ASSERT(inSuite, obj[55] == pool.CreateObject());
+    NL_TEST_ASSERT(inSuite, GetNumObjectsInUse(pool) == kSize);
+    NL_TEST_ASSERT(inSuite, pool.Allocated() == kSize);
+    NL_TEST_ASSERT(inSuite, pool.Exhausted());
 
     fail = pool.CreateObject();
-    ASSERT_EQ(fail, nullptr);
-    EXPECT_EQ(GetNumObjectsInUse(pool), kSize);
-    EXPECT_EQ(pool.Allocated(), kSize);
-    EXPECT_TRUE(pool.Exhausted());
+    NL_TEST_ASSERT(inSuite, fail == nullptr);
+    NL_TEST_ASSERT(inSuite, GetNumObjectsInUse(pool) == kSize);
+    NL_TEST_ASSERT(inSuite, pool.Allocated() == kSize);
+    NL_TEST_ASSERT(inSuite, pool.Exhausted());
 
     pool.ReleaseAll();
 }
 
 #if CHIP_SYSTEM_CONFIG_POOL_USE_HEAP
-TEST_F(TestPool, TestCreateReleaseObjectDynamic)
+void TestCreateReleaseObjectDynamic(nlTestSuite * inSuite, void * inContext)
 {
-    TestCreateReleaseObject<uint32_t, 100, ObjectPoolMem::kHeap>();
+    TestCreateReleaseObject<uint32_t, 100, ObjectPoolMem::kHeap>(inSuite, inContext);
 }
 #endif // CHIP_SYSTEM_CONFIG_POOL_USE_HEAP
 
 template <ObjectPoolMem P>
-void TestCreateReleaseStruct()
+void TestCreateReleaseStruct(nlTestSuite * inSuite, void * inContext)
 {
     struct S
     {
@@ -173,17 +166,17 @@ void TestCreateReleaseStruct()
     for (size_t i = 0; i < kSize; ++i)
     {
         objs2[i] = pool.CreateObject(objs1);
-        ASSERT_NE(objs2[i], nullptr);
-        EXPECT_EQ(pool.Allocated(), i + 1);
-        EXPECT_EQ(GetNumObjectsInUse(pool), i + 1);
-        EXPECT_EQ(GetNumObjectsInUse(pool), objs1.size());
+        NL_TEST_ASSERT(inSuite, objs2[i] != nullptr);
+        NL_TEST_ASSERT(inSuite, pool.Allocated() == i + 1);
+        NL_TEST_ASSERT(inSuite, GetNumObjectsInUse(pool) == i + 1);
+        NL_TEST_ASSERT(inSuite, GetNumObjectsInUse(pool) == objs1.size());
     }
     for (size_t i = 0; i < kSize; ++i)
     {
         pool.ReleaseObject(objs2[i]);
-        EXPECT_EQ(pool.Allocated(), kSize - i - 1);
-        EXPECT_EQ(GetNumObjectsInUse(pool), kSize - i - 1);
-        EXPECT_EQ(GetNumObjectsInUse(pool), objs1.size());
+        NL_TEST_ASSERT(inSuite, pool.Allocated() == kSize - i - 1);
+        NL_TEST_ASSERT(inSuite, GetNumObjectsInUse(pool) == kSize - i - 1);
+        NL_TEST_ASSERT(inSuite, GetNumObjectsInUse(pool) == objs1.size());
     }
 
     // Verify that ReleaseAll() calls the destructors.
@@ -191,35 +184,35 @@ void TestCreateReleaseStruct()
     {
         obj = pool.CreateObject(objs1);
     }
-    EXPECT_EQ(objs1.size(), kSize);
-    EXPECT_EQ(pool.Allocated(), kSize);
-    EXPECT_EQ(GetNumObjectsInUse(pool), kSize);
+    NL_TEST_ASSERT(inSuite, objs1.size() == kSize);
+    NL_TEST_ASSERT(inSuite, pool.Allocated() == kSize);
+    NL_TEST_ASSERT(inSuite, GetNumObjectsInUse(pool) == kSize);
     printf("allocated = %u\n", static_cast<unsigned int>(pool.Allocated()));
     printf("highwater = %u\n", static_cast<unsigned int>(pool.HighWaterMark()));
 
     pool.ReleaseAll();
     printf("allocated = %u\n", static_cast<unsigned int>(pool.Allocated()));
     printf("highwater = %u\n", static_cast<unsigned int>(pool.HighWaterMark()));
-    EXPECT_EQ(objs1.size(), 0u);
-    EXPECT_EQ(GetNumObjectsInUse(pool), 0u);
-    EXPECT_EQ(pool.Allocated(), 0u);
-    EXPECT_EQ(pool.HighWaterMark(), kSize);
+    NL_TEST_ASSERT(inSuite, objs1.size() == 0);
+    NL_TEST_ASSERT(inSuite, GetNumObjectsInUse(pool) == 0);
+    NL_TEST_ASSERT(inSuite, pool.Allocated() == 0);
+    NL_TEST_ASSERT(inSuite, pool.HighWaterMark() == kSize);
 }
 
-TEST_F(TestPool, TestCreateReleaseStructStatic)
+void TestCreateReleaseStructStatic(nlTestSuite * inSuite, void * inContext)
 {
-    TestCreateReleaseStruct<ObjectPoolMem::kInline>();
+    TestCreateReleaseStruct<ObjectPoolMem::kInline>(inSuite, inContext);
 }
 
 #if CHIP_SYSTEM_CONFIG_POOL_USE_HEAP
-TEST_F(TestPool, TestCreateReleaseStructDynamic)
+void TestCreateReleaseStructDynamic(nlTestSuite * inSuite, void * inContext)
 {
-    TestCreateReleaseStruct<ObjectPoolMem::kHeap>();
+    TestCreateReleaseStruct<ObjectPoolMem::kHeap>(inSuite, inContext);
 }
 #endif // CHIP_SYSTEM_CONFIG_POOL_USE_HEAP
 
 template <ObjectPoolMem P>
-void TestForEachActiveObject()
+void TestForEachActiveObject(nlTestSuite * inSuite, void * inContext)
 {
     struct S
     {
@@ -236,37 +229,37 @@ void TestForEachActiveObject()
     for (size_t i = 0; i < kSize; ++i)
     {
         objArray[i] = pool.CreateObject(i);
-        ASSERT_NE(objArray[i], nullptr);
-        EXPECT_EQ(objArray[i]->mId, i);
+        NL_TEST_ASSERT(inSuite, objArray[i] != nullptr);
+        NL_TEST_ASSERT(inSuite, objArray[i]->mId == i);
         objIds.insert(i);
     }
 
     // Default constructor of an iterator should be pointing to the pool end.
     {
         typename ObjectPoolIterator<S, P>::Type defaultIterator;
-        EXPECT_EQ(defaultIterator, pool.end());
+        NL_TEST_ASSERT(inSuite, defaultIterator == pool.end());
     }
 
     // Verify that iteration visits all objects.
     size_t count = 0;
     {
         size_t sum = 0;
-        pool.ForEachActiveObject([&](S * object) -> Loop {
-            EXPECT_NE(object, nullptr);
+        pool.ForEachActiveObject([&](S * object) {
+            NL_TEST_ASSERT(inSuite, object != nullptr);
             if (object == nullptr)
             {
-                // Using EXPECT_NE instead of ASSERT_NE due to compilation errors when using ASSERT_NE
+                // NL_TEST_ASSERT doesn't stop running the test and we want to avoid nullptr dereference.
                 return Loop::Continue;
             }
-            EXPECT_EQ(objIds.count(object->mId), 1u);
+            NL_TEST_ASSERT(inSuite, objIds.count(object->mId) == 1);
             objIds.erase(object->mId);
             ++count;
             sum += object->mId;
             return Loop::Continue;
         });
-        EXPECT_EQ(count, kSize);
-        EXPECT_EQ(sum, kSize * (kSize - 1) / 2);
-        EXPECT_EQ(objIds.size(), 0u);
+        NL_TEST_ASSERT(inSuite, count == kSize);
+        NL_TEST_ASSERT(inSuite, sum == kSize * (kSize - 1) / 2);
+        NL_TEST_ASSERT(inSuite, objIds.size() == 0);
     }
 
     // Test begin/end iteration
@@ -280,14 +273,14 @@ void TestForEachActiveObject()
         size_t sum = 0;
         for (auto v = pool.begin(); v != pool.end(); ++v)
         {
-            EXPECT_EQ(objIds.count((*v)->mId), 1u);
+            NL_TEST_ASSERT(inSuite, objIds.count((*v)->mId) == 1);
             objIds.erase((*v)->mId);
             ++count;
             sum += (*v)->mId;
         }
-        EXPECT_EQ(count, kSize);
-        EXPECT_EQ(sum, kSize * (kSize - 1) / 2);
-        EXPECT_EQ(objIds.size(), 0u);
+        NL_TEST_ASSERT(inSuite, count == kSize);
+        NL_TEST_ASSERT(inSuite, sum == kSize * (kSize - 1) / 2);
+        NL_TEST_ASSERT(inSuite, objIds.size() == 0);
     }
 
     // Verify that returning Loop::Break stops iterating.
@@ -296,8 +289,8 @@ void TestForEachActiveObject()
         objIds.insert(object->mId);
         return ++count != kSize / 2 ? Loop::Continue : Loop::Break;
     });
-    EXPECT_EQ(count, kSize / 2);
-    EXPECT_EQ(objIds.size(), kSize / 2);
+    NL_TEST_ASSERT(inSuite, count == kSize / 2);
+    NL_TEST_ASSERT(inSuite, objIds.size() == kSize / 2);
 
     // Verify that iteration can be nested.
     count = 0;
@@ -318,8 +311,8 @@ void TestForEachActiveObject()
         }
         return Loop::Continue;
     });
-    EXPECT_EQ(count, (kSize - 1) * kSize / 2);
-    EXPECT_EQ(objIds.size(), 0u);
+    NL_TEST_ASSERT(inSuite, count == (kSize - 1) * kSize / 2);
+    NL_TEST_ASSERT(inSuite, objIds.size() == 0);
 
     // Verify that iteration can be nested for iterator types
     {
@@ -353,8 +346,8 @@ void TestForEachActiveObject()
                 }
             }
         }
-        EXPECT_EQ(count, (kSize - 1) * kSize / 2);
-        EXPECT_EQ(objIds.size(), 0u);
+        NL_TEST_ASSERT(inSuite, count == (kSize - 1) * kSize / 2);
+        NL_TEST_ASSERT(inSuite, objIds.size() == 0);
     }
 
     count = 0;
@@ -371,18 +364,18 @@ void TestForEachActiveObject()
         }
         return Loop::Continue;
     });
-    EXPECT_EQ(count, kSize);
-    EXPECT_EQ(objIds.size(), kSize / 2);
+    NL_TEST_ASSERT(inSuite, count == kSize);
+    NL_TEST_ASSERT(inSuite, objIds.size() == kSize / 2);
     for (size_t i = 0; i < kSize; ++i)
     {
         if ((i % 2) == 0)
         {
-            EXPECT_EQ(objArray[i], nullptr);
+            NL_TEST_ASSERT(inSuite, objArray[i] == nullptr);
         }
         else
         {
-            ASSERT_NE(objArray[i], nullptr);
-            EXPECT_EQ(objArray[i]->mId, i);
+            NL_TEST_ASSERT(inSuite, objArray[i] != nullptr);
+            NL_TEST_ASSERT(inSuite, objArray[i]->mId == i);
         }
     }
 
@@ -392,19 +385,19 @@ void TestForEachActiveObject()
         if ((object->mId % 2) == 1)
         {
             size_t id = object->mId - 1;
-            EXPECT_EQ(objArray[id], nullptr);
+            NL_TEST_ASSERT(inSuite, objArray[id] == nullptr);
             objArray[id] = pool.CreateObject(id);
-            EXPECT_NE(objArray[id], nullptr);
+            NL_TEST_ASSERT(inSuite, objArray[id] != nullptr);
         }
         return Loop::Continue;
     });
     for (size_t i = 0; i < kSize; ++i)
     {
-        ASSERT_NE(objArray[i], nullptr);
-        EXPECT_EQ(objArray[i]->mId, i);
+        NL_TEST_ASSERT(inSuite, objArray[i] != nullptr);
+        NL_TEST_ASSERT(inSuite, objArray[i]->mId == i);
     }
-    EXPECT_GE(count, kSize / 2);
-    EXPECT_LE(count, kSize);
+    NL_TEST_ASSERT(inSuite, count >= kSize / 2);
+    NL_TEST_ASSERT(inSuite, count <= kSize);
 
     // Test begin/end iteration
     {
@@ -424,25 +417,25 @@ void TestForEachActiveObject()
                 objIds.insert(object->mId);
             }
         }
-        EXPECT_EQ(count, kSize);
-        EXPECT_EQ(objIds.size(), kSize / 2);
+        NL_TEST_ASSERT(inSuite, count == kSize);
+        NL_TEST_ASSERT(inSuite, objIds.size() == kSize / 2);
 
         // validate we iterate only over active objects
         for (auto object : pool)
         {
-            EXPECT_EQ((object->mId % 2), 1u);
+            NL_TEST_ASSERT(inSuite, (object->mId % 2) == 1);
         }
 
         for (size_t i = 0; i < kSize; ++i)
         {
             if ((i % 2) == 0)
             {
-                EXPECT_EQ(objArray[i], nullptr);
+                NL_TEST_ASSERT(inSuite, objArray[i] == nullptr);
             }
             else
             {
-                ASSERT_NE(objArray[i], nullptr);
-                EXPECT_EQ(objArray[i]->mId, i);
+                NL_TEST_ASSERT(inSuite, objArray[i] != nullptr);
+                NL_TEST_ASSERT(inSuite, objArray[i]->mId == i);
             }
         }
 
@@ -455,36 +448,36 @@ void TestForEachActiveObject()
                 continue;
             }
             size_t id = object->mId - 1;
-            EXPECT_EQ(objArray[id], nullptr);
+            NL_TEST_ASSERT(inSuite, objArray[id] == nullptr);
             objArray[id] = pool.CreateObject(id);
-            EXPECT_NE(objArray[id], nullptr);
+            NL_TEST_ASSERT(inSuite, objArray[id] != nullptr);
         }
         for (size_t i = 0; i < kSize; ++i)
         {
-            ASSERT_NE(objArray[i], nullptr);
-            EXPECT_EQ(objArray[i]->mId, i);
+            NL_TEST_ASSERT(inSuite, objArray[i] != nullptr);
+            NL_TEST_ASSERT(inSuite, objArray[i]->mId == i);
         }
-        EXPECT_GE(count, kSize / 2);
-        EXPECT_LE(count, kSize);
+        NL_TEST_ASSERT(inSuite, count >= kSize / 2);
+        NL_TEST_ASSERT(inSuite, count <= kSize);
     }
 
     pool.ReleaseAll();
 }
 
-TEST_F(TestPool, TestForEachActiveObjectStatic)
+void TestForEachActiveObjectStatic(nlTestSuite * inSuite, void * inContext)
 {
-    TestForEachActiveObject<ObjectPoolMem::kInline>();
+    TestForEachActiveObject<ObjectPoolMem::kInline>(inSuite, inContext);
 }
 
 #if CHIP_SYSTEM_CONFIG_POOL_USE_HEAP
-TEST_F(TestPool, TestForEachActiveObjectDynamic)
+void TestForEachActiveObjectDynamic(nlTestSuite * inSuite, void * inContext)
 {
-    TestForEachActiveObject<ObjectPoolMem::kHeap>();
+    TestForEachActiveObject<ObjectPoolMem::kHeap>(inSuite, inContext);
 }
 #endif // CHIP_SYSTEM_CONFIG_POOL_USE_HEAP
 
 template <ObjectPoolMem P>
-void TestPoolInterface()
+void TestPoolInterface(nlTestSuite * inSuite, void * inContext)
 {
     struct TestObject
     {
@@ -510,40 +503,84 @@ void TestPoolInterface()
     for (size_t i = 0; i < kSize; ++i)
     {
         objs2[i] = poolHolder.mTestObjectPoolInterface.CreateObject(&bits, i);
-        ASSERT_NE(objs2[i], nullptr);
-        EXPECT_EQ(GetNumObjectsInUse(poolHolder.mTestObjectPoolInterface), i + 1);
-        EXPECT_EQ(bits, (1ul << (i + 1)) - 1);
+        NL_TEST_ASSERT(inSuite, objs2[i] != nullptr);
+        NL_TEST_ASSERT(inSuite, GetNumObjectsInUse(poolHolder.mTestObjectPoolInterface) == i + 1);
+        NL_TEST_ASSERT(inSuite, bits == (1ul << (i + 1)) - 1);
     }
     for (size_t i = 0; i < kSize; ++i)
     {
         poolHolder.mTestObjectPoolInterface.ReleaseObject(objs2[i]);
-        EXPECT_EQ(GetNumObjectsInUse(poolHolder.mTestObjectPoolInterface), kSize - i - 1);
+        NL_TEST_ASSERT(inSuite, GetNumObjectsInUse(poolHolder.mTestObjectPoolInterface) == kSize - i - 1);
     }
-    EXPECT_EQ(bits, 0u);
+    NL_TEST_ASSERT(inSuite, bits == 0);
 
     // Verify that ReleaseAll() calls the destructors.
     for (size_t i = 0; i < kSize; ++i)
     {
         objs2[i] = poolHolder.mTestObjectPoolInterface.CreateObject(&bits, i);
     }
-    EXPECT_EQ(bits, (1ul << kSize) - 1);
-    EXPECT_EQ(GetNumObjectsInUse(poolHolder.mTestObjectPoolInterface), kSize);
+    NL_TEST_ASSERT(inSuite, bits == (1ul << kSize) - 1);
+    NL_TEST_ASSERT(inSuite, GetNumObjectsInUse(poolHolder.mTestObjectPoolInterface) == kSize);
 
     poolHolder.mTestObjectPoolInterface.ReleaseAll();
-    EXPECT_EQ(bits, 0u);
-    EXPECT_EQ(GetNumObjectsInUse(poolHolder.mTestObjectPoolInterface), 0u);
+    NL_TEST_ASSERT(inSuite, bits == 0);
+    NL_TEST_ASSERT(inSuite, GetNumObjectsInUse(poolHolder.mTestObjectPoolInterface) == 0);
 }
 
-TEST_F(TestPool, TestPoolInterfaceStatic)
+void TestPoolInterfaceStatic(nlTestSuite * inSuite, void * inContext)
 {
-    TestPoolInterface<ObjectPoolMem::kInline>();
+    TestPoolInterface<ObjectPoolMem::kInline>(inSuite, inContext);
 }
 
 #if CHIP_SYSTEM_CONFIG_POOL_USE_HEAP
-TEST_F(TestPool, TestPoolInterfaceDynamic)
+void TestPoolInterfaceDynamic(nlTestSuite * inSuite, void * inContext)
 {
-    TestPoolInterface<ObjectPoolMem::kHeap>();
+    TestPoolInterface<ObjectPoolMem::kHeap>(inSuite, inContext);
 }
 #endif // CHIP_SYSTEM_CONFIG_POOL_USE_HEAP
 
+int Setup(void * inContext)
+{
+    return ::chip::Platform::MemoryInit() == CHIP_NO_ERROR ? SUCCESS : FAILURE;
+}
+
+int Teardown(void * inContext)
+{
+    ::chip::Platform::MemoryShutdown();
+    return SUCCESS;
+}
+
 } // namespace
+
+#define NL_TEST_DEF_FN(fn) NL_TEST_DEF("Test " #fn, fn)
+/**
+ *   Test Suite. It lists all the test functions.
+ */
+static const nlTest sTests[] = {
+    // clang-format off
+    NL_TEST_DEF_FN(TestReleaseNullStatic),
+    NL_TEST_DEF_FN(TestCreateReleaseObjectStatic),
+    NL_TEST_DEF_FN(TestCreateReleaseStructStatic),
+    NL_TEST_DEF_FN(TestForEachActiveObjectStatic),
+    NL_TEST_DEF_FN(TestPoolInterfaceStatic),
+#if CHIP_SYSTEM_CONFIG_POOL_USE_HEAP
+    NL_TEST_DEF_FN(TestReleaseNullDynamic),
+    NL_TEST_DEF_FN(TestCreateReleaseObjectDynamic),
+    NL_TEST_DEF_FN(TestCreateReleaseStructDynamic),
+    NL_TEST_DEF_FN(TestForEachActiveObjectDynamic),
+    NL_TEST_DEF_FN(TestPoolInterfaceDynamic),
+#endif // CHIP_SYSTEM_CONFIG_POOL_USE_HEAP
+    NL_TEST_SENTINEL()
+    // clang-format on
+};
+
+int TestPool()
+{
+    nlTestSuite theSuite = { "CHIP Pool tests", &sTests[0], Setup, Teardown };
+
+    // Run test suite against one context.
+    nlTestRunner(&theSuite, nullptr);
+    return nlTestRunnerStats(&theSuite);
+}
+
+CHIP_REGISTER_TEST_SUITE(TestPool);

@@ -20,6 +20,7 @@
 
 #include "../logging/Log.h"
 
+#include <app/AttributeAccessInterface.h>
 #include <app/MessageDef/InvokeRequestMessage.h>
 #include <app/MessageDef/InvokeResponseMessage.h>
 #include <app/MessageDef/ReportDataMessage.h>

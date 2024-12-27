@@ -35,8 +35,8 @@ public:
     app_error_e RunMainLoop();
     void Exit();
 
-    virtual bool AppCreate();
-    virtual void AppTerminate();
+    virtual bool AppCreated();
+    virtual void AppTerminated();
     virtual void AppControl(app_control_h app_control);
 
 private:

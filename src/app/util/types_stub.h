@@ -19,10 +19,9 @@
 
 #include <string.h> // For mem* functions.
 
-#include <optional>
-
 #include <app/util/basic-types.h>
 #include <lib/core/NodeId.h>
+#include <lib/core/Optional.h>
 
 static_assert(sizeof(chip::NodeId) == sizeof(uint64_t), "Unexpected node if size");
 
@@ -75,7 +74,7 @@ typedef uint16_t EmberPanId;
 struct EmberBindingTableEntry
 {
     static EmberBindingTableEntry ForNode(chip::FabricIndex fabric, chip::NodeId node, chip::EndpointId localEndpoint,
-                                          chip::EndpointId remoteEndpoint, std::optional<chip::ClusterId> cluster)
+                                          chip::EndpointId remoteEndpoint, chip::Optional<chip::ClusterId> cluster)
     {
         EmberBindingTableEntry entry = {
             .type        = MATTER_UNICAST_BINDING,
@@ -89,7 +88,7 @@ struct EmberBindingTableEntry
     }
 
     static EmberBindingTableEntry ForGroup(chip::FabricIndex fabric, chip::GroupId group, chip::EndpointId localEndpoint,
-                                           std::optional<chip::ClusterId> cluster)
+                                           chip::Optional<chip::ClusterId> cluster)
     {
         EmberBindingTableEntry entry = {
             .type        = MATTER_MULTICAST_BINDING,
@@ -115,7 +114,7 @@ struct EmberBindingTableEntry
      * that a binding can be used to to send messages with any cluster ID, not
      * just that listed in the binding.
      */
-    std::optional<chip::ClusterId> clusterId;
+    chip::Optional<chip::ClusterId> clusterId;
     /** The endpoint on the remote node (specified by \c identifier). */
     chip::EndpointId remote;
     /** A 64-bit destination identifier.  This is either:

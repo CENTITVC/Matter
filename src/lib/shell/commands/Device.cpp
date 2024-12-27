@@ -15,14 +15,29 @@
  *    limitations under the License.
  */
 
+#include <lib/core/CHIPCore.h>
 #include <lib/shell/Commands.h>
-#include <lib/shell/Engine.h>
-#include <lib/shell/SubShellCommand.h>
-#include <lib/support/CodeUtils.h>
+#if CONFIG_DEVICE_LAYER
 #include <platform/CHIPDeviceLayer.h>
+#endif
+#include <lib/shell/Engine.h>
+#include <lib/shell/commands/Help.h>
+#include <lib/support/CHIPArgParser.hpp>
+#include <lib/support/CHIPMem.h>
+#include <lib/support/CodeUtils.h>
+
+using chip::DeviceLayer::ConnectivityMgr;
 
 namespace chip {
 namespace Shell {
+
+static chip::Shell::Engine sShellDeviceSubcommands;
+
+int DeviceHelpHandler(int argc, char ** argv)
+{
+    sShellDeviceSubcommands.ForEachCommand(PrintCommandHelp, nullptr);
+    return 0;
+}
 
 static CHIP_ERROR FactoryResetHandler(int argc, char ** argv)
 {
@@ -31,16 +46,29 @@ static CHIP_ERROR FactoryResetHandler(int argc, char ** argv)
     return CHIP_NO_ERROR;
 }
 
+static CHIP_ERROR DeviceHandler(int argc, char ** argv)
+{
+    if (argc == 0)
+    {
+        DeviceHelpHandler(argc, argv);
+        return CHIP_NO_ERROR;
+    }
+    return sShellDeviceSubcommands.ExecCommand(argc, argv);
+}
+
 void RegisterDeviceCommands()
 {
-    static constexpr Command subCommands[] = {
+    static const shell_command_t sDeviceSubCommands[] = {
         { &FactoryResetHandler, "factoryreset", "Performs device factory reset" },
     };
 
-    static constexpr Command deviceComand = { &SubShellCommand<ArraySize(subCommands), subCommands>, "device",
-                                              "Device management commands" };
+    static const shell_command_t sDeviceComand = { &DeviceHandler, "device", "Device management commands" };
 
-    Engine::Root().RegisterCommands(&deviceComand, 1);
+    // Register `device` subcommands with the local shell dispatcher.
+    sShellDeviceSubcommands.RegisterCommands(sDeviceSubCommands, ArraySize(sDeviceSubCommands));
+
+    // Register the root `device` command with the top-level shell.
+    Engine::Root().RegisterCommands(&sDeviceComand, 1);
 }
 
 } // namespace Shell

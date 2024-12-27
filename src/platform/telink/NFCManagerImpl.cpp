@@ -17,6 +17,7 @@
 
 #include <platform/internal/CHIPDeviceLayerInternal.h>
 
+#if CHIP_DEVICE_CONFIG_ENABLE_NFC
 #include <platform/NFCManager.h>
 
 #include <lib/support/logging/CHIPLogging.h>
@@ -101,3 +102,4 @@ CHIP_ERROR NFCManagerImpl::_StopTagEmulation()
 
 } // namespace DeviceLayer
 } // namespace chip
+#endif

@@ -44,17 +44,16 @@ public:
     CHIP_ERROR Init(Inet::EndPointManager<Inet::UDPEndPoint> * udpEndPoint = nullptr);
     void Shutdown();
 
-    void SetDiscoveryDelegate(DiscoverNodeDelegate * delegate)
+    void SetCommissioningDelegate(CommissioningResolveDelegate * delegate)
     {
         if (mContext != nullptr)
         {
-            mContext->SetDiscoveryDelegate(delegate);
+            mContext->SetCommissioningDelegate(delegate);
         }
     }
 
     CHIP_ERROR DiscoverCommissionableNodes(DiscoveryFilter filter = DiscoveryFilter());
     CHIP_ERROR DiscoverCommissioners(DiscoveryFilter filter = DiscoveryFilter());
-    CHIP_ERROR DiscoverOperationalNodes(DiscoveryFilter filter = DiscoveryFilter());
     CHIP_ERROR StopDiscovery();
 
 private:

@@ -21,8 +21,6 @@
 #include <lib/support/CHIPMemString.h>
 #include <platform/CHIPDeviceLayer.h>
 
-#include <string>
-
 using namespace ::chip::Platform;
 
 Device::Device(const char * szDeviceName, const char * szLocation)

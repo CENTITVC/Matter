@@ -55,7 +55,7 @@ public:
 private:
     using Config = Internal::CYW30739Config;
 
-    static constexpr uint8_t mMaxEntryCount = 192;
+    static constexpr uint8_t mMaxEntryCount = 128;
 
     struct KeyStorage
     {

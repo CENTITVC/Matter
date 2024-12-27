@@ -26,8 +26,6 @@
 #include <lwip/ip6_addr.h>
 #include <platform/CHIPDeviceLayer.h>
 
-#include <string>
-
 using namespace chip::Dnssd;
 
 namespace {

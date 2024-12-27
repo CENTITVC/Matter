@@ -1,6 +1,6 @@
 /*
  *
- *    Copyright (c) 2022-2024 Project CHIP Authors
+ *    Copyright (c) 2022-2023 Project CHIP Authors
  *    All rights reserved.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,6 @@
  */
 
 #include "AppTask.h"
-#include "LEDManager.h"
 
 #include <app-common/zap-generated/attributes/Accessors.h>
 
@@ -26,14 +25,25 @@
 
 LOG_MODULE_DECLARE(app, CONFIG_CHIP_APP_LOG_LEVEL);
 
+namespace {
+#if CONFIG_CHIP_ENABLE_APPLICATION_STATUS_LED
+LEDWidget sContactSensorLED;
+#endif
+} // namespace
+
 AppTask AppTask::sAppTask;
 
 CHIP_ERROR AppTask::Init(void)
 {
+#if APP_USE_EXAMPLE_START_BUTTON
     SetExampleButtonCallbacks(ContactActionEventHandler);
+#endif
     InitCommonParts();
 
-    LedManager::getInstance().setLed(LedManager::EAppLed_App0, ContactSensorMgr().IsContactClosed());
+#if CONFIG_CHIP_ENABLE_APPLICATION_STATUS_LED
+    sContactSensorLED.Init(GPIO_DT_SPEC_GET(DT_ALIAS(led2), gpios));
+    sContactSensorLED.Set(ContactSensorMgr().IsContactClosed());
+#endif
 
     UpdateDeviceState();
 
@@ -50,12 +60,16 @@ void AppTask::OnStateChanged(ContactSensorManager::State aState)
     if (ContactSensorManager::State::kContactClosed == aState)
     {
         LOG_INF("Contact state changed to CLOSED");
-        LedManager::getInstance().setLed(LedManager::EAppLed_App0, true);
+#if CONFIG_CHIP_ENABLE_APPLICATION_STATUS_LED
+        sContactSensorLED.Set(true);
+#endif
     }
     else if (ContactSensorManager::State::kContactOpened == aState)
     {
         LOG_INF("Contact state changed to OPEN");
-        LedManager::getInstance().setLed(LedManager::EAppLed_App0, false);
+#if CONFIG_CHIP_ENABLE_APPLICATION_STATUS_LED
+        sContactSensorLED.Set(false);
+#endif
     }
 
     if (sAppTask.IsSyncClusterToButtonAction())
@@ -67,9 +81,9 @@ void AppTask::OnStateChanged(ContactSensorManager::State aState)
 void AppTask::PostContactActionRequest(ContactSensorManager::Action aAction)
 {
     AppEvent event;
-    event.Type               = AppEvent::kEventType_DeviceAction;
-    event.DeviceEvent.Action = static_cast<uint8_t>(aAction);
-    event.Handler            = ContactActionEventHandler;
+    event.Type                = AppEvent::kEventType_Contact;
+    event.ContactEvent.Action = static_cast<uint8_t>(aAction);
+    event.Handler             = ContactActionEventHandler;
 
     sAppTask.PostEvent(&event);
 }
@@ -95,9 +109,9 @@ void AppTask::ContactActionEventHandler(AppEvent * aEvent)
 
     ChipLogProgress(NotSpecified, "ContactActionEventHandler");
 
-    if (aEvent->Type == AppEvent::kEventType_DeviceAction)
+    if (aEvent->Type == AppEvent::kEventType_Contact)
     {
-        action = static_cast<ContactSensorManager::Action>(aEvent->DeviceEvent.Action);
+        action = static_cast<ContactSensorManager::Action>(aEvent->ContactEvent.Action);
     }
     else if (aEvent->Type == AppEvent::kEventType_Button)
     {
@@ -141,15 +155,8 @@ void AppTask::UpdateDeviceStateInternal(intptr_t arg)
     /* get boolean state attribute value */
     (void) app::Clusters::BooleanState::Attributes::StateValue::Get(1, &stateValueAttrValue);
 
-    LedManager::getInstance().setLed(LedManager::EAppLed_App0, stateValueAttrValue);
-}
-
-void AppTask::LinkLeds(LedManager & ledManager)
-{
+    ChipLogProgress(NotSpecified, "StateValue::Get : %d", stateValueAttrValue);
 #if CONFIG_CHIP_ENABLE_APPLICATION_STATUS_LED
-    ledManager.linkLed(LedManager::EAppLed_Status, 0);
-    ledManager.linkLed(LedManager::EAppLed_App0, 1);
-#else
-    ledManager.linkLed(LedManager::EAppLed_App0, 0);
-#endif // CONFIG_CHIP_ENABLE_APPLICATION_STATUS_LED
+    sContactSensorLED.Set(stateValueAttrValue);
+#endif
 }

@@ -104,7 +104,7 @@ class DeviceProvisioningFragment : Fragment() {
     override fun onDeviceAttestationCompleted(
       devicePtr: Long,
       attestationInfo: AttestationInfo,
-      errorCode: Long
+      errorCode: Int
     ) {}
   }
 
@@ -249,10 +249,10 @@ class DeviceProvisioningFragment : Fragment() {
       Log.d(TAG, "Pairing status update: $status")
     }
 
-    override fun onCommissioningComplete(nodeId: Long, errorCode: Long) {
+    override fun onCommissioningComplete(nodeId: Long, errorCode: Int) {
       if (errorCode == STATUS_PAIRING_SUCCESS) {
         FragmentUtil.getHost(this@DeviceProvisioningFragment, Callback::class.java)
-          ?.onCommissioningComplete(0L, nodeId)
+          ?.onCommissioningComplete(0, nodeId)
       } else {
         showMessage(R.string.rendezvous_over_ble_pairing_failure_text)
         FragmentUtil.getHost(this@DeviceProvisioningFragment, Callback::class.java)
@@ -260,7 +260,7 @@ class DeviceProvisioningFragment : Fragment() {
       }
     }
 
-    override fun onPairingComplete(code: Long) {
+    override fun onPairingComplete(code: Int) {
       Log.d(TAG, "onPairingComplete: $code")
 
       if (code != STATUS_PAIRING_SUCCESS) {
@@ -274,7 +274,7 @@ class DeviceProvisioningFragment : Fragment() {
       Log.d(TAG, String(csr))
     }
 
-    override fun onPairingDeleted(code: Long) {
+    override fun onPairingDeleted(code: Int) {
       Log.d(TAG, "onPairingDeleted: $code")
     }
 
@@ -289,11 +289,11 @@ class DeviceProvisioningFragment : Fragment() {
     override fun onICDRegistrationInfoRequired() {
       Log.d(TAG, "onICDRegistrationInfoRequired")
       deviceController.updateCommissioningICDRegistrationInfo(
-        ICDRegistrationInfo.newBuilder().setICDStayActiveDurationMsec(30000L).build()
+        ICDRegistrationInfo.newBuilder().build()
       )
     }
 
-    override fun onICDRegistrationComplete(errorCode: Long, icdDeviceInfo: ICDDeviceInfo) {
+    override fun onICDRegistrationComplete(errorCode: Int, icdDeviceInfo: ICDDeviceInfo) {
       Log.d(
         TAG,
         "onICDRegistrationComplete - errorCode: $errorCode, symmetricKey : ${icdDeviceInfo.symmetricKey.toHex()}, icdDeviceInfo : $icdDeviceInfo"
@@ -303,11 +303,7 @@ class DeviceProvisioningFragment : Fragment() {
             requireActivity(),
             getString(
               R.string.icd_registration_completed,
-              icdDeviceInfo.userActiveModeTriggerHint.toString(),
-              icdDeviceInfo.userActiveModeTriggerInstruction,
-              icdDeviceInfo.idleModeDuration.toString(),
-              icdDeviceInfo.activeModeDuration.toString(),
-              icdDeviceInfo.activeModeThreshold.toString()
+              icdDeviceInfo.userActiveModeTriggerHint.toString()
             ),
             Toast.LENGTH_LONG
           )
@@ -322,14 +318,14 @@ class DeviceProvisioningFragment : Fragment() {
   /** Callback from [DeviceProvisioningFragment] notifying any registered listeners. */
   interface Callback {
     /** Notifies that commissioning has been completed. */
-    fun onCommissioningComplete(code: Long, nodeId: Long = 0L)
+    fun onCommissioningComplete(code: Int, nodeId: Long = 0L)
   }
 
   companion object {
     private const val TAG = "DeviceProvisioningFragment"
     private const val ARG_DEVICE_INFO = "device_info"
     private const val ARG_NETWORK_CREDENTIALS = "network_credentials"
-    private const val STATUS_PAIRING_SUCCESS = 0L
+    private const val STATUS_PAIRING_SUCCESS = 0
 
     /**
      * Set for the fail-safe timer before onDeviceAttestationFailed is invoked.

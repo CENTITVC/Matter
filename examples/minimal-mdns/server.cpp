@@ -126,10 +126,10 @@ public:
 
     void OnQuery(const mdns::Minimal::BytesRange & data, const Inet::IPPacketInfo * info) override
     {
-        char addr[Inet::IPAddress::kMaxStringLength];
+        char addr[INET6_ADDRSTRLEN];
         info->SrcAddress.ToString(addr, sizeof(addr));
 
-        char ifName[Inet::InterfaceId::kMaxIfNameLength];
+        char ifName[64];
         VerifyOrDie(info->Interface.GetInterfaceName(ifName, sizeof(ifName)) == CHIP_NO_ERROR);
 
         printf("QUERY from: %-15s on port %d, via interface %s\n", addr, info->SrcPort, ifName);
@@ -145,10 +145,10 @@ public:
 
     void OnResponse(const mdns::Minimal::BytesRange & data, const Inet::IPPacketInfo * info) override
     {
-        char addr[Inet::IPAddress::kMaxStringLength];
+        char addr[INET6_ADDRSTRLEN];
         info->SrcAddress.ToString(addr, sizeof(addr));
 
-        char ifName[Inet::InterfaceId::kMaxIfNameLength];
+        char ifName[64];
         VerifyOrDie(info->Interface.GetInterfaceName(ifName, sizeof(ifName)) == CHIP_NO_ERROR);
 
         printf("RESPONSE from: %-15s on port %d, via interface %s\n", addr, info->SrcPort, ifName);

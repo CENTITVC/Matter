@@ -15,33 +15,24 @@
  *    limitations under the License.
  */
 
-#include <app-common/zap-generated/attributes/Accessors.h>
 #include <app/util/config.h>
-#include <map>
-#include <string>
 #ifdef MATTER_DM_PLUGIN_MEDIA_PLAYBACK_SERVER
 #include "MediaPlaybackManager.h"
+#include <app-common/zap-generated/attributes/Accessors.h>
+#include <app/util/config.h>
 
-using namespace chip;
-using namespace chip::app;
+using namespace std;
 using namespace chip::app::DataModel;
 using namespace chip::app::Clusters::MediaPlayback;
+using namespace chip::Uint8;
 
 using chip::CharSpan;
 using chip::app::AttributeValueEncoder;
 using chip::app::CommandResponseHelper;
-using chip::Protocols::InteractionModel::Status;
 
 PlaybackStateEnum MediaPlaybackManager::HandleGetCurrentState()
 {
-    PlaybackStateEnum currentState = PlaybackStateEnum::kPlaying;
-
-    Status status = Attributes::CurrentState::Get(mEndpoint, &currentState);
-    if (Status::Success != status)
-    {
-        ChipLogError(Zcl, "Unable to get CurrentStage attribute, err:0x%x", to_underlying(status));
-    }
-    return currentState;
+    return mCurrentState;
 }
 
 uint64_t MediaPlaybackManager::HandleGetStartTime()
@@ -61,14 +52,7 @@ CHIP_ERROR MediaPlaybackManager::HandleGetSampledPosition(AttributeValueEncoder 
 
 float MediaPlaybackManager::HandleGetPlaybackSpeed()
 {
-    float playbackSpeed = 1.0;
-
-    Status status = Attributes::PlaybackSpeed::Get(mEndpoint, &playbackSpeed);
-    if (Status::Success != status)
-    {
-        ChipLogError(Zcl, "Unable to get PlaybackSpeed attribute, err:0x%x", to_underlying(status));
-    }
-    return playbackSpeed;
+    return mPlaybackSpeed;
 }
 
 uint64_t MediaPlaybackManager::HandleGetSeekRangeStart()
@@ -113,34 +97,10 @@ CHIP_ERROR MediaPlaybackManager::HandleGetAvailableTextTracks(AttributeValueEnco
     });
 }
 
-CHIP_ERROR MediaPlaybackManager::HandleSetCurrentState(PlaybackStateEnum currentState)
-{
-    Status status = Attributes::CurrentState::Set(mEndpoint, currentState);
-
-    if (Status::Success != status)
-    {
-        ChipLogError(Zcl, "Unable to set CurrentState attribute, 0x%x", to_underlying(status));
-    }
-
-    return CHIP_ERROR_IM_GLOBAL_STATUS_VALUE(status);
-}
-
-CHIP_ERROR MediaPlaybackManager::HandleSetPlaybackSpeed(float playbackSpeed)
-{
-    Status status = Attributes::PlaybackSpeed::Set(mEndpoint, playbackSpeed);
-
-    if (Status::Success != status)
-    {
-        ChipLogError(Zcl, "Unable to set PlaybackSpeed attribute, 0x%x", to_underlying(status));
-    }
-
-    return CHIP_ERROR_IM_GLOBAL_STATUS_VALUE(status);
-}
-
 void MediaPlaybackManager::HandlePlay(CommandResponseHelper<Commands::PlaybackResponse::Type> & helper)
 {
-    HandleSetCurrentState(PlaybackStateEnum::kPlaying);
-    HandleSetPlaybackSpeed(1);
+    mCurrentState  = PlaybackStateEnum::kPlaying;
+    mPlaybackSpeed = 1;
 
     Commands::PlaybackResponse::Type response;
     response.data   = chip::MakeOptional(CharSpan::fromCharString("data response"));
@@ -150,8 +110,8 @@ void MediaPlaybackManager::HandlePlay(CommandResponseHelper<Commands::PlaybackRe
 
 void MediaPlaybackManager::HandlePause(CommandResponseHelper<Commands::PlaybackResponse::Type> & helper)
 {
-    HandleSetCurrentState(PlaybackStateEnum::kPaused);
-    HandleSetPlaybackSpeed(0);
+    mCurrentState  = PlaybackStateEnum::kPaused;
+    mPlaybackSpeed = 0;
 
     Commands::PlaybackResponse::Type response;
     response.data   = chip::MakeOptional(CharSpan::fromCharString("data response"));
@@ -161,8 +121,8 @@ void MediaPlaybackManager::HandlePause(CommandResponseHelper<Commands::PlaybackR
 
 void MediaPlaybackManager::HandleStop(CommandResponseHelper<Commands::PlaybackResponse::Type> & helper)
 {
-    HandleSetCurrentState(PlaybackStateEnum::kNotPlaying);
-    HandleSetPlaybackSpeed(0);
+    mCurrentState     = PlaybackStateEnum::kNotPlaying;
+    mPlaybackSpeed    = 0;
     mPlaybackPosition = { 0, chip::app::DataModel::Nullable<uint64_t>(0) };
 
     Commands::PlaybackResponse::Type response;
@@ -174,9 +134,7 @@ void MediaPlaybackManager::HandleStop(CommandResponseHelper<Commands::PlaybackRe
 void MediaPlaybackManager::HandleFastForward(CommandResponseHelper<Commands::PlaybackResponse::Type> & helper,
                                              const chip::Optional<bool> & audioAdvanceUnmuted)
 {
-    float playbackSpeed = HandleGetPlaybackSpeed();
-
-    if (playbackSpeed == kPlaybackMaxForwardSpeed)
+    if (mPlaybackSpeed == kPlaybackMaxForwardSpeed)
     {
         // if already at max speed, return error
         Commands::PlaybackResponse::Type response;
@@ -186,14 +144,13 @@ void MediaPlaybackManager::HandleFastForward(CommandResponseHelper<Commands::Pla
         return;
     }
 
-    HandleSetCurrentState(PlaybackStateEnum::kPlaying);
-    // Normalize to correct range
-    playbackSpeed = (playbackSpeed <= 0 ? 1 : playbackSpeed * 2);
-    if (playbackSpeed > kPlaybackMaxForwardSpeed)
+    mCurrentState  = PlaybackStateEnum::kPlaying;
+    mPlaybackSpeed = (mPlaybackSpeed <= 0 ? 1 : mPlaybackSpeed * 2);
+    if (mPlaybackSpeed > kPlaybackMaxForwardSpeed)
     {
-        playbackSpeed = kPlaybackMaxForwardSpeed;
+        // don't exceed max speed
+        mPlaybackSpeed = kPlaybackMaxForwardSpeed;
     }
-    HandleSetPlaybackSpeed(playbackSpeed);
 
     Commands::PlaybackResponse::Type response;
     response.data   = chip::MakeOptional(CharSpan::fromCharString("data response"));
@@ -203,8 +160,8 @@ void MediaPlaybackManager::HandleFastForward(CommandResponseHelper<Commands::Pla
 
 void MediaPlaybackManager::HandlePrevious(CommandResponseHelper<Commands::PlaybackResponse::Type> & helper)
 {
-    HandleSetCurrentState(PlaybackStateEnum::kPlaying);
-    HandleSetPlaybackSpeed(1);
+    mCurrentState     = PlaybackStateEnum::kPlaying;
+    mPlaybackSpeed    = 1;
     mPlaybackPosition = { 0, chip::app::DataModel::Nullable<uint64_t>(0) };
 
     Commands::PlaybackResponse::Type response;
@@ -216,9 +173,7 @@ void MediaPlaybackManager::HandlePrevious(CommandResponseHelper<Commands::Playba
 void MediaPlaybackManager::HandleRewind(CommandResponseHelper<Commands::PlaybackResponse::Type> & helper,
                                         const chip::Optional<bool> & audioAdvanceUnmuted)
 {
-    float playbackSpeed = HandleGetPlaybackSpeed();
-
-    if (playbackSpeed == kPlaybackMaxRewindSpeed)
+    if (mPlaybackSpeed == kPlaybackMaxRewindSpeed)
     {
         // if already at max speed in reverse, return error
         Commands::PlaybackResponse::Type response;
@@ -228,14 +183,13 @@ void MediaPlaybackManager::HandleRewind(CommandResponseHelper<Commands::Playback
         return;
     }
 
-    HandleSetCurrentState(PlaybackStateEnum::kPlaying);
-    // Normalize to correct range
-    playbackSpeed = (playbackSpeed >= 0 ? -1 : playbackSpeed * 2);
-    if (playbackSpeed < kPlaybackMaxRewindSpeed)
+    mCurrentState  = PlaybackStateEnum::kPlaying;
+    mPlaybackSpeed = (mPlaybackSpeed >= 0 ? -1 : mPlaybackSpeed * 2);
+    if (mPlaybackSpeed < kPlaybackMaxRewindSpeed)
     {
-        playbackSpeed = kPlaybackMaxRewindSpeed;
+        // don't exceed max rewind speed
+        mPlaybackSpeed = kPlaybackMaxRewindSpeed;
     }
-    HandleSetPlaybackSpeed(playbackSpeed);
 
     Commands::PlaybackResponse::Type response;
     response.data   = chip::MakeOptional(CharSpan::fromCharString("data response"));
@@ -293,8 +247,8 @@ void MediaPlaybackManager::HandleSeek(CommandResponseHelper<Commands::PlaybackRe
 
 void MediaPlaybackManager::HandleNext(CommandResponseHelper<Commands::PlaybackResponse::Type> & helper)
 {
-    HandleSetCurrentState(PlaybackStateEnum::kPlaying);
-    HandleSetPlaybackSpeed(1);
+    mCurrentState     = PlaybackStateEnum::kPlaying;
+    mPlaybackSpeed    = 1;
     mPlaybackPosition = { 0, chip::app::DataModel::Nullable<uint64_t>(0) };
 
     Commands::PlaybackResponse::Type response;
@@ -380,17 +334,6 @@ uint16_t MediaPlaybackManager::GetClusterRevision(chip::EndpointId endpoint)
         ChipLogError(Zcl, "MediaPlaybackManager::GetClusterRevision error reading cluster revision");
     }
     return clusterRevision;
-}
-
-static std::map<chip::EndpointId, std::unique_ptr<MediaPlaybackManager>> gMediaPlaybackManagerInstance{};
-
-void emberAfMediaPlaybackClusterInitCallback(EndpointId endpoint)
-{
-    ChipLogProgress(Zcl, "TV Linux App: MediaPlayback::SetDefaultDelegate, endpoint=%x", endpoint);
-
-    gMediaPlaybackManagerInstance[endpoint] = std::make_unique<MediaPlaybackManager>(endpoint);
-
-    SetDefaultDelegate(endpoint, gMediaPlaybackManagerInstance[endpoint].get());
 }
 
 #endif /// MATTER_DM_PLUGIN_MEDIA_PLAYBACK_SERVER

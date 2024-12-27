@@ -20,7 +20,6 @@
 
 #include <app-common/zap-generated/attributes/Accessors.h>
 #include <app/AttributeAccessInterface.h>
-#include <app/AttributeAccessInterfaceRegistry.h>
 #include <app/CommandHandler.h>
 #include <app/ConcreteCommandPath.h>
 #include <app/EventLogging.h>
@@ -293,5 +292,5 @@ exit:
 
 void MatterMessagesPluginServerInitCallback()
 {
-    AttributeAccessInterfaceRegistry::Instance().Register(&gMessagesAttrAccess);
+    registerAttributeAccessOverride(&gMessagesAttrAccess);
 }

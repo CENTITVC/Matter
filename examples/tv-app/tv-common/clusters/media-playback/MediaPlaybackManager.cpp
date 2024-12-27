@@ -19,8 +19,7 @@
 #include <app-common/zap-generated/attributes/Accessors.h>
 #include <app/util/config.h>
 
-#include <string>
-
+using namespace std;
 using namespace chip::app::DataModel;
 using namespace chip::app::Clusters::MediaPlayback;
 using namespace chip::Uint8;

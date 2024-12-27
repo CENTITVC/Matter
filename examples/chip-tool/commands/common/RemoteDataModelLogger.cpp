@@ -160,7 +160,8 @@ CHIP_ERROR LogErrorAsJSON(const CHIP_ERROR & error)
     VerifyOrReturnError(gDelegate != nullptr, CHIP_NO_ERROR);
 
     Json::Value value;
-    chip::app::StatusIB status(error);
+    chip::app::StatusIB status;
+    status.InitFromChipError(error);
     return LogError(value, status);
 }
 
@@ -203,12 +204,12 @@ CHIP_ERROR LogIssueNOCChain(const char * noc, const char * icac, const char * rc
     return gDelegate->LogJSON(valueStr.c_str());
 }
 
-CHIP_ERROR LogDiscoveredNodeData(const chip::Dnssd::CommissionNodeData & nodeData)
+CHIP_ERROR LogDiscoveredNodeData(const chip::Dnssd::DiscoveredNodeData & nodeData)
 {
     VerifyOrReturnError(gDelegate != nullptr, CHIP_NO_ERROR);
 
-    auto & commissionData = nodeData;
-    auto & resolutionData = commissionData;
+    auto & resolutionData = nodeData.resolutionData;
+    auto & commissionData = nodeData.commissionData;
 
     if (!chip::CanCastTo<uint8_t>(resolutionData.numIPs))
     {
@@ -240,29 +241,28 @@ CHIP_ERROR LogDiscoveredNodeData(const chip::Dnssd::CommissionNodeData & nodeDat
     value["rotatingIdLen"]      = static_cast<uint64_t>(commissionData.rotatingIdLen);
     value["pairingHint"]        = commissionData.pairingHint;
     value["pairingInstruction"] = commissionData.pairingInstruction;
-    value["supportsTcpClient"]  = resolutionData.supportsTcpClient;
-    value["supportsTcpServer"]  = resolutionData.supportsTcpServer;
+    value["supportsTcp"]        = resolutionData.supportsTcp;
     value["port"]               = resolutionData.port;
     value["numIPs"]             = static_cast<uint8_t>(resolutionData.numIPs);
 
-    if (resolutionData.mrpRetryIntervalIdle.has_value())
+    if (resolutionData.mrpRetryIntervalIdle.HasValue())
     {
-        value["mrpRetryIntervalIdle"] = resolutionData.mrpRetryIntervalIdle->count();
+        value["mrpRetryIntervalIdle"] = resolutionData.mrpRetryIntervalIdle.Value().count();
     }
 
-    if (resolutionData.mrpRetryIntervalActive.has_value())
+    if (resolutionData.mrpRetryIntervalActive.HasValue())
     {
-        value["mrpRetryIntervalActive"] = resolutionData.mrpRetryIntervalActive->count();
+        value["mrpRetryIntervalActive"] = resolutionData.mrpRetryIntervalActive.Value().count();
     }
 
-    if (resolutionData.mrpRetryActiveThreshold.has_value())
+    if (resolutionData.mrpRetryActiveThreshold.HasValue())
     {
-        value["mrpRetryActiveThreshold"] = resolutionData.mrpRetryActiveThreshold->count();
+        value["mrpRetryActiveThreshold"] = resolutionData.mrpRetryActiveThreshold.Value().count();
     }
 
-    if (resolutionData.isICDOperatingAsLIT.has_value())
+    if (resolutionData.isICDOperatingAsLIT.HasValue())
     {
-        value["isICDOperatingAsLIT"] = *(resolutionData.isICDOperatingAsLIT);
+        value["isICDOperatingAsLIT"] = resolutionData.isICDOperatingAsLIT.Value();
     }
 
     Json::Value rootValue;

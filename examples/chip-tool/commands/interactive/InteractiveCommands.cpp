@@ -22,9 +22,6 @@
 
 #include <editline.h>
 
-#include <string>
-#include <vector>
-
 constexpr char kInteractiveModePrompt[]          = ">>> ";
 constexpr char kInteractiveModeHistoryFileName[] = "chip_tool_history";
 constexpr char kInteractiveModeStopCommand[]     = "quit()";

@@ -18,7 +18,6 @@
 package com.matter.controller.commands.pairing
 
 import chip.devicecontroller.ChipDeviceController
-import chip.devicecontroller.CommissionParameters
 import com.matter.controller.commands.common.CredentialsIssuer
 
 class PairCodeWifiCommand(controller: ChipDeviceController, credsIssue: CredentialsIssuer?) :
@@ -30,15 +29,14 @@ class PairCodeWifiCommand(controller: ChipDeviceController, credsIssue: Credenti
     PairingNetworkType.WIFI
   ) {
   override fun runCommand() {
-    val commissionParams =
-      CommissionParameters.Builder().setNetworkCredentials(getWifiNetworkCredentials()).build()
     currentCommissioner()
       .pairDeviceWithCode(
         getNodeId(),
         getOnboardingPayload(),
         getDiscoverOnce(),
         getUseOnlyOnNetworkDiscovery(),
-        commissionParams
+        null,
+        getWifiNetworkCredentials(),
       )
     currentCommissioner().setCompletionListener(this)
     waitCompleteMs(getTimeoutMillis())

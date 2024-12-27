@@ -39,16 +39,8 @@ public class CommissionableData {
     return setupPasscode;
   }
 
-  public void setSetupPasscode(long setupPasscode) {
-    this.setupPasscode = setupPasscode;
-  }
-
   public int getDiscriminator() {
     return discriminator;
-  }
-
-  public void setDiscriminator(int discriminator) {
-    this.discriminator = discriminator;
   }
 
   @Nullable

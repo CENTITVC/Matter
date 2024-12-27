@@ -22,7 +22,6 @@
 
 #include <fstream>
 #include <map>
-#include <string>
 
 namespace chip {
 namespace app {

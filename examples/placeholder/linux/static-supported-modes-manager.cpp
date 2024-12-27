@@ -1,6 +1,7 @@
 #include <app/util/config.h>
 #include <static-supported-modes-manager.h>
 
+using namespace std;
 using namespace chip;
 using namespace chip::app::Clusters;
 using namespace chip::app::Clusters::ModeSelect;
@@ -38,6 +39,8 @@ const StaticSupportedModesManager::EndpointSpanPair
         EndpointSpanPair(1, Span<storage_value_type>(StaticSupportedModesManager::coffeeOptions)) // Options for Endpoint 1
     };
 
+const StaticSupportedModesManager StaticSupportedModesManager::instance = StaticSupportedModesManager();
+
 SupportedModesManager::ModeOptionsProvider StaticSupportedModesManager::getModeOptionsProvider(EndpointId endpointId) const
 {
     for (auto & endpointSpanPair : supportedOptionsByEndpoints)
@@ -72,4 +75,9 @@ Status StaticSupportedModesManager::getModeOptionByMode(unsigned short endpointI
     }
     ChipLogProgress(Zcl, "Cannot find the mode %u", mode);
     return Status::InvalidCommand;
+}
+
+const ModeSelect::SupportedModesManager * ModeSelect::getSupportedModesManager()
+{
+    return &StaticSupportedModesManager::instance;
 }

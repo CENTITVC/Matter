@@ -19,22 +19,17 @@
 #pragma once
 
 #ifdef HEAP_MONITORING
+#include "FreeRTOS.h"
 
-namespace chip {
-namespace DeviceLayer {
-namespace Silabs {
+#define MONITORING_STACK_SIZE_byte 1024
 
 class MemMonitoring
 {
 public:
-    static void StartMonitor();
+    static void startHeapMonitoring();
 
 private:
-    static void MonitorTask(void * pvParameter);
+    static void HeapMonitoring(void * pvParameter);
 };
-
-} // namespace Silabs
-} // namespace DeviceLayer
-} // namespace chip
 
 #endif

@@ -14,15 +14,11 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-
 #include <lib/dnssd/minimal_mdns/ResponseSender.h>
 
 #include <string>
 #include <vector>
 
-#include <pw_unit_test/framework.h>
-
-#include <lib/core/StringBuilderAdapters.h>
 #include <lib/dnssd/minimal_mdns/RecordData.h>
 #include <lib/dnssd/minimal_mdns/core/FlatAllocatedQName.h>
 #include <lib/dnssd/minimal_mdns/core/RecordWriter.h>
@@ -30,10 +26,15 @@
 #include <lib/dnssd/minimal_mdns/responders/Srv.h>
 #include <lib/dnssd/minimal_mdns/responders/Txt.h>
 #include <lib/dnssd/minimal_mdns/tests/CheckOnlyServer.h>
+
 #include <lib/support/CHIPMem.h>
+#include <lib/support/UnitTestRegistration.h>
+
+#include <nlunit-test.h>
 
 namespace {
 
+using namespace std;
 using namespace chip;
 using namespace mdns::Minimal;
 using namespace mdns::Minimal::test;
@@ -71,31 +72,24 @@ struct CommonTestElements
     QueryResponder<10> queryResponder;
     Inet::IPPacketInfo packetInfo;
 
-    CommonTestElements(const char * tag) :
+    CommonTestElements(nlTestSuite * inSuite, const char * tag) :
         recordWriter(&requestBufferWriter),
         dnsSd(FlatAllocatedQName::Build(dnsSdServiceStorage, "_services", "_dns-sd", "_udp", "local")),
         service(FlatAllocatedQName::Build(serviceNameStorage, tag, "service")),
         instance(FlatAllocatedQName::Build(instanceNameStorage, tag, "instance")),
         host(FlatAllocatedQName::Build(hostNameStorage, tag, "host")),
-        txt(FlatAllocatedQName::Build(txtStorage, tag, "L1=something", "L2=other")), server()
+        txt(FlatAllocatedQName::Build(txtStorage, tag, "L1=something", "L2=other")), server(inSuite)
     {
         queryResponder.Init();
         header.SetQueryCount(1);
     }
 };
 
-class TestResponseSender : public ::testing::Test
+void SrvAnyResponseToInstance(nlTestSuite * inSuite, void * inContext)
 {
-public:
-    static void SetUpTestSuite() { ASSERT_EQ(chip::Platform::MemoryInit(), CHIP_NO_ERROR); }
-    static void TearDownTestSuite() { chip::Platform::MemoryShutdown(); }
-};
-
-TEST_F(TestResponseSender, SrvAnyResponseToInstance)
-{
-    CommonTestElements common("test");
+    CommonTestElements common(inSuite, "test");
     ResponseSender responseSender(&common.server);
-    EXPECT_EQ(responseSender.AddQueryResponder(&common.queryResponder), CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, responseSender.AddQueryResponder(&common.queryResponder) == CHIP_NO_ERROR);
     common.queryResponder.AddResponder(&common.srvResponder);
 
     // Build a query for our srv record
@@ -106,15 +100,15 @@ TEST_F(TestResponseSender, SrvAnyResponseToInstance)
     common.server.AddExpectedRecord(&common.srvRecord);
     responseSender.Respond(1, queryData, &common.packetInfo, ResponseConfiguration());
 
-    EXPECT_TRUE(common.server.GetSendCalled());
-    EXPECT_TRUE(common.server.GetHeaderFound());
+    NL_TEST_ASSERT(inSuite, common.server.GetSendCalled());
+    NL_TEST_ASSERT(inSuite, common.server.GetHeaderFound());
 }
 
-TEST_F(TestResponseSender, SrvTxtAnyResponseToInstance)
+void SrvTxtAnyResponseToInstance(nlTestSuite * inSuite, void * inContext)
 {
-    CommonTestElements common("test");
+    CommonTestElements common(inSuite, "test");
     ResponseSender responseSender(&common.server);
-    EXPECT_EQ(responseSender.AddQueryResponder(&common.queryResponder), CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, responseSender.AddQueryResponder(&common.queryResponder) == CHIP_NO_ERROR);
     common.queryResponder.AddResponder(&common.srvResponder);
     common.queryResponder.AddResponder(&common.txtResponder);
 
@@ -128,15 +122,15 @@ TEST_F(TestResponseSender, SrvTxtAnyResponseToInstance)
     common.server.AddExpectedRecord(&common.txtRecord);
     responseSender.Respond(1, queryData, &common.packetInfo, ResponseConfiguration());
 
-    EXPECT_TRUE(common.server.GetSendCalled());
-    EXPECT_TRUE(common.server.GetHeaderFound());
+    NL_TEST_ASSERT(inSuite, common.server.GetSendCalled());
+    NL_TEST_ASSERT(inSuite, common.server.GetHeaderFound());
 }
 
-TEST_F(TestResponseSender, PtrSrvTxtAnyResponseToServiceName)
+void PtrSrvTxtAnyResponseToServiceName(nlTestSuite * inSuite, void * inContext)
 {
-    CommonTestElements common("test");
+    CommonTestElements common(inSuite, "test");
     ResponseSender responseSender(&common.server);
-    EXPECT_EQ(responseSender.AddQueryResponder(&common.queryResponder), CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, responseSender.AddQueryResponder(&common.queryResponder) == CHIP_NO_ERROR);
     common.queryResponder.AddResponder(&common.ptrResponder).SetReportAdditional(common.instance);
     common.queryResponder.AddResponder(&common.srvResponder);
     common.queryResponder.AddResponder(&common.txtResponder);
@@ -153,15 +147,15 @@ TEST_F(TestResponseSender, PtrSrvTxtAnyResponseToServiceName)
 
     responseSender.Respond(1, queryData, &common.packetInfo, ResponseConfiguration());
 
-    EXPECT_TRUE(common.server.GetSendCalled());
-    EXPECT_TRUE(common.server.GetHeaderFound());
+    NL_TEST_ASSERT(inSuite, common.server.GetSendCalled());
+    NL_TEST_ASSERT(inSuite, common.server.GetHeaderFound());
 }
 
-TEST_F(TestResponseSender, PtrSrvTxtAnyResponseToInstance)
+void PtrSrvTxtAnyResponseToInstance(nlTestSuite * inSuite, void * inContext)
 {
-    CommonTestElements common("test");
+    CommonTestElements common(inSuite, "test");
     ResponseSender responseSender(&common.server);
-    EXPECT_EQ(responseSender.AddQueryResponder(&common.queryResponder), CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, responseSender.AddQueryResponder(&common.queryResponder) == CHIP_NO_ERROR);
     common.queryResponder.AddResponder(&common.ptrResponder);
     common.queryResponder.AddResponder(&common.srvResponder);
     common.queryResponder.AddResponder(&common.txtResponder);
@@ -177,15 +171,15 @@ TEST_F(TestResponseSender, PtrSrvTxtAnyResponseToInstance)
 
     responseSender.Respond(1, queryData, &common.packetInfo, ResponseConfiguration());
 
-    EXPECT_TRUE(common.server.GetSendCalled());
-    EXPECT_TRUE(common.server.GetHeaderFound());
+    NL_TEST_ASSERT(inSuite, common.server.GetSendCalled());
+    NL_TEST_ASSERT(inSuite, common.server.GetHeaderFound());
 }
 
-TEST_F(TestResponseSender, PtrSrvTxtSrvResponseToInstance)
+void PtrSrvTxtSrvResponseToInstance(nlTestSuite * inSuite, void * inContext)
 {
-    CommonTestElements common("test");
+    CommonTestElements common(inSuite, "test");
     ResponseSender responseSender(&common.server);
-    EXPECT_EQ(responseSender.AddQueryResponder(&common.queryResponder), CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, responseSender.AddQueryResponder(&common.queryResponder) == CHIP_NO_ERROR);
     common.queryResponder.AddResponder(&common.ptrResponder).SetReportInServiceListing(true);
     common.queryResponder.AddResponder(&common.srvResponder);
     common.queryResponder.AddResponder(&common.txtResponder);
@@ -200,15 +194,15 @@ TEST_F(TestResponseSender, PtrSrvTxtSrvResponseToInstance)
 
     responseSender.Respond(1, queryData, &common.packetInfo, ResponseConfiguration());
 
-    EXPECT_TRUE(common.server.GetSendCalled());
-    EXPECT_TRUE(common.server.GetHeaderFound());
+    NL_TEST_ASSERT(inSuite, common.server.GetSendCalled());
+    NL_TEST_ASSERT(inSuite, common.server.GetHeaderFound());
 }
 
-TEST_F(TestResponseSender, PtrSrvTxtAnyResponseToServiceListing)
+void PtrSrvTxtAnyResponseToServiceListing(nlTestSuite * inSuite, void * inContext)
 {
-    CommonTestElements common("test");
+    CommonTestElements common(inSuite, "test");
     ResponseSender responseSender(&common.server);
-    EXPECT_EQ(responseSender.AddQueryResponder(&common.queryResponder), CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, responseSender.AddQueryResponder(&common.queryResponder) == CHIP_NO_ERROR);
     common.queryResponder.AddResponder(&common.ptrResponder).SetReportInServiceListing(true);
     common.queryResponder.AddResponder(&common.srvResponder);
     common.queryResponder.AddResponder(&common.txtResponder);
@@ -224,31 +218,31 @@ TEST_F(TestResponseSender, PtrSrvTxtAnyResponseToServiceListing)
 
     responseSender.Respond(1, queryData, &common.packetInfo, ResponseConfiguration());
 
-    EXPECT_TRUE(common.server.GetSendCalled());
-    EXPECT_TRUE(common.server.GetHeaderFound());
+    NL_TEST_ASSERT(inSuite, common.server.GetSendCalled());
+    NL_TEST_ASSERT(inSuite, common.server.GetHeaderFound());
 }
 
-TEST_F(TestResponseSender, NoQueryResponder)
+void NoQueryResponder(nlTestSuite * inSuite, void * inContext)
 {
-    CommonTestElements common("test");
+    CommonTestElements common(inSuite, "test");
     ResponseSender responseSender(&common.server);
 
     QueryData queryData = QueryData(QType::ANY, QClass::IN, false, common.requestNameStart, common.requestBytesRange);
 
     common.recordWriter.WriteQName(common.dnsSd);
     responseSender.Respond(1, queryData, &common.packetInfo, ResponseConfiguration());
-    EXPECT_FALSE(common.server.GetSendCalled());
+    NL_TEST_ASSERT(inSuite, !common.server.GetSendCalled());
 
     common.recordWriter.WriteQName(common.service);
     responseSender.Respond(1, queryData, &common.packetInfo, ResponseConfiguration());
-    EXPECT_FALSE(common.server.GetSendCalled());
+    NL_TEST_ASSERT(inSuite, !common.server.GetSendCalled());
 
     common.recordWriter.WriteQName(common.instance);
     responseSender.Respond(1, queryData, &common.packetInfo, ResponseConfiguration());
-    EXPECT_FALSE(common.server.GetSendCalled());
+    NL_TEST_ASSERT(inSuite, !common.server.GetSendCalled());
 }
 
-TEST_F(TestResponseSender, AddManyQueryResponders)
+void AddManyQueryResponders(nlTestSuite * inSuite, void * inContext)
 {
     // TODO(cecille): Fix this test once #8000 gets resolved.
     ResponseSender responseSender(nullptr);
@@ -265,70 +259,70 @@ TEST_F(TestResponseSender, AddManyQueryResponders)
     constexpr size_t kAddLoopSize = 1000;
     for (size_t i = 0; i < kAddLoopSize; ++i)
     {
-        EXPECT_EQ(responseSender.AddQueryResponder(&q1), CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, responseSender.AddQueryResponder(&q1) == CHIP_NO_ERROR);
     }
 
     // removing the only copy should clear out everything
     responseSender.RemoveQueryResponder(&q1);
-    EXPECT_FALSE(responseSender.HasQueryResponders());
+    NL_TEST_ASSERT(inSuite, !responseSender.HasQueryResponders());
 
     // At least 7 should be supported:
     //   - 5 is the spec minimum
     //   - 2 for commissionable and commisioner responders
-    EXPECT_EQ(responseSender.AddQueryResponder(&q1), CHIP_NO_ERROR);
-    EXPECT_EQ(responseSender.AddQueryResponder(&q2), CHIP_NO_ERROR);
-    EXPECT_EQ(responseSender.AddQueryResponder(&q3), CHIP_NO_ERROR);
-    EXPECT_EQ(responseSender.AddQueryResponder(&q4), CHIP_NO_ERROR);
-    EXPECT_EQ(responseSender.AddQueryResponder(&q5), CHIP_NO_ERROR);
-    EXPECT_EQ(responseSender.AddQueryResponder(&q6), CHIP_NO_ERROR);
-    EXPECT_EQ(responseSender.AddQueryResponder(&q7), CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, responseSender.AddQueryResponder(&q1) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, responseSender.AddQueryResponder(&q2) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, responseSender.AddQueryResponder(&q3) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, responseSender.AddQueryResponder(&q4) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, responseSender.AddQueryResponder(&q5) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, responseSender.AddQueryResponder(&q6) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, responseSender.AddQueryResponder(&q7) == CHIP_NO_ERROR);
 }
 
-TEST_F(TestResponseSender, PtrSrvTxtMultipleRespondersToInstance)
+void PtrSrvTxtMultipleRespondersToInstance(nlTestSuite * inSuite, void * inContext)
 {
-    auto common1 = std::make_unique<CommonTestElements>("test1");
-    auto common2 = std::make_unique<CommonTestElements>("test2");
+    CommonTestElements common1(inSuite, "test1");
+    CommonTestElements common2(inSuite, "test2");
 
     // Just use the server from common1.
-    ResponseSender responseSender(&common1->server);
+    ResponseSender responseSender(&common1.server);
 
-    EXPECT_EQ(responseSender.AddQueryResponder(&common1->queryResponder), CHIP_NO_ERROR);
-    common1->queryResponder.AddResponder(&common1->ptrResponder).SetReportInServiceListing(true);
-    common1->queryResponder.AddResponder(&common1->srvResponder);
-    common1->queryResponder.AddResponder(&common1->txtResponder);
+    NL_TEST_ASSERT(inSuite, responseSender.AddQueryResponder(&common1.queryResponder) == CHIP_NO_ERROR);
+    common1.queryResponder.AddResponder(&common1.ptrResponder).SetReportInServiceListing(true);
+    common1.queryResponder.AddResponder(&common1.srvResponder);
+    common1.queryResponder.AddResponder(&common1.txtResponder);
 
-    EXPECT_EQ(responseSender.AddQueryResponder(&common2->queryResponder), CHIP_NO_ERROR);
-    common2->queryResponder.AddResponder(&common2->ptrResponder).SetReportInServiceListing(true);
-    common2->queryResponder.AddResponder(&common2->srvResponder);
-    common2->queryResponder.AddResponder(&common2->txtResponder);
+    NL_TEST_ASSERT(inSuite, responseSender.AddQueryResponder(&common2.queryResponder) == CHIP_NO_ERROR);
+    common2.queryResponder.AddResponder(&common2.ptrResponder).SetReportInServiceListing(true);
+    common2.queryResponder.AddResponder(&common2.srvResponder);
+    common2.queryResponder.AddResponder(&common2.txtResponder);
 
     // Build a query for the second instance.
-    common2->recordWriter.WriteQName(common2->instance);
-    QueryData queryData = QueryData(QType::ANY, QClass::IN, false, common2->requestNameStart, common2->requestBytesRange);
+    common2.recordWriter.WriteQName(common2.instance);
+    QueryData queryData = QueryData(QType::ANY, QClass::IN, false, common2.requestNameStart, common2.requestBytesRange);
 
     // Should get back answers from second instance only.
-    common1->server.AddExpectedRecord(&common2->srvRecord);
-    common1->server.AddExpectedRecord(&common2->txtRecord);
+    common1.server.AddExpectedRecord(&common2.srvRecord);
+    common1.server.AddExpectedRecord(&common2.txtRecord);
 
-    responseSender.Respond(1, queryData, &common1->packetInfo, ResponseConfiguration());
+    responseSender.Respond(1, queryData, &common1.packetInfo, ResponseConfiguration());
 
-    EXPECT_TRUE(common1->server.GetSendCalled());
-    EXPECT_TRUE(common1->server.GetHeaderFound());
+    NL_TEST_ASSERT(inSuite, common1.server.GetSendCalled());
+    NL_TEST_ASSERT(inSuite, common1.server.GetHeaderFound());
 }
 
-TEST_F(TestResponseSender, PtrSrvTxtMultipleRespondersToServiceListing)
+void PtrSrvTxtMultipleRespondersToServiceListing(nlTestSuite * inSuite, void * inContext)
 {
-    auto common1 = std::make_unique<CommonTestElements>("test1");
-    auto common2 = std::make_unique<CommonTestElements>("test2");
+    auto common1 = std::make_unique<CommonTestElements>(inSuite, "test1");
+    auto common2 = std::make_unique<CommonTestElements>(inSuite, "test2");
     // Just use the server from common1.
     ResponseSender responseSender(&common1->server);
 
-    EXPECT_EQ(responseSender.AddQueryResponder(&common1->queryResponder), CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, responseSender.AddQueryResponder(&common1->queryResponder) == CHIP_NO_ERROR);
     common1->queryResponder.AddResponder(&common1->ptrResponder).SetReportInServiceListing(true);
     common1->queryResponder.AddResponder(&common1->srvResponder);
     common1->queryResponder.AddResponder(&common1->txtResponder);
 
-    EXPECT_EQ(responseSender.AddQueryResponder(&common2->queryResponder), CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, responseSender.AddQueryResponder(&common2->queryResponder) == CHIP_NO_ERROR);
     common2->queryResponder.AddResponder(&common2->ptrResponder).SetReportInServiceListing(true);
     common2->queryResponder.AddResponder(&common2->srvResponder);
     common2->queryResponder.AddResponder(&common2->txtResponder);
@@ -345,9 +339,44 @@ TEST_F(TestResponseSender, PtrSrvTxtMultipleRespondersToServiceListing)
 
     responseSender.Respond(1, queryData, &common1->packetInfo, ResponseConfiguration());
 
-    EXPECT_TRUE(common1->server.GetSendCalled());
+    NL_TEST_ASSERT(inSuite, common1->server.GetSendCalled());
 
-    EXPECT_TRUE(common1->server.GetHeaderFound());
+    NL_TEST_ASSERT(inSuite, common1->server.GetHeaderFound());
+}
+
+const nlTest sTests[] = {
+    NL_TEST_DEF("SrvAnyResponseToInstance", SrvAnyResponseToInstance),                                       //
+    NL_TEST_DEF("SrvTxtAnyResponseToInstance", SrvTxtAnyResponseToInstance),                                 //
+    NL_TEST_DEF("PtrSrvTxtAnyResponseToServiceName", PtrSrvTxtAnyResponseToServiceName),                     //
+    NL_TEST_DEF("PtrSrvTxtAnyResponseToInstance", PtrSrvTxtAnyResponseToInstance),                           //
+    NL_TEST_DEF("PtrSrvTxtSrvResponseToInstance", PtrSrvTxtSrvResponseToInstance),                           //
+    NL_TEST_DEF("PtrSrvTxtAnyResponseToServiceListing", PtrSrvTxtAnyResponseToServiceListing),               //
+    NL_TEST_DEF("NoQueryResponder", NoQueryResponder),                                                       //
+    NL_TEST_DEF("AddManyQueryResponders", AddManyQueryResponders),                                           //
+    NL_TEST_DEF("PtrSrvTxtMultipleRespondersToInstance", PtrSrvTxtMultipleRespondersToInstance),             //
+    NL_TEST_DEF("PtrSrvTxtMultipleRespondersToServiceListing", PtrSrvTxtMultipleRespondersToServiceListing), //
+
+    NL_TEST_SENTINEL() //
+};
+
+int TestSetup(void * inContext)
+{
+    return chip::Platform::MemoryInit() == CHIP_NO_ERROR ? SUCCESS : FAILURE;
+}
+
+int TestTeardown(void * inContext)
+{
+    chip::Platform::MemoryShutdown();
+    return SUCCESS;
 }
 
 } // namespace
+
+int TestResponseSender()
+{
+    nlTestSuite theSuite = { "RecordData", sTests, &TestSetup, &TestTeardown };
+    nlTestRunner(&theSuite, nullptr);
+    return nlTestRunnerStats(&theSuite);
+}
+
+CHIP_REGISTER_TEST_SUITE(TestResponseSender)

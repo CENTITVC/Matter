@@ -17,7 +17,7 @@
 
 #import "MCCastingPlayer.h"
 #import "MCCluster.h"
-#import "zap-generated/MCEndpointClusterType.h"
+#import "MCEndpointClusterType.h"
 
 #import <Foundation/Foundation.h>
 
@@ -40,8 +40,6 @@
 
 - (BOOL)hasCluster:(MCEndpointClusterType)type;
 - (MCCluster * _Nullable)clusterForType:(MCEndpointClusterType)type;
-
-- (NSString * _Nonnull)description;
 
 @end
 

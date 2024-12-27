@@ -17,7 +17,8 @@
 
 #pragma once
 
-#include "LEDManager.h"
+#include "LEDWidget.h"
+#include "PWMDevice.h"
 
 #include <app/clusters/window-covering-server/window-covering-delegate.h>
 #include <app/clusters/window-covering-server/window-covering-server.h>
@@ -29,15 +30,6 @@ using namespace chip::app::Clusters::WindowCovering;
 class WindowCovering
 {
 public:
-    enum Action_t : uint8_t
-    {
-        ON_ACTION = 0,
-        OFF_ACTION,
-        LEVEL_ACTION,
-
-        INVALID_ACTION
-    };
-
     struct AttributeUpdateData
     {
         chip::EndpointId mEndpoint;
@@ -50,6 +42,9 @@ public:
         static WindowCovering sInstance;
         return sInstance;
     }
+
+    PWMDevice & GetLiftIndicator() { return mLiftIndicator; }
+    PWMDevice & GetTiltIndicator() { return mTiltIndicator; }
 
     void StartMove(WindowCoveringType aMoveType);
     void SetSingleStepTarget(OperationalState aDirection);
@@ -76,6 +71,8 @@ private:
 
     WindowCoveringType mCurrentUIMoveType;
 
+    PWMDevice mLiftIndicator;
+    PWMDevice mTiltIndicator;
     bool mInLiftMove{ false };
     bool mInTiltMove{ false };
 };

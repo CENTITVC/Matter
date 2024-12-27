@@ -18,7 +18,9 @@
 
 #pragma once
 
+#include <app/AttributeAccessInterface.h>
 #include <app/clusters/content-app-observer/content-app-observer.h>
+#include <vector>
 
 using ContentAppObserverDelegate = chip::app::Clusters::ContentAppObserver::Delegate;
 using ContentAppMessageResponse  = chip::app::Clusters::ContentAppObserver::Commands::ContentAppMessageResponse::Type;

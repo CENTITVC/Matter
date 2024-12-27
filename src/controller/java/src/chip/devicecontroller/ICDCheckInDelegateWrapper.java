@@ -29,7 +29,6 @@ class ICDCheckInDelegateWrapper {
   @SuppressWarnings("unused")
   private void onCheckInComplete(
       long peerNodeId,
-      long checkInNodeId,
       long startCounter,
       long offset,
       long monitoredSubject,
@@ -37,19 +36,12 @@ class ICDCheckInDelegateWrapper {
       byte[] icdHmacKey) {
     delegate.onCheckInComplete(
         new ICDClientInfo(
-            peerNodeId,
-            checkInNodeId,
-            startCounter,
-            offset,
-            monitoredSubject,
-            icdAesKey,
-            icdHmacKey));
+            peerNodeId, startCounter, offset, monitoredSubject, icdAesKey, icdHmacKey));
   }
 
   @SuppressWarnings("unused")
   private byte[] onKeyRefreshNeeded(
       long peerNodeId,
-      long checkInNodeId,
       long startCounter,
       long offset,
       long monitoredSubject,
@@ -57,17 +49,11 @@ class ICDCheckInDelegateWrapper {
       byte[] icdHmacKey) {
     return delegate.onKeyRefreshNeeded(
         new ICDClientInfo(
-            peerNodeId,
-            checkInNodeId,
-            startCounter,
-            offset,
-            monitoredSubject,
-            icdAesKey,
-            icdHmacKey));
+            peerNodeId, startCounter, offset, monitoredSubject, icdAesKey, icdHmacKey));
   }
 
   @SuppressWarnings("unused")
-  private void onKeyRefreshDone(long errorCode) {
+  private void onKeyRefreshDone(int errorCode) {
     delegate.onKeyRefreshDone(errorCode);
   }
 }

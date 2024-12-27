@@ -22,6 +22,7 @@
 #include <app/CommandHandler.h>
 #include <app/ConcreteCommandPath.h>
 #include <app/data-model/DecodableList.h>
+#include <app/util/af.h>
 #include <lib/core/Optional.h>
 
 namespace chip {

@@ -37,40 +37,34 @@ CHIP_ERROR DefaultAttributePersistenceProvider::InternalWriteValue(const Storage
     return mStorage->SyncSetKeyValue(aKey.KeyName(), aValue.data(), static_cast<uint16_t>(aValue.size()));
 }
 
-CHIP_ERROR DefaultAttributePersistenceProvider::InternalReadValue(const StorageKeyName & aKey, MutableByteSpan & aValue)
+CHIP_ERROR DefaultAttributePersistenceProvider::InternalReadValue(const StorageKeyName & aKey, EmberAfAttributeType aType,
+                                                                  size_t aSize, MutableByteSpan & aValue)
 {
     VerifyOrReturnError(mStorage != nullptr, CHIP_ERROR_INCORRECT_STATE);
 
     uint16_t size = static_cast<uint16_t>(min(aValue.size(), static_cast<size_t>(UINT16_MAX)));
     ReturnErrorOnFailure(mStorage->SyncGetKeyValue(aKey.KeyName(), aValue.data(), size));
-    aValue.reduce_size(size);
-    return CHIP_NO_ERROR;
-}
-
-CHIP_ERROR DefaultAttributePersistenceProvider::InternalReadValue(const StorageKeyName & aKey, EmberAfAttributeType aType,
-                                                                  size_t aExpectedSize, MutableByteSpan & aValue)
-{
-    ReturnErrorOnFailure(InternalReadValue(aKey, aValue));
-    size_t size = aValue.size();
-    if (emberAfIsStringAttributeType(aType))
+    EmberAfAttributeType type = aType;
+    if (emberAfIsStringAttributeType(type))
     {
         // Ensure that we've read enough bytes that we are not ending up with
         // un-initialized memory.  Should have read length + 1 (for the length
         // byte).
-        VerifyOrReturnError(size >= 1 && size - 1 >= emberAfStringLength(aValue.data()), CHIP_ERROR_INCORRECT_STATE);
+        VerifyOrReturnError(size >= emberAfStringLength(aValue.data()) + 1, CHIP_ERROR_INCORRECT_STATE);
     }
-    else if (emberAfIsLongStringAttributeType(aType))
+    else if (emberAfIsLongStringAttributeType(type))
     {
         // Ensure that we've read enough bytes that we are not ending up with
         // un-initialized memory.  Should have read length + 2 (for the length
         // bytes).
-        VerifyOrReturnError(size >= 2 && size - 2 >= emberAfLongStringLength(aValue.data()), CHIP_ERROR_INCORRECT_STATE);
+        VerifyOrReturnError(size >= emberAfLongStringLength(aValue.data()) + 2, CHIP_ERROR_INCORRECT_STATE);
     }
     else
     {
         // Ensure we got the expected number of bytes for all other types.
-        VerifyOrReturnError(size == aExpectedSize, CHIP_ERROR_INVALID_ARGUMENT);
+        VerifyOrReturnError(size == aSize, CHIP_ERROR_INVALID_ARGUMENT);
     }
+    aValue.reduce_size(size);
     return CHIP_NO_ERROR;
 }
 
@@ -96,7 +90,8 @@ CHIP_ERROR DefaultAttributePersistenceProvider::SafeWriteValue(const ConcreteAtt
 CHIP_ERROR DefaultAttributePersistenceProvider::SafeReadValue(const ConcreteAttributePath & aPath, MutableByteSpan & aValue)
 {
     return InternalReadValue(
-        DefaultStorageKeyAllocator::SafeAttributeValue(aPath.mEndpointId, aPath.mClusterId, aPath.mAttributeId), aValue);
+        DefaultStorageKeyAllocator::SafeAttributeValue(aPath.mEndpointId, aPath.mClusterId, aPath.mAttributeId), 0x20,
+        aValue.size(), aValue);
 }
 
 namespace {

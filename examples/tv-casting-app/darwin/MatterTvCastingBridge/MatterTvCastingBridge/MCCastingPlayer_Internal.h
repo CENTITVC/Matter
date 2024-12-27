@@ -26,8 +26,6 @@
 
 @interface MCCastingPlayer ()
 
-+ (MCCastingPlayer * _Nullable)getTargetCastingPlayer;
-
 - (instancetype _Nonnull)initWithCppCastingPlayer:(matter::casting::memory::Strong<matter::casting::core::CastingPlayer>)cppCastingPlayer;
 
 @end

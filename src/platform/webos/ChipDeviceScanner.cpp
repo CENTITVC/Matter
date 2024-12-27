@@ -27,8 +27,6 @@
 
 #include <pbnjson.h>
 
-#include <string>
-
 namespace chip {
 namespace DeviceLayer {
 namespace Internal {

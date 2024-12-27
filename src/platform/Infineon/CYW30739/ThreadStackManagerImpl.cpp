@@ -28,6 +28,7 @@
 
 #include <lib/support/CHIPPlatformMemory.h>
 #include <openthread-system.h>
+#include <wiced_platform.h>
 
 namespace chip {
 namespace DeviceLayer {
@@ -72,7 +73,7 @@ void ThreadStackManagerImpl::SignalThreadActivityPending()
     mEventFlags.Set(kActivityPendingEventFlag);
 }
 
-__attribute__((section(".text_in_ram"))) void ThreadStackManagerImpl::SignalThreadActivityPendingFromISR()
+void ThreadStackManagerImpl::SignalThreadActivityPendingFromISR()
 {
     mEventFlags.Set(kActivityPendingFromISREventFlag);
 }
@@ -149,7 +150,7 @@ extern "C" void otTaskletsSignalPending(otInstance * p_instance)
     ThreadStackMgrImpl().SignalThreadActivityPending();
 }
 
-extern "C" __attribute__((section(".text_in_ram"))) void otSysEventSignalPending(void)
+extern "C" void otSysEventSignalPending(void)
 {
     ThreadStackMgrImpl().SignalThreadActivityPendingFromISR();
 }

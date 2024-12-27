@@ -57,11 +57,6 @@ _DEFINITION = '''<?xml version="1.0"?>
       <arg name="IPK" type="octet_string"/>
     </command>
 
-    <command source="client" code="5" name="EstablishPASESession">
-      <arg name="nodeId" type="node_id"/>
-      <arg name="payload" type="char_string"/>
-    </command>
-
 </cluster>
 </configurator>
 '''

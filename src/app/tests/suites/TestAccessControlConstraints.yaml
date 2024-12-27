@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Test Access Control Constraints
+name: User Label Cluster Tests
 
 config:
     nodeId: 0x12344321

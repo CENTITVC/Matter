@@ -23,7 +23,6 @@
  *
  **/
 #include "DeviceCallbacks.h"
-#include <esp_log.h>
 
 static const char TAG[] = "echo-devicecallbacks";
 

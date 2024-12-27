@@ -31,7 +31,6 @@
 #include "MyUserPrompter-JNI.h"
 #include "OnOffManager.h"
 #include "WakeOnLanManager.h"
-#include "application-launcher/ApplicationLauncherManager.h"
 #include "credentials/DeviceAttestationCredsProvider.h"
 #include <app/app-platform/ContentAppPlatform.h>
 #include <app/server/Dnssd.h>
@@ -50,7 +49,6 @@ using namespace chip::app;
 using namespace chip::app::Clusters;
 using namespace chip::AppPlatform;
 using namespace chip::Credentials;
-using namespace chip::Protocols::UserDirectedCommissioning;
 
 #define JNI_METHOD(RETURN, METHOD_NAME) extern "C" JNIEXPORT RETURN JNICALL Java_com_matter_tv_server_tvapp_TvApp_##METHOD_NAME
 
@@ -140,11 +138,6 @@ JNI_METHOD(void, setMediaPlaybackManager)(JNIEnv *, jobject, jint endpoint, jobj
     MediaPlaybackManager::NewManager(endpoint, manager);
 }
 
-JNI_METHOD(void, setApplicationLauncherManager)(JNIEnv *, jobject, jint endpoint, jobject manager)
-{
-    ApplicationLauncherManager::NewManager(endpoint, manager);
-}
-
 JNI_METHOD(void, setMessagesManager)(JNIEnv *, jobject, jint endpoint, jobject manager)
 {
     MessagesManager::NewManager(endpoint, manager);
@@ -211,15 +204,15 @@ class MyPincodeService : public PasscodeService
         bool foundApp = ContentAppPlatform::GetInstance().HasTargetContentApp(vendorId, productId, rotatingId, info, passcode);
         if (!foundApp)
         {
-            info.checkState = TargetAppCheckState::kAppNotFound;
+            info.checkState = chip::Controller::TargetAppCheckState::kAppNotFound;
         }
         else if (passcode != 0)
         {
-            info.checkState = TargetAppCheckState::kAppFoundPasscodeReturned;
+            info.checkState = chip::Controller::TargetAppCheckState::kAppFoundPasscodeReturned;
         }
         else
         {
-            info.checkState = TargetAppCheckState::kAppFoundNoPasscode;
+            info.checkState = chip::Controller::TargetAppCheckState::kAppFoundNoPasscode;
         }
         CommissionerDiscoveryController * cdc = GetCommissionerDiscoveryController();
         if (cdc != nullptr)
@@ -246,27 +239,15 @@ class MyPincodeService : public PasscodeService
 };
 MyPincodeService gMyPincodeService;
 
-class SampleTvAppInstallationService : public AppInstallationService
-{
-    bool LookupTargetContentApp(uint16_t vendorId, uint16_t productId) override
-    {
-        return ContentAppPlatform::GetInstance().LoadContentAppByClient(vendorId, productId) != nullptr;
-    }
-};
-
-SampleTvAppInstallationService gSampleTvAppInstallationService;
-
 class MyPostCommissioningListener : public PostCommissioningListener
 {
-    void CommissioningCompleted(uint16_t vendorId, uint16_t productId, NodeId nodeId, CharSpan rotatingId, uint32_t passcode,
-                                Messaging::ExchangeManager & exchangeMgr, const SessionHandle & sessionHandle) override
+    void CommissioningCompleted(uint16_t vendorId, uint16_t productId, NodeId nodeId, Messaging::ExchangeManager & exchangeMgr,
+                                const SessionHandle & sessionHandle) override
     {
         // read current binding list
         chip::Controller::ClusterBase cluster(exchangeMgr, sessionHandle, kTargetBindingClusterEndpointId);
 
-        ContentAppPlatform::GetInstance().StoreNodeIdForContentApp(vendorId, productId, nodeId);
-
-        cacheContext(vendorId, productId, nodeId, rotatingId, passcode, exchangeMgr, sessionHandle);
+        cacheContext(vendorId, productId, nodeId, exchangeMgr, sessionHandle);
 
         CHIP_ERROR err =
             cluster.ReadAttribute<Binding::Attributes::Binding::TypeInfo>(this, OnReadSuccessResponse, OnReadFailureResponse);
@@ -350,23 +331,17 @@ class MyPostCommissioningListener : public PostCommissioningListener
 
         Optional<SessionHandle> opt   = mSecureSession.Get();
         SessionHandle & sessionHandle = opt.Value();
-        auto rotatingIdSpan           = CharSpan{ mRotatingId.data(), mRotatingId.size() };
         ContentAppPlatform::GetInstance().ManageClientAccess(*mExchangeMgr, sessionHandle, mVendorId, mProductId, localNodeId,
-                                                             rotatingIdSpan, mPasscode, bindings, OnSuccessResponse,
-                                                             OnFailureResponse);
+                                                             bindings, OnSuccessResponse, OnFailureResponse);
         clearContext();
     }
 
-    void cacheContext(uint16_t vendorId, uint16_t productId, NodeId nodeId, CharSpan rotatingId, uint32_t passcode,
-                      Messaging::ExchangeManager & exchangeMgr, const SessionHandle & sessionHandle)
+    void cacheContext(uint16_t vendorId, uint16_t productId, NodeId nodeId, Messaging::ExchangeManager & exchangeMgr,
+                      const SessionHandle & sessionHandle)
     {
-        mVendorId   = vendorId;
-        mProductId  = productId;
-        mNodeId     = nodeId;
-        mRotatingId = std::string{
-            rotatingId.data(), rotatingId.size()
-        }; // Allocates and copies to string instead of storing span to make sure lifetime is valid.
-        mPasscode    = passcode;
+        mVendorId    = vendorId;
+        mProductId   = productId;
+        mNodeId      = nodeId;
         mExchangeMgr = &exchangeMgr;
         mSecureSession.ShiftToSession(sessionHandle);
     }
@@ -376,17 +351,12 @@ class MyPostCommissioningListener : public PostCommissioningListener
         mVendorId    = 0;
         mProductId   = 0;
         mNodeId      = 0;
-        mRotatingId  = {};
-        mPasscode    = 0;
         mExchangeMgr = nullptr;
         mSecureSession.SessionReleased();
     }
-
-    uint16_t mVendorId  = 0;
-    uint16_t mProductId = 0;
-    NodeId mNodeId      = 0;
-    std::string mRotatingId;
-    uint32_t mPasscode                        = 0;
+    uint16_t mVendorId                        = 0;
+    uint16_t mProductId                       = 0;
+    NodeId mNodeId                            = 0;
     Messaging::ExchangeManager * mExchangeMgr = nullptr;
     SessionHolder mSecureSession;
 };
@@ -401,7 +371,6 @@ void TvAppJNI::InitializeCommissioner(JNIMyUserPrompter * userPrompter)
     if (cdc != nullptr && userPrompter != nullptr)
     {
         cdc->SetPasscodeService(&gMyPincodeService);
-        cdc->SetAppInstallationService(&gSampleTvAppInstallationService);
         cdc->SetUserPrompter(userPrompter);
         cdc->SetPostCommissioningListener(&gMyPostCommissioningListener);
     }

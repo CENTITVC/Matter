@@ -17,9 +17,10 @@
 
 #include "WindowCovering.h"
 #include "AppConfig.h"
-#include "PWMManager.h"
+#include "PWMDevice.h"
 
 #include <app-common/zap-generated/attributes/Accessors.h>
+#include <app/util/af.h>
 #include <platform/CHIPDeviceLayer.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
@@ -30,6 +31,9 @@ using namespace ::chip::Credentials;
 using namespace ::chip::DeviceLayer;
 using namespace chip::app::Clusters::WindowCovering;
 
+static const struct pwm_dt_spec sLiftPwmDevice = PWM_DT_SPEC_GET(DT_ALIAS(pwm_led0));
+static const struct pwm_dt_spec sTiltPwmDevice = PWM_DT_SPEC_GET(DT_ALIAS(pwm_led1));
+
 static constexpr uint32_t sMoveTimeoutMs{ 200 };
 constexpr uint16_t sPercentDelta   = 500;
 constexpr uint8_t kDefaultMinLevel = 0;
@@ -37,8 +41,16 @@ constexpr uint8_t kDefaultMaxLevel = 254;
 
 WindowCovering::WindowCovering()
 {
-    PwmManager::getInstance().setPwm(PwmManager::EAppPwm_Red, false);
-    PwmManager::getInstance().setPwm(PwmManager::EAppPwm_Green, false);
+    if (mLiftIndicator.Init(&sLiftPwmDevice, kDefaultMinLevel, kDefaultMaxLevel, kDefaultMinLevel) != CHIP_NO_ERROR)
+    {
+        LOG_ERR("Cannot initialize the lift indicator");
+    }
+    if (mTiltIndicator.Init(&sTiltPwmDevice, kDefaultMinLevel, kDefaultMaxLevel, kDefaultMinLevel) != CHIP_NO_ERROR)
+    {
+        LOG_ERR("Cannot initialize the tilt indicator");
+    }
+    mLiftIndicator.InitiateAction(PWMDevice::ON_ACTION, 0, nullptr);
+    mTiltIndicator.InitiateAction(PWMDevice::ON_ACTION, 0, nullptr);
 }
 
 void WindowCovering::DriveCurrentLiftPosition(intptr_t)
@@ -263,11 +275,11 @@ void WindowCovering::SetBrightness(WindowCoveringType aMoveType, uint16_t aPosit
     uint8_t brightness = PositionToBrightness(aPosition, aMoveType);
     if (aMoveType == WindowCoveringType::Lift)
     {
-        PwmManager::getInstance().setPwm(PwmManager::EAppPwm_Red, (((uint32_t) brightness * 1000) / UINT8_MAX));
+        mLiftIndicator.InitiateAction(PWMDevice::LEVEL_ACTION, 0, &brightness);
     }
     else if (aMoveType == WindowCoveringType::Tilt)
     {
-        PwmManager::getInstance().setPwm(PwmManager::EAppPwm_Green, (((uint32_t) brightness * 1000) / UINT8_MAX));
+        mTiltIndicator.InitiateAction(PWMDevice::LEVEL_ACTION, 0, &brightness);
     }
 }
 
@@ -277,13 +289,13 @@ uint8_t WindowCovering::PositionToBrightness(uint16_t aPosition, WindowCoveringT
 
     if (aMoveType == WindowCoveringType::Lift)
     {
-        pwmLimits.open   = kDefaultMinLevel;
-        pwmLimits.closed = kDefaultMaxLevel;
+        pwmLimits.open   = mLiftIndicator.GetMinLevel();
+        pwmLimits.closed = mLiftIndicator.GetMaxLevel();
     }
     else if (aMoveType == WindowCoveringType::Tilt)
     {
-        pwmLimits.open   = kDefaultMinLevel;
-        pwmLimits.closed = kDefaultMaxLevel;
+        pwmLimits.open   = mTiltIndicator.GetMinLevel();
+        pwmLimits.closed = mTiltIndicator.GetMaxLevel();
     }
 
     return Percent100thsToValue(pwmLimits, aPosition);

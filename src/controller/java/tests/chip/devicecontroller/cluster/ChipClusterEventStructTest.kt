@@ -19,7 +19,6 @@ package chip.devicecontroller.cluster
 import chip.devicecontroller.cluster.eventstructs.UnitTestingClusterTestEventEvent
 import chip.devicecontroller.cluster.eventstructs.UnitTestingClusterTestFabricScopedEventEvent
 import chip.devicecontroller.cluster.structs.UnitTestingClusterSimpleStruct
-import java.util.Optional
 import matter.tlv.AnonymousTag
 import matter.tlv.TlvReader
 import matter.tlv.TlvWriter
@@ -29,29 +28,9 @@ class ChipClusterEventStructTest {
   @Test
   fun testEventEventTlvTest() {
     val simpleStruct =
-      UnitTestingClusterSimpleStruct(
-        1U,
-        true,
-        2U,
-        byteArrayOf(0x00, 0x01),
-        "test",
-        3U,
-        4.5f,
-        6.7,
-        Optional.empty()
-      )
+      UnitTestingClusterSimpleStruct(1U, true, 2U, byteArrayOf(0x00, 0x01), "test", 3U, 4.5f, 6.7)
     val simpleStruct2 =
-      UnitTestingClusterSimpleStruct(
-        8U,
-        false,
-        9U,
-        byteArrayOf(0x02, 0x03),
-        "test2",
-        4U,
-        5.6f,
-        7.8,
-        Optional.empty()
-      )
+      UnitTestingClusterSimpleStruct(8U, false, 9U, byteArrayOf(0x02, 0x03), "test2", 4U, 5.6f, 7.8)
     val struct =
       UnitTestingClusterTestEventEvent(
         1U,

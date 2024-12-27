@@ -21,15 +21,16 @@
  *      This file implements unit tests for the SessionManager implementation.
  */
 
-#include <errno.h>
-
-#include <pw_unit_test/framework.h>
-
-#include <lib/core/StringBuilderAdapters.h>
 #include <lib/support/DefaultStorageKeyAllocator.h>
 #include <lib/support/TestPersistentStorageDelegate.h>
+#include <lib/support/UnitTestRegistration.h>
 #include <transport/GroupPeerMessageCounter.h>
 #include <transport/PeerMessageCounter.h>
+
+#include <nlbyteorder.h>
+#include <nlunit-test.h>
+
+#include <errno.h>
 
 namespace {
 
@@ -100,11 +101,11 @@ public:
     }
 };
 
-TEST(TestGroupMessageCounter, AddPeerTest)
+void AddPeerTest(nlTestSuite * inSuite, void * inContext)
 {
     NodeId peerNodeId                             = 1234;
     FabricIndex fabricIndex                       = 1;
-    int i                                         = 0;
+    uint32_t i                                    = 0;
     CHIP_ERROR err                                = CHIP_NO_ERROR;
     chip::Transport::PeerMessageCounter * counter = nullptr;
     chip::Transport::GroupPeerTable mGroupPeerMsgCounter;
@@ -116,7 +117,7 @@ TEST(TestGroupMessageCounter, AddPeerTest)
 
     } while (err != CHIP_ERROR_TOO_MANY_PEER_NODES);
 
-    EXPECT_EQ(i, CHIP_CONFIG_MAX_GROUP_DATA_PEERS + 1);
+    NL_TEST_ASSERT(inSuite, i == CHIP_CONFIG_MAX_GROUP_DATA_PEERS + 1);
 
     i = 1;
     do
@@ -124,10 +125,10 @@ TEST(TestGroupMessageCounter, AddPeerTest)
         err = mGroupPeerMsgCounter.FindOrAddPeer(++fabricIndex, peerNodeId, false, counter);
         i++;
     } while (err != CHIP_ERROR_TOO_MANY_PEER_NODES);
-    EXPECT_EQ(i, CHIP_CONFIG_MAX_FABRICS + 1);
+    NL_TEST_ASSERT(inSuite, i == CHIP_CONFIG_MAX_FABRICS + 1);
 }
 
-TEST(TestGroupMessageCounter, RemovePeerTest)
+void RemovePeerTest(nlTestSuite * inSuite, void * inContext)
 {
     NodeId peerNodeId                             = 1234;
     FabricIndex fabricIndex                       = 1;
@@ -146,7 +147,7 @@ TEST(TestGroupMessageCounter, RemovePeerTest)
     }
     // Verify that table is indeed full (for control Peer)
     err = mGroupPeerMsgCounter.FindOrAddPeer(99, 99, true, counter);
-    EXPECT_EQ(err, CHIP_ERROR_TOO_MANY_PEER_NODES);
+    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_TOO_MANY_PEER_NODES);
 
     // Clear all Peer
     fabricIndex = 1;
@@ -156,39 +157,39 @@ TEST(TestGroupMessageCounter, RemovePeerTest)
         for (uint32_t peerId = 0; peerId < CHIP_CONFIG_MAX_GROUP_CONTROL_PEERS; peerId++)
         {
             err = mGroupPeerMsgCounter.RemovePeer(fabricIndex, peerNodeId++, true);
-            EXPECT_EQ(err, CHIP_NO_ERROR);
+            NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
         }
         fabricIndex++;
     }
 
     // Try re-adding the previous peer without any error
     err = mGroupPeerMsgCounter.FindOrAddPeer(99, 99, true, counter);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
     err = mGroupPeerMsgCounter.FindOrAddPeer(104, 99, true, counter);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
     err = mGroupPeerMsgCounter.FindOrAddPeer(105, 99, true, counter);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
     err = mGroupPeerMsgCounter.FindOrAddPeer(106, 99, true, counter);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
     // Fabric removal test
     err = mGroupPeerMsgCounter.FabricRemoved(123);
-    EXPECT_EQ(err, CHIP_ERROR_NOT_FOUND);
+    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_NOT_FOUND);
 
     err = mGroupPeerMsgCounter.FabricRemoved(99);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
     err = mGroupPeerMsgCounter.FabricRemoved(99);
-    EXPECT_EQ(err, CHIP_ERROR_NOT_FOUND);
+    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_NOT_FOUND);
 
     // Verify that the Fabric List was compacted.
-    EXPECT_EQ(106, mGroupPeerMsgCounter.GetFabricIndexAt(0));
+    NL_TEST_ASSERT(inSuite, 106 == mGroupPeerMsgCounter.GetFabricIndexAt(0));
 }
 
-TEST(TestGroupMessageCounter, PeerRetrievalTest)
+void PeerRetrievalTest(nlTestSuite * inSuite, void * inContext)
 {
     NodeId peerNodeId                              = 1234;
     FabricIndex fabricIndex                        = 1;
@@ -198,120 +199,120 @@ TEST(TestGroupMessageCounter, PeerRetrievalTest)
     chip::Transport::GroupPeerTable mGroupPeerMsgCounter;
 
     err = mGroupPeerMsgCounter.FindOrAddPeer(fabricIndex, peerNodeId, true, counter);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
-    EXPECT_NE(counter, nullptr);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, counter != nullptr);
 
     err = mGroupPeerMsgCounter.FindOrAddPeer(99, 99, true, counter2);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
-    EXPECT_NE(counter2, nullptr);
-    EXPECT_NE(counter2, counter);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, counter2 != nullptr);
+    NL_TEST_ASSERT(inSuite, counter2 != counter);
 
     err = mGroupPeerMsgCounter.FindOrAddPeer(fabricIndex, peerNodeId, true, counter2);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
-    EXPECT_EQ(counter2, counter);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, counter2 == counter);
 }
 
-TEST(TestGroupMessageCounter, CounterCommitRolloverTest)
+void CounterCommitRolloverTest(nlTestSuite * inSuite, void * inContext)
 {
     CHIP_ERROR err                                = CHIP_NO_ERROR;
     chip::Transport::PeerMessageCounter * counter = nullptr;
     chip::Transport::GroupPeerTable mGroupPeerMsgCounter;
 
     err = mGroupPeerMsgCounter.FindOrAddPeer(99, 99, true, counter);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
-    EXPECT_NE(counter, nullptr);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, counter != nullptr);
 
     err = counter->VerifyOrTrustFirstGroup(UINT32_MAX);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
     counter->CommitGroup(UINT32_MAX);
 
     err = counter->VerifyOrTrustFirstGroup(0);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
     counter->CommitGroup(0);
 
     err = counter->VerifyOrTrustFirstGroup(1);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
     counter->CommitGroup(1);
 }
 
-TEST(TestGroupMessageCounter, CounterTrustFirstTest)
+void CounterTrustFirstTest(nlTestSuite * inSuite, void * inContext)
 {
     CHIP_ERROR err                                = CHIP_NO_ERROR;
     chip::Transport::PeerMessageCounter * counter = nullptr;
     chip::Transport::GroupPeerTable mGroupPeerMsgCounter;
 
     err = mGroupPeerMsgCounter.FindOrAddPeer(99, 99, true, counter);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
-    EXPECT_NE(counter, nullptr);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, counter != nullptr);
 
     err = counter->VerifyOrTrustFirstGroup(5656);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
     counter->CommitGroup(5656);
 
     err = counter->VerifyOrTrustFirstGroup(5756);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
     counter->CommitGroup(5756);
     err = counter->VerifyOrTrustFirstGroup(4756);
-    EXPECT_NE(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
 
     // test sequential reception
     err = counter->VerifyOrTrustFirstGroup(5757);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
     counter->CommitGroup(5757);
 
     err = counter->VerifyOrTrustFirstGroup(5758);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
     counter->CommitGroup(5758);
 
     err = counter->VerifyOrTrustFirstGroup(5756);
-    EXPECT_NE(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
 
     // Test Roll over
     err = mGroupPeerMsgCounter.FindOrAddPeer(1, 99, true, counter);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
-    EXPECT_NE(counter, nullptr);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, counter != nullptr);
 
     err = counter->VerifyOrTrustFirstGroup(UINT32_MAX - 6);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
     counter->CommitGroup(UINT32_MAX - 6);
 
     err = counter->VerifyOrTrustFirstGroup(UINT32_MAX - 1);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
     counter->CommitGroup(UINT32_MAX - 1);
 
     err = counter->VerifyOrTrustFirstGroup(UINT32_MAX);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
     err = counter->VerifyOrTrustFirstGroup(0);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
     err = counter->VerifyOrTrustFirstGroup(1);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
     err = counter->VerifyOrTrustFirstGroup(2);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
     err = counter->VerifyOrTrustFirstGroup(3);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
     err = counter->VerifyOrTrustFirstGroup(4);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
     err = counter->VerifyOrTrustFirstGroup(5);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
     err = counter->VerifyOrTrustFirstGroup(6);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
     err = counter->VerifyOrTrustFirstGroup(7);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 }
 
-TEST(TestGroupMessageCounter, ReorderPeerRemovalTest)
+void ReorderPeerRemovalTest(nlTestSuite * inSuite, void * inContext)
 {
     CHIP_ERROR err                                = CHIP_NO_ERROR;
     chip::Transport::PeerMessageCounter * counter = nullptr;
@@ -321,7 +322,7 @@ TEST(TestGroupMessageCounter, ReorderPeerRemovalTest)
     err = mGroupPeerMsgCounter.FindOrAddPeer(1, 2, true, counter);
     err = mGroupPeerMsgCounter.RemovePeer(1, 1, true);
 
-    EXPECT_EQ(mGroupPeerMsgCounter.GetNodeIdAt(0, 0, true), 2u);
+    NL_TEST_ASSERT(inSuite, mGroupPeerMsgCounter.GetNodeIdAt(0, 0, true) == 2);
 
     // with other list
     err = mGroupPeerMsgCounter.FindOrAddPeer(2, 1, false, counter);
@@ -335,19 +336,19 @@ TEST(TestGroupMessageCounter, ReorderPeerRemovalTest)
     err = mGroupPeerMsgCounter.FindOrAddPeer(2, 9, false, counter);
 
     err = mGroupPeerMsgCounter.RemovePeer(2, 7, false);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
-    EXPECT_EQ(mGroupPeerMsgCounter.GetNodeIdAt(1, 6, false), 9u);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, mGroupPeerMsgCounter.GetNodeIdAt(1, 6, false) == 9);
 
     err = mGroupPeerMsgCounter.RemovePeer(2, 4, false);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
-    EXPECT_EQ(mGroupPeerMsgCounter.GetNodeIdAt(1, 3, false), 8u);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, mGroupPeerMsgCounter.GetNodeIdAt(1, 3, false) == 8);
 
     err = mGroupPeerMsgCounter.RemovePeer(2, 1, false);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
-    EXPECT_EQ(mGroupPeerMsgCounter.GetNodeIdAt(1, 0, false), 9u);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, mGroupPeerMsgCounter.GetNodeIdAt(1, 0, false) == 9);
 }
 
-TEST(TestGroupMessageCounter, ReorderFabricRemovalTest)
+void ReorderFabricRemovalTest(nlTestSuite * inSuite, void * inContext)
 {
     CHIP_ERROR err                                = CHIP_NO_ERROR;
     chip::Transport::PeerMessageCounter * counter = nullptr;
@@ -356,49 +357,49 @@ TEST(TestGroupMessageCounter, ReorderFabricRemovalTest)
     for (uint8_t i = 0; i < CHIP_CONFIG_MAX_FABRICS; i++)
     {
         err = mGroupPeerMsgCounter.FindOrAddPeer(static_cast<chip::FabricIndex>(i + 1), 1, false, counter);
-        EXPECT_EQ(err, CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
     }
 
     // Try removing last Fabric first
     err = counter->VerifyOrTrustFirstGroup(1234);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
     counter->CommitGroup(1234);
 
     err = mGroupPeerMsgCounter.FabricRemoved(CHIP_CONFIG_MAX_FABRICS);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
-    EXPECT_EQ(mGroupPeerMsgCounter.GetFabricIndexAt(CHIP_CONFIG_MAX_FABRICS - 1), kUndefinedFabricIndex);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, mGroupPeerMsgCounter.GetFabricIndexAt(CHIP_CONFIG_MAX_FABRICS - 1) == kUndefinedFabricIndex);
 
     err = mGroupPeerMsgCounter.FindOrAddPeer(CHIP_CONFIG_MAX_FABRICS, 1, false, counter);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
     // Verify that the counter was indeed cleared
     err = counter->VerifyOrTrustFirstGroup(1234);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
     // Set a counter that will be moved around
     err = counter->VerifyOrTrustFirstGroup(5656);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
     counter->CommitGroup(5656);
 
     err = counter->VerifyOrTrustFirstGroup(4756);
-    EXPECT_NE(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
 
     // Per Spec CHIP_CONFIG_MAX_FABRICS can only be as low as 4
     err = mGroupPeerMsgCounter.RemovePeer(3, 1, false);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
-    EXPECT_EQ(mGroupPeerMsgCounter.GetFabricIndexAt(2), CHIP_CONFIG_MAX_FABRICS);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, mGroupPeerMsgCounter.GetFabricIndexAt(2) == CHIP_CONFIG_MAX_FABRICS);
     err = mGroupPeerMsgCounter.RemovePeer(2, 1, false);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
-    EXPECT_EQ(mGroupPeerMsgCounter.GetFabricIndexAt(1), CHIP_CONFIG_MAX_FABRICS - 1);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, mGroupPeerMsgCounter.GetFabricIndexAt(1) == CHIP_CONFIG_MAX_FABRICS - 1);
 
     // Validate that counter value were moved around correctly
     err = mGroupPeerMsgCounter.FindOrAddPeer(CHIP_CONFIG_MAX_FABRICS, 1, false, counter);
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
     err = counter->VerifyOrTrustFirstGroup(4756);
-    EXPECT_NE(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
 }
 
-TEST(TestGroupMessageCounter, GroupMessageCounterTest)
+void GroupMessageCounterTest(nlTestSuite * inSuite, void * inContext)
 {
 
     chip::TestPersistentStorageDelegate delegate;
@@ -406,7 +407,7 @@ TEST(TestGroupMessageCounter, GroupMessageCounterTest)
     uint32_t controlCounter = 0, dataCounter = 0;
     CHIP_ERROR err = groupCientCounter.Init(&delegate);
 
-    EXPECT_EQ(err, CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
     // Start Test with Control counter
     // Counter should be random
@@ -414,45 +415,78 @@ TEST(TestGroupMessageCounter, GroupMessageCounterTest)
     dataCounter    = groupCientCounter.GetCounter(false);
     groupCientCounter.IncrementCounter(true);
 
-    EXPECT_EQ((groupCientCounter.GetCounter(true) - controlCounter), 1u);
+    NL_TEST_ASSERT(inSuite, (groupCientCounter.GetCounter(true) - controlCounter) == 1);
 
     groupCientCounter.SetCounter(true, UINT32_MAX - GROUP_MSG_COUNTER_MIN_INCREMENT);
-    EXPECT_EQ(groupCientCounter.GetCounter(true), UINT32_MAX - GROUP_MSG_COUNTER_MIN_INCREMENT);
+    NL_TEST_ASSERT(inSuite, groupCientCounter.GetCounter(true) == UINT32_MAX - GROUP_MSG_COUNTER_MIN_INCREMENT);
 
     // Test Persistence
     TestGroupOutgoingCounters groupCientCounter2(&delegate);
 
-    EXPECT_EQ(groupCientCounter2.GetCounter(true), UINT32_MAX);
-    EXPECT_EQ((groupCientCounter2.GetCounter(false) - dataCounter), (uint32_t) GROUP_MSG_COUNTER_MIN_INCREMENT);
+    NL_TEST_ASSERT(inSuite, groupCientCounter2.GetCounter(true) == UINT32_MAX);
+    NL_TEST_ASSERT(inSuite, (groupCientCounter2.GetCounter(false) - dataCounter) == GROUP_MSG_COUNTER_MIN_INCREMENT);
 
     // Test Roll over
     groupCientCounter2.IncrementCounter(true);
-    EXPECT_EQ(groupCientCounter2.GetCounter(true), 0u);
+    NL_TEST_ASSERT(inSuite, groupCientCounter2.GetCounter(true) == 0);
 
     TestGroupOutgoingCounters groupCientCounter3(&delegate);
-    EXPECT_EQ(groupCientCounter3.GetCounter(true), (UINT32_MAX + GROUP_MSG_COUNTER_MIN_INCREMENT));
+    NL_TEST_ASSERT(inSuite, groupCientCounter3.GetCounter(true) == (UINT32_MAX + GROUP_MSG_COUNTER_MIN_INCREMENT));
 
     // Redo the test with the second counter
 
     // Start Test with Control counter
     dataCounter = groupCientCounter.GetCounter(false);
     groupCientCounter.IncrementCounter(false);
-    EXPECT_EQ((groupCientCounter.GetCounter(false) - dataCounter), 1u);
+    NL_TEST_ASSERT(inSuite, (groupCientCounter.GetCounter(false) - dataCounter) == 1);
 
     groupCientCounter.SetCounter(false, UINT32_MAX - GROUP_MSG_COUNTER_MIN_INCREMENT);
-    EXPECT_EQ(groupCientCounter.GetCounter(false), UINT32_MAX - GROUP_MSG_COUNTER_MIN_INCREMENT);
+    NL_TEST_ASSERT(inSuite, groupCientCounter.GetCounter(false) == UINT32_MAX - GROUP_MSG_COUNTER_MIN_INCREMENT);
 
     // Test Persistence
     TestGroupOutgoingCounters groupCientCounter4(&delegate);
 
-    EXPECT_EQ(groupCientCounter4.GetCounter(false), UINT32_MAX);
+    NL_TEST_ASSERT(inSuite, groupCientCounter4.GetCounter(false) == UINT32_MAX);
 
     // Test Roll over
     groupCientCounter4.IncrementCounter(false);
-    EXPECT_EQ(groupCientCounter4.GetCounter(false), 0u);
+    NL_TEST_ASSERT(inSuite, groupCientCounter4.GetCounter(false) == 0);
 
     TestGroupOutgoingCounters groupCientCounter5(&delegate);
-    EXPECT_EQ(groupCientCounter5.GetCounter(false), (UINT32_MAX + GROUP_MSG_COUNTER_MIN_INCREMENT));
+    NL_TEST_ASSERT(inSuite, groupCientCounter5.GetCounter(false) == (UINT32_MAX + GROUP_MSG_COUNTER_MIN_INCREMENT));
 }
 
 } // namespace
+
+/**
+ *  Test Suite that lists all the test functions.
+ */
+// clang-format off
+const nlTest sTests[] =
+{
+    NL_TEST_DEF("Add Peer",               AddPeerTest),
+    NL_TEST_DEF("Remove Peer",            RemovePeerTest),
+    NL_TEST_DEF("Peer retrieval",         PeerRetrievalTest),
+    NL_TEST_DEF("Counter Rollover",       CounterCommitRolloverTest),
+    NL_TEST_DEF("Counter Trust first",    CounterTrustFirstTest),
+    NL_TEST_DEF("Reorder Peer removal",   ReorderPeerRemovalTest),
+    NL_TEST_DEF("Reorder Fabric Removal", ReorderFabricRemovalTest),
+    NL_TEST_DEF("Group Message Counter",  GroupMessageCounterTest),
+    NL_TEST_SENTINEL()
+};
+// clang-format on
+
+/**
+ *  Main
+ */
+int TestGroupMessageCounter()
+{
+    // Run test suit against one context
+
+    nlTestSuite theSuite = { "Transport-TestGroupMessageCounter", &sTests[0], nullptr, nullptr };
+    nlTestRunner(&theSuite, nullptr);
+
+    return (nlTestRunnerStats(&theSuite));
+}
+
+CHIP_REGISTER_TEST_SUITE(TestGroupMessageCounter);

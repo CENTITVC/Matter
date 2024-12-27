@@ -28,8 +28,6 @@
 
 - (instancetype _Nonnull)initWithCppEndpoint:(matter::casting::memory::Strong<matter::casting::core::Endpoint>)cppEndpoint;
 
-- (NSMutableArray *)getServerList;
-
 @end
 
 #endif /* MCEndpoint_Internal_h */

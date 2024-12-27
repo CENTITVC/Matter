@@ -26,7 +26,6 @@
 #include <app/clusters/target-navigator-server/target-navigator-server.h>
 
 #include <app/AttributeAccessInterface.h>
-#include <app/AttributeAccessInterfaceRegistry.h>
 #include <app/CommandHandler.h>
 #include <app/ConcreteCommandPath.h>
 #include <app/EventLogging.h>
@@ -261,5 +260,5 @@ void MatterTargetNavigatorClusterServerAttributeChangedCallback(const chip::app:
 
 void MatterTargetNavigatorPluginServerInitCallback()
 {
-    app::AttributeAccessInterfaceRegistry::Instance().Register(&gTargetNavigatorAttrAccess);
+    registerAttributeAccessOverride(&gTargetNavigatorAttrAccess);
 }

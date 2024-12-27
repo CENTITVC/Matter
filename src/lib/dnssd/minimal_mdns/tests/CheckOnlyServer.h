@@ -22,9 +22,6 @@
 #include <string>
 #include <vector>
 
-#include <pw_unit_test/framework.h>
-
-#include <lib/core/StringBuilderAdapters.h>
 #include <lib/dnssd/MinimalMdnsServer.h>
 #include <lib/dnssd/minimal_mdns/RecordData.h>
 #include <lib/dnssd/minimal_mdns/Server.h>
@@ -32,7 +29,10 @@
 #include <lib/dnssd/minimal_mdns/records/Srv.h>
 #include <lib/dnssd/minimal_mdns/records/Txt.h>
 #include <lib/support/CHIPMemString.h>
+#include <lib/support/UnitTestRegistration.h>
 #include <system/SystemMutex.h>
+
+#include <nlunit-test.h>
 
 namespace mdns {
 namespace Minimal {
@@ -78,19 +78,23 @@ class CheckOnlyServer : private chip::PoolImpl<ServerBase::EndpointInfo, 0, chip
                         public TxtRecordDelegate
 {
 public:
-    CheckOnlyServer() : ServerBase(*static_cast<ServerBase::EndpointInfoPoolType *>(this)) { Reset(); }
+    CheckOnlyServer(nlTestSuite * inSuite) : ServerBase(*static_cast<ServerBase::EndpointInfoPoolType *>(this)), mInSuite(inSuite)
+    {
+        Reset();
+    }
+    CheckOnlyServer() : ServerBase(*static_cast<ServerBase::EndpointInfoPoolType *>(this)), mInSuite(nullptr) { Reset(); }
     ~CheckOnlyServer() {}
 
     // Parser delegates
     void OnHeader(ConstHeaderRef & header) override
     {
-        EXPECT_TRUE(header.GetFlags().IsResponse());
-        EXPECT_TRUE(header.GetFlags().IsValidMdns());
+        NL_TEST_ASSERT(mInSuite, header.GetFlags().IsResponse());
+        NL_TEST_ASSERT(mInSuite, header.GetFlags().IsValidMdns());
         mTotalRecords += header.GetAnswerCount() + header.GetAdditionalCount();
 
         if (!header.GetFlags().IsTruncated())
         {
-            EXPECT_EQ(mTotalRecords, GetNumExpectedRecords());
+            NL_TEST_ASSERT(mInSuite, mTotalRecords == GetNumExpectedRecords());
             if (mTotalRecords != GetNumExpectedRecords())
             {
                 ChipLogError(Discovery, "Received %d records, expected %d", mTotalRecords, GetNumExpectedRecords());
@@ -110,7 +114,7 @@ public:
         case QType::SRV: {
             SrvRecord srv;
             bool srvParseOk = srv.Parse(data.GetData(), mPacketData);
-            EXPECT_TRUE(srvParseOk);
+            NL_TEST_ASSERT(mInSuite, srvParseOk);
             if (!srvParseOk)
             {
                 return;
@@ -142,7 +146,7 @@ public:
                     for (size_t t = 0; t < expectedTxt->GetNumEntries(); ++t)
                     {
                         bool ok = AddExpectedTxtRecord(expectedTxt->GetEntries()[t]);
-                        EXPECT_TRUE(ok);
+                        NL_TEST_ASSERT(mInSuite, ok);
                     }
                     ParseTxtRecord(data.GetData(), this);
                     if (CheckTxtRecordMatches())
@@ -160,7 +164,7 @@ public:
                 }
             }
         }
-        EXPECT_TRUE(recordIsExpected);
+        NL_TEST_ASSERT(mInSuite, recordIsExpected);
         if (!recordIsExpected)
         {
             char nameStr[64];
@@ -249,7 +253,7 @@ public:
     void AddExpectedRecord(SrvResourceRecord * srv)
     {
         RecordInfo * info = AddExpectedRecordBase(srv);
-        ASSERT_NE(info, nullptr);
+        NL_TEST_ASSERT(mInSuite, info != nullptr);
         if (info == nullptr)
         {
             return;
@@ -259,7 +263,7 @@ public:
     void AddExpectedRecord(TxtResourceRecord * txt)
     {
         RecordInfo * info = AddExpectedRecordBase(txt);
-        ASSERT_NE(info, nullptr);
+        NL_TEST_ASSERT(mInSuite, info != nullptr);
         if (info == nullptr)
         {
             return;
@@ -268,6 +272,7 @@ public:
     }
     bool GetSendCalled() { return mSendCalled; }
     bool GetHeaderFound() { return mHeaderFound; }
+    void SetTestSuite(nlTestSuite * suite) { mInSuite = suite; }
     void Reset()
     {
         for (auto & info : mExpectedRecordInfo)
@@ -282,6 +287,7 @@ public:
     }
 
 private:
+    nlTestSuite * mInSuite;
     static constexpr size_t kMaxExpectedRecords = 10;
     struct RecordInfo
     {
@@ -329,13 +335,17 @@ private:
     }
     void TestGotAllExpectedPackets()
     {
+        if (mInSuite == nullptr)
+        {
+            return;
+        }
         for (auto & info : mExpectedRecordInfo)
         {
             if (info.record == nullptr)
             {
                 continue;
             }
-            EXPECT_TRUE(info.found);
+            NL_TEST_ASSERT(mInSuite, info.found == true);
             if (!info.found)
             {
                 char name[64];

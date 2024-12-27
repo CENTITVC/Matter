@@ -77,9 +77,10 @@ CHIP_ERROR CHIPDeviceManager::Init(CHIPDeviceManagerCallbacks * cb)
     SetDeviceAttestationCredentialsProvider(&mFactoryDataProvider);
     SetDeviceInstanceInfoProvider(&mFactoryDataProvider);
 
-#if CONFIG_NETWORK_LAYER_BLE
-    ConnectivityMgr().SetBLEAdvertisingEnabled(true);
-#endif
+    if (CONFIG_NETWORK_LAYER_BLE)
+    {
+        ConnectivityMgr().SetBLEAdvertisingEnabled(true);
+    }
 
     // Register a function to receive events from the CHIP device layer.  Note that calls to
     // this function will happen on the CHIP event loop thread, not the app_main thread.

@@ -28,7 +28,6 @@
 #if CHIP_DEVICE_CONFIG_ENABLE_WIFI_STATION
 #include "wfx_host_events.h"
 #endif
-#include <cmsis_os2.h>
 
 namespace chip {
 namespace DeviceLayer {
@@ -42,17 +41,17 @@ class PlatformManagerImpl final : public PlatformManager, public Internal::Gener
     // the implementation methods provided by this class.
     friend PlatformManager;
 
-#if defined(SL_MBEDTLS_USE_TINYCRYPT)
+#if defined(TINYCRYPT_PRIMITIVES)
     // Since the RNG callback will be called from multiple threads,
     // use this mutex to lock/unlock the call to Matter RNG API, which
     // uses some global variables.
-    static osMutexId_t rngMutexHandle;
+    static sys_mutex_t rngMutexHandle;
 
     // Callback used by tinycrypt to generate random numbers.
     // It must be set before calling any sign operations,
     // which are used in both Matter and OT threads.
     static int uECC_RNG_Function(uint8_t * dest, unsigned int size);
-#endif // SL_MBEDTLS_USE_TINYCRYPT
+#endif
 
     // Allow the generic implementation base class to call helper methods on
     // this class.
@@ -69,10 +68,6 @@ public:
     System::Clock::Timestamp GetStartTime() { return mStartTime; }
 
 private:
-    // ===== Members for internal use
-
-    static void UpdateOperationalHours(System::Layer * systemLayer, void * appState);
-
     // ===== Methods that implement the PlatformManager abstract interface.
 
     CHIP_ERROR _InitChipStack(void);

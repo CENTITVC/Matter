@@ -25,8 +25,6 @@
 #include <lib/support/JniReferences.h>
 #include <lib/support/JniTypeWrappers.h>
 
-#include <string>
-
 #if CHIP_DEVICE_CONFIG_APP_PLATFORM_ENABLED
 #include <app/app-platform/ContentAppPlatform.h>
 #endif // CHIP_DEVICE_CONFIG_APP_PLATFORM_ENABLED
@@ -267,17 +265,6 @@ char * AppPlatformHandler(int argc, char ** argv)
         {
             DumpAccessControlEntry(entry);
         }
-        return response;
-    }
-    else if (strcmp(argv[0], "print-apps") == 0)
-    {
-        ContentAppFactoryImpl * factory = GetContentAppFactoryImpl();
-        factory->LogInstalledApps();
-
-        ChipLogProgress(DeviceLayer, "logged installed apps");
-
-        strcpy(response, "logged installed apps");
-
         return response;
     }
     else if (strcmp(argv[0], "remove-app-access") == 0)

@@ -18,7 +18,6 @@
 #pragma once
 
 #include <jni.h>
-#include <lib/dnssd/platform/Dnssd.h>
 
 namespace chip {
 namespace Dnssd {
@@ -37,13 +36,6 @@ void HandleResolve(jstring instanceName, jstring serviceType, jstring hostName, 
                    jlong callbackHandle, jlong contextHandle);
 
 void HandleBrowse(jobjectArray instanceName, jstring serviceType, jlong callbackHandle, jlong contextHandle);
-
-struct BrowseContext
-{
-    DnssdBrowseCallback callback;
-
-    BrowseContext(DnssdBrowseCallback cb) { callback = cb; };
-};
 
 } // namespace Dnssd
 } // namespace chip

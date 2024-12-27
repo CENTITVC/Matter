@@ -22,8 +22,6 @@
 
 #include <app/tests/suites/credentials/TestHarnessDACProvider.h>
 
-#include <string>
-
 class AppOptions
 {
 public:

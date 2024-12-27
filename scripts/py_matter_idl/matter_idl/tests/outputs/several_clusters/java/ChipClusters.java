@@ -121,7 +121,7 @@ public class ChipClusters {
         boolean isFabricFiltered) {
       ReportCallbackJni jniCallback = new ReportCallbackJni(null, callback, null);
       ChipAttributePath path = ChipAttributePath.newInstance(endpointId, clusterId, attributeId);
-      ChipInteractionClient.read(0, jniCallback.getCallbackHandle(), devicePtr, Arrays.asList(path), null, null, isFabricFiltered, timeoutMillis.orElse(0L).intValue(), null);
+      ChipDeviceController.read(0, jniCallback.getCallbackHandle(), devicePtr, Arrays.asList(path), null, null, isFabricFiltered, timeoutMillis.orElse(0L).intValue(), null);
     }
 
     protected void writeAttribute(
@@ -132,7 +132,7 @@ public class ChipClusters {
       WriteAttributesCallbackJni jniCallback = new WriteAttributesCallbackJni(callback);
       byte[] tlv = encodeToTlv(value);
       AttributeWriteRequest writeRequest = AttributeWriteRequest.newInstance(endpointId, clusterId, attributeId, tlv);
-      ChipInteractionClient.write(0, jniCallback.getCallbackHandle(), devicePtr, Arrays.asList(writeRequest), timedRequestTimeoutMs, timeoutMillis.orElse(0L).intValue());
+      ChipDeviceController.write(0, jniCallback.getCallbackHandle(), devicePtr, Arrays.asList(writeRequest), timedRequestTimeoutMs, timeoutMillis.orElse(0L).intValue());
     }
 
     protected void subscribeAttribute(
@@ -140,11 +140,9 @@ public class ChipClusters {
         long attributeId,
         int minInterval,
         int maxInterval) {
-      ReportCallbackJni jniCallback = new ReportCallbackJni(callback, callback, callback);
+      ReportCallbackJni jniCallback = new ReportCallbackJni(callback, callback, null);
       ChipAttributePath path = ChipAttributePath.newInstance(endpointId, clusterId, attributeId);
-      int fabricIndex = ChipInteractionClient.getFabricIndex(devicePtr);
-      long deviceId = ChipInteractionClient.getRemoteDeviceId(devicePtr);
-      ChipInteractionClient.subscribe(0, jniCallback.getCallbackHandle(), devicePtr, Arrays.asList(path), null, null, minInterval, maxInterval, false, true, timeoutMillis.orElse(0L).intValue(), null, ChipICDClient.isPeerICDClient(fabricIndex, deviceId));
+      ChipDeviceController.subscribe(0, jniCallback.getCallbackHandle(), devicePtr, Arrays.asList(path), null, null, minInterval, maxInterval, false, true, timeoutMillis.orElse(0L).intValue(), null);
     }
 
     protected void invoke(
@@ -155,7 +153,7 @@ public class ChipClusters {
       InvokeCallbackJni jniCallback = new InvokeCallbackJni(callback);
       byte[] tlv = encodeToTlv(value);
       InvokeElement element = InvokeElement.newInstance(endpointId, clusterId, commandId, tlv, null);
-      ChipInteractionClient.invoke(0, jniCallback.getCallbackHandle(), devicePtr, element, timedRequestTimeoutMs, timeoutMillis.orElse(0L).intValue());
+      ChipDeviceController.invoke(0, jniCallback.getCallbackHandle(), devicePtr, element, timedRequestTimeoutMs, timeoutMillis.orElse(0L).intValue());
     }
 
     private static native byte[] encodeToTlv(BaseTLVType value);
@@ -175,7 +173,7 @@ public class ChipClusters {
     }
   }
 
-  abstract static class ReportCallbackImpl implements ReportCallback, SubscriptionEstablishedCallback, ResubscriptionAttemptCallback {
+  abstract static class ReportCallbackImpl implements ReportCallback, SubscriptionEstablishedCallback {
     private BaseAttributeCallback callback;
     private ChipAttributePath path;
 
@@ -232,9 +230,6 @@ public class ChipClusters {
     public void onSubscriptionEstablished(long subscriptionId) {
       callback.onSubscriptionEstablished(subscriptionId);
     }
-
-    @Override
-    public void onResubscriptionAttempt(long terminationCause, long nextResubscribeIntervalMsec) {}
 
     public abstract void onSuccess(byte[] tlv);
   }
@@ -339,7 +334,6 @@ public class ChipClusters {
           @Override
           public void onSuccess(byte[] tlv) {
             Integer value = ChipTLVValueDecoder.decodeAttributeValue(path, tlv);
-            callback.onSuccess(value);
           }
         }, SOME_INTEGER_ATTRIBUTE_ID, minInterval, maxInterval);
     }
@@ -391,7 +385,6 @@ public class ChipClusters {
           @Override
           public void onSuccess(byte[] tlv) {
             List<ChipStructs.SecondClusterFabricDescriptorStruct> value = ChipTLVValueDecoder.decodeAttributeValue(path, tlv);
-            callback.onSuccess(value);
           }
         }, FABRICS_ATTRIBUTE_ID, minInterval, maxInterval);
     }
@@ -417,7 +410,6 @@ public class ChipClusters {
           @Override
           public void onSuccess(byte[] tlv) {
             byte[] value = ChipTLVValueDecoder.decodeAttributeValue(path, tlv);
-            callback.onSuccess(value);
           }
         }, SOME_BYTES_ATTRIBUTE_ID, minInterval, maxInterval);
     }
@@ -469,7 +461,6 @@ public class ChipClusters {
           @Override
           public void onSuccess(byte[] tlv) {
             Integer value = ChipTLVValueDecoder.decodeAttributeValue(path, tlv);
-            callback.onSuccess(value);
           }
         }, SOME_ENUM_ATTRIBUTE_ID, minInterval, maxInterval);
     }
@@ -504,7 +495,6 @@ public class ChipClusters {
           @Override
           public void onSuccess(byte[] tlv) {
             Integer value = ChipTLVValueDecoder.decodeAttributeValue(path, tlv);
-            callback.onSuccess(value);
           }
         }, OPTIONS_ATTRIBUTE_ID, minInterval, maxInterval);
     }

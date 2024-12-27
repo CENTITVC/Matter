@@ -5,11 +5,11 @@ import java.util.logging.Level
 import java.util.logging.Logger
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.runBlocking
-import matter.controller.BooleanSubscriptionState
 import matter.controller.MatterController
 import matter.controller.SubscribeRequest
 import matter.controller.SubscriptionState
-import matter.controller.cluster.clusters.UnitTestingCluster
+import matter.controller.UShortSubscriptionState
+import matter.controller.cluster.clusters.IdentifyCluster
 import matter.controller.model.AttributePath
 import matter.controller.model.EventPath
 
@@ -42,8 +42,8 @@ class PairOnNetworkLongImSubscribeCommand(
         // Verify Wildcard subscription
         startWildcardSubscription()
 
-        // Verify Boolean attribute subscription
-        subscribeBooleanAttribute()
+        // Verify IdentifyTime attribute subscription
+        subscribeIdentifyTimeAttribute()
       } catch (ex: Exception) {
         logger.log(Level.WARNING, "General subscribe failure occurred with error ${ex.message}")
         setFailure("subscribe failure")
@@ -107,30 +107,30 @@ class PairOnNetworkLongImSubscribeCommand(
       }
   }
 
-  private suspend fun subscribeBooleanAttribute() {
-    logger.log(Level.INFO, "Subscribe Boolean attribute")
+  private suspend fun subscribeIdentifyTimeAttribute() {
+    logger.log(Level.INFO, "Subscribe IdentifyTime attribute")
 
-    val testCluster = UnitTestingCluster(controller = currentCommissioner(), endpointId = 1u)
+    val identifyCluster = IdentifyCluster(controller = currentCommissioner(), endpointId = 0u)
 
-    testCluster
-      .subscribeBooleanAttribute(minInterval = 0, maxInterval = 5)
+    identifyCluster
+      .subscribeIdentifyTimeAttribute(minInterval = 0, maxInterval = 5)
       .takeWhile { subscriptionState ->
         // Keep collecting as long as it's not SubscriptionEstablished
-        subscriptionState !is BooleanSubscriptionState.SubscriptionEstablished
+        subscriptionState !is UShortSubscriptionState.SubscriptionEstablished
       }
       .collect { subscriptionState ->
         when (subscriptionState) {
-          is BooleanSubscriptionState.Success -> {
-            logger.log(Level.INFO, "Received Boolean Update: ${subscriptionState.value}")
+          is UShortSubscriptionState.Success -> {
+            logger.log(Level.INFO, "Received IdentifyTime Update: ${subscriptionState.value}")
           }
-          is BooleanSubscriptionState.Error -> {
+          is UShortSubscriptionState.Error -> {
             logger.log(
               Level.WARNING,
               "Received SubscriptionErrorNotification with terminationCause: ${subscriptionState.exception}"
             )
           }
-          is BooleanSubscriptionState.SubscriptionEstablished -> {
-            logger.log(Level.INFO, "Boolean Subscription is established")
+          is UShortSubscriptionState.SubscriptionEstablished -> {
+            logger.log(Level.INFO, "IdentifyTime Subscription is established")
           }
           else -> {
             logger.log(Level.SEVERE, "Unexpected subscription state: $subscriptionState")

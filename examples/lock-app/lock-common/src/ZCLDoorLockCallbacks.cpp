@@ -18,6 +18,7 @@
 
 #include <app/clusters/door-lock-server/door-lock-server.h>
 #include <app/data-model/Nullable.h>
+#include <app/util/af.h>
 #include <lib/core/DataModelTypes.h>
 
 #include "LockManager.h"

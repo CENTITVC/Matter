@@ -25,11 +25,14 @@
 #error This file must be compiled with ARC. Use -fobjc-arc flag (or convert project to ARC).
 #endif
 
-#include <ble/Ble.h>
+#include <ble/BleConfig.h>
+#include <ble/BleError.h>
+#include <ble/BleLayer.h>
+#include <ble/BleUUID.h>
 #include <lib/support/logging/CHIPLogging.h>
 #include <platform/Darwin/BlePlatformDelegate.h>
 
-#import "MTRUUIDHelper.h"
+#import "UUIDHelper.h"
 
 using namespace ::chip;
 using namespace ::chip::Ble;
@@ -38,16 +41,16 @@ using ::chip::System::PacketBufferHandle;
 namespace chip {
 namespace DeviceLayer {
     namespace Internal {
-        CHIP_ERROR BlePlatformDelegateImpl::SubscribeCharacteristic(
+        bool BlePlatformDelegateImpl::SubscribeCharacteristic(
             BLE_CONNECTION_OBJECT connObj, const ChipBleUUID * svcId, const ChipBleUUID * charId)
         {
-            CHIP_ERROR err = BLE_ERROR_GATT_SUBSCRIBE_FAILED;
+            bool found = false;
 
             if (nullptr == svcId || nullptr == charId) {
-                return err;
+                return found;
             }
 
-            CBUUID * serviceId = [MTRUUIDHelper GetShortestServiceUUID:svcId];
+            CBUUID * serviceId = [UUIDHelper GetShortestServiceUUID:svcId];
             CBUUID * characteristicId = [CBUUID UUIDWithData:[NSData dataWithBytes:charId->bytes length:sizeof(charId->bytes)]];
             CBPeripheral * peripheral = (__bridge CBPeripheral *) connObj;
 
@@ -55,7 +58,7 @@ namespace DeviceLayer {
                 if ([service.UUID.data isEqualToData:serviceId.data]) {
                     for (CBCharacteristic * characteristic in service.characteristics) {
                         if ([characteristic.UUID.data isEqualToData:characteristicId.data]) {
-                            err = CHIP_NO_ERROR;
+                            found = true;
                             [peripheral setNotifyValue:true forCharacteristic:characteristic];
                             break;
                         }
@@ -63,18 +66,18 @@ namespace DeviceLayer {
                 }
             }
 
-            return err;
+            return found;
         }
 
-        CHIP_ERROR BlePlatformDelegateImpl::UnsubscribeCharacteristic(
+        bool BlePlatformDelegateImpl::UnsubscribeCharacteristic(
             BLE_CONNECTION_OBJECT connObj, const ChipBleUUID * svcId, const ChipBleUUID * charId)
         {
-            CHIP_ERROR err = BLE_ERROR_GATT_UNSUBSCRIBE_FAILED;
+            bool found = false;
             if (nullptr == svcId || nullptr == charId) {
-                return err;
+                return found;
             }
 
-            CBUUID * serviceId = [MTRUUIDHelper GetShortestServiceUUID:svcId];
+            CBUUID * serviceId = [UUIDHelper GetShortestServiceUUID:svcId];
             CBUUID * characteristicId = characteristicId = [CBUUID UUIDWithData:[NSData dataWithBytes:charId->bytes
                                                                                                length:sizeof(charId->bytes)]];
             CBPeripheral * peripheral = (__bridge CBPeripheral *) connObj;
@@ -83,7 +86,7 @@ namespace DeviceLayer {
                 if ([service.UUID.data isEqualToData:serviceId.data]) {
                     for (CBCharacteristic * characteristic in service.characteristics) {
                         if ([characteristic.UUID.data isEqualToData:characteristicId.data]) {
-                            err = CHIP_NO_ERROR;
+                            found = true;
                             [peripheral setNotifyValue:false forCharacteristic:characteristic];
                             break;
                         }
@@ -91,10 +94,10 @@ namespace DeviceLayer {
                 }
             }
 
-            return err;
+            return found;
         }
 
-        CHIP_ERROR BlePlatformDelegateImpl::CloseConnection(BLE_CONNECTION_OBJECT connObj)
+        bool BlePlatformDelegateImpl::CloseConnection(BLE_CONNECTION_OBJECT connObj)
         {
             CBPeripheral * peripheral = (__bridge CBPeripheral *) connObj;
 
@@ -103,7 +106,7 @@ namespace DeviceLayer {
             if (manager != nil)
                 [manager cancelPeripheralConnection:peripheral];
 
-            return CHIP_NO_ERROR;
+            return true;
         }
 
         uint16_t BlePlatformDelegateImpl::GetMTU(BLE_CONNECTION_OBJECT connObj) const
@@ -117,21 +120,21 @@ namespace DeviceLayer {
             return mtuLength;
         }
 
-        CHIP_ERROR BlePlatformDelegateImpl::SendIndication(
+        bool BlePlatformDelegateImpl::SendIndication(
             BLE_CONNECTION_OBJECT connObj, const ChipBleUUID * svcId, const ChipBleUUID * charId, PacketBufferHandle pBuf)
         {
-            return CHIP_ERROR_NOT_IMPLEMENTED;
+            return false;
         }
 
-        CHIP_ERROR BlePlatformDelegateImpl::SendWriteRequest(
+        bool BlePlatformDelegateImpl::SendWriteRequest(
             BLE_CONNECTION_OBJECT connObj, const ChipBleUUID * svcId, const ChipBleUUID * charId, PacketBufferHandle pBuf)
         {
-            CHIP_ERROR err = BLE_ERROR_GATT_WRITE_FAILED;
+            bool found = false;
             if (nullptr == svcId || nullptr == charId || pBuf.IsNull()) {
-                return err;
+                return found;
             }
 
-            CBUUID * serviceId = [MTRUUIDHelper GetShortestServiceUUID:svcId];
+            CBUUID * serviceId = [UUIDHelper GetShortestServiceUUID:svcId];
             CBUUID * characteristicId = [CBUUID UUIDWithData:[NSData dataWithBytes:charId->bytes length:sizeof(charId->bytes)]];
             NSData * data = [NSData dataWithBytes:pBuf->Start() length:pBuf->DataLength()];
             CBPeripheral * peripheral = (__bridge CBPeripheral *) connObj;
@@ -140,7 +143,7 @@ namespace DeviceLayer {
                 if ([service.UUID.data isEqualToData:serviceId.data]) {
                     for (CBCharacteristic * characteristic in service.characteristics) {
                         if ([characteristic.UUID.data isEqualToData:characteristicId.data]) {
-                            err = CHIP_NO_ERROR;
+                            found = true;
                             [peripheral writeValue:data forCharacteristic:characteristic type:CBCharacteristicWriteWithResponse];
                             break;
                         }
@@ -151,7 +154,19 @@ namespace DeviceLayer {
             // Going out of scope releases delegate's reference to pBuf. pBuf will be freed when both platform delegate and Chip
             // stack free their references to it. We release pBuf's reference here since its payload bytes were copied into a new
             // NSData object
-            return err;
+            return found;
+        }
+
+        bool BlePlatformDelegateImpl::SendReadRequest(
+            BLE_CONNECTION_OBJECT connObj, const ChipBleUUID * svcId, const ChipBleUUID * charId, PacketBufferHandle pBuf)
+        {
+            return false;
+        }
+
+        bool BlePlatformDelegateImpl::SendReadResponse(BLE_CONNECTION_OBJECT connObj, BLE_READ_REQUEST_CONTEXT requestContext,
+            const ChipBleUUID * svcId, const ChipBleUUID * charId)
+        {
+            return false;
         }
 
     } // namespace Internal

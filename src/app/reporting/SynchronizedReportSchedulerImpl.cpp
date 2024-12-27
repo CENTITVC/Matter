@@ -183,7 +183,7 @@ void SynchronizedReportSchedulerImpl::TimerFired()
     VerifyOrReturn(mNodesPool.Allocated());
 
     mNodesPool.ForEachActiveObject([now, &firedEarly](ReadHandlerNode * node) {
-        if (node->GetMinTimestamp() <= now && node->CanStartReporting())
+        if (node->GetMinTimestamp() <= now)
         {
             // Since this handler can now report whenever it wants to, mark it as allowed to report if any other handler is
             // reporting using the CanBeSynced flag.

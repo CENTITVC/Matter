@@ -20,6 +20,7 @@
 #include <app/clusters/ota-requestor/OTADownloader.h>
 #include <app/clusters/ota-requestor/OTARequestorInterface.h>
 #include <lib/support/CodeUtils.h>
+#include <ota_serial_flash.h>
 #include <platform/CHIPDeviceLayer.h>
 
 using namespace ::chip::DeviceLayer::Internal;
@@ -152,7 +153,7 @@ void OTAImageProcessorImpl::HandlePrepareDownload(intptr_t context)
     }
 
     /* Initialize SMIF subsystem for OTA Image download */
-    cy_ota_mem_init();
+    ota_smif_initialize();
 
     // Open and erase secondary flash area to prepare
     if (flash_area_open(FLASH_AREA_IMAGE_SECONDARY(0), &(imageProcessor->mFlashArea)) != 0)
@@ -186,7 +187,7 @@ void OTAImageProcessorImpl::HandleFinalize(intptr_t context)
 
     flash_area_close(imageProcessor->mFlashArea);
     ChipLogProgress(SoftwareUpdate, "Setting boot pending");
-    int ret = flash_area_boot_set_pending(0, 1);
+    int ret = boot_set_pending(0, 1);
 
     if (ret != 0)
     {

@@ -29,7 +29,7 @@
 
 #if CHIP_DEVICE_CONFIG_ENABLE_CHIPOBLE
 
-#include <ble/Ble.h>
+#include <ble/CHIPBleServiceData.h>
 #include <platform/internal/BLEManager.h>
 
 #include "FreeRTOS.h"
@@ -118,7 +118,8 @@ CHIP_ERROR BLEManagerImpl::_Init(void)
     mFlags.ClearAll().Set(Flags::kAdvertisingEnabled, CHIP_DEVICE_CONFIG_CHIPOBLE_ENABLE_ADVERTISING_AUTOSTART);
     mFlags.Set(Flags::kFastAdvertisingEnabled, true);
 
-    mServiceMode = ConnectivityManager::kCHIPoBLEServiceMode_Enabled;
+    mServiceMode             = ConnectivityManager::kCHIPoBLEServiceMode_Enabled;
+    OnChipBleConnectReceived = HandleIncomingBleConnection;
 
     err = CreateEventHandler();
     return err;
@@ -223,7 +224,7 @@ void BLEManagerImpl::_OnPlatformEvent(const ChipDeviceEvent * event)
         ChipDeviceEvent connEstEvent;
 
         BLEMGR_LOG("BLEMGR: OnPlatformEvent, kCHIPoBLESubscribe");
-        HandleSubscribeReceived(event->CHIPoBLESubscribe.ConId, &CHIP_BLE_SVC_ID, &Ble::CHIP_BLE_CHAR_2_UUID);
+        HandleSubscribeReceived(event->CHIPoBLESubscribe.ConId, &CHIP_BLE_SVC_ID, &chipUUID_CHIPoBLEChar_TX);
 
         connEstEvent.Type = DeviceEventType::kCHIPoBLEConnectionEstablished;
 
@@ -233,19 +234,19 @@ void BLEManagerImpl::_OnPlatformEvent(const ChipDeviceEvent * event)
 
     case DeviceEventType::kCHIPoBLEUnsubscribe: {
         BLEMGR_LOG("BLEMGR: OnPlatformEvent, kCHIPoBLEUnsubscribe");
-        HandleUnsubscribeReceived(event->CHIPoBLEUnsubscribe.ConId, &CHIP_BLE_SVC_ID, &Ble::CHIP_BLE_CHAR_2_UUID);
+        HandleUnsubscribeReceived(event->CHIPoBLEUnsubscribe.ConId, &CHIP_BLE_SVC_ID, &chipUUID_CHIPoBLEChar_TX);
     }
     break;
 
     case DeviceEventType::kCHIPoBLEWriteReceived: {
         BLEMGR_LOG("BLEMGR: OnPlatformEvent, kCHIPoBLEWriteReceived");
-        HandleWriteReceived(event->CHIPoBLEWriteReceived.ConId, &CHIP_BLE_SVC_ID, &Ble::CHIP_BLE_CHAR_1_UUID,
+        HandleWriteReceived(event->CHIPoBLEWriteReceived.ConId, &CHIP_BLE_SVC_ID, &chipUUID_CHIPoBLEChar_RX,
                             PacketBufferHandle::Adopt(event->CHIPoBLEWriteReceived.Data));
     }
     break;
 
     case DeviceEventType::kCHIPoBLEIndicateConfirm:
-        HandleIndicationConfirmation(event->CHIPoBLEIndicateConfirm.ConId, &CHIP_BLE_SVC_ID, &Ble::CHIP_BLE_CHAR_2_UUID);
+        HandleIndicationConfirmation(event->CHIPoBLEIndicateConfirm.ConId, &CHIP_BLE_SVC_ID, &chipUUID_CHIPoBLEChar_TX);
         break;
 
     case DeviceEventType::kCHIPoBLEConnectionError: {
@@ -260,14 +261,12 @@ void BLEManagerImpl::_OnPlatformEvent(const ChipDeviceEvent * event)
 }
 
 // ===== Members that implement virtual methods on BlePlatformDelegate.
-CHIP_ERROR BLEManagerImpl::CloseConnection(BLE_CONNECTION_OBJECT conId)
+bool BLEManagerImpl::CloseConnection(BLE_CONNECTION_OBJECT conId)
 {
     void * pMsg = (void *) ICall_malloc(sizeof(void *));
     pMsg        = (void *) conId;
 
-    EnqueueEvtHdrMsg(BLEManagerIMPL_CHIPOBLE_CLOSE_CONN_EVT, (void *) pMsg);
-
-    return CHIP_NO_ERROR;
+    return (EnqueueEvtHdrMsg(BLEManagerIMPL_CHIPOBLE_CLOSE_CONN_EVT, (void *) pMsg) == true);
 }
 
 uint16_t BLEManagerImpl::GetMTU(BLE_CONNECTION_OBJECT conId) const
@@ -297,8 +296,8 @@ void BLEManagerImpl::NotifyChipConnectionClosed(BLE_CONNECTION_OBJECT conId)
     // Unused
 }
 
-CHIP_ERROR BLEManagerImpl::SendIndication(BLE_CONNECTION_OBJECT conId, const ChipBleUUID * svcId, const ChipBleUUID * charId,
-                                          PacketBufferHandle data)
+bool BLEManagerImpl::SendIndication(BLE_CONNECTION_OBJECT conId, const ChipBleUUID * svcId, const ChipBleUUID * charId,
+                                    PacketBufferHandle data)
 {
     BLEMGR_LOG("BLEMGR: BLE SendIndication ");
 
@@ -310,14 +309,14 @@ CHIP_ERROR BLEManagerImpl::SendIndication(BLE_CONNECTION_OBJECT conId, const Chi
     pMsg = (CHIPoBLEIndEvt_t *) ICall_malloc(sizeof(CHIPoBLEIndEvt_t));
     if (NULL == pMsg)
     {
-        return CHIP_ERROR_NO_MEMORY;
+        return false;
     }
 
     pBuf = (uint8_t *) ICall_malloc(dataLen);
     if (NULL == pBuf)
     {
         ICall_free((void *) pMsg);
-        return CHIP_ERROR_NO_MEMORY;
+        return false;
     }
 
     memset(pBuf, 0x00, dataLen);
@@ -329,28 +328,48 @@ CHIP_ERROR BLEManagerImpl::SendIndication(BLE_CONNECTION_OBJECT conId, const Chi
     EnqueueEvtHdrMsg(BLEManagerIMPL_CHIPOBLE_TX_IND_EVT, (void *) pMsg);
 
     BLEMGR_LOG("BLEMGR: BLE SendIndication RETURN, Length: %d ", dataLen);
-    return CHIP_NO_ERROR;
+    return true;
 }
 
-CHIP_ERROR BLEManagerImpl::SubscribeCharacteristic(BLE_CONNECTION_OBJECT conId, const Ble::ChipBleUUID * svcId,
-                                                   const Ble::ChipBleUUID * charId)
+bool BLEManagerImpl::SubscribeCharacteristic(BLE_CONNECTION_OBJECT conId, const Ble::ChipBleUUID * svcId,
+                                             const Ble::ChipBleUUID * charId)
 {
     /* Unsupported on TI peripheral device implementation */
-    return CHIP_ERROR_NOT_IMPLEMENTED;
+    return false;
 }
 
-CHIP_ERROR BLEManagerImpl::UnsubscribeCharacteristic(BLE_CONNECTION_OBJECT conId, const Ble::ChipBleUUID * svcId,
-                                                     const Ble::ChipBleUUID * charId)
+bool BLEManagerImpl::UnsubscribeCharacteristic(BLE_CONNECTION_OBJECT conId, const Ble::ChipBleUUID * svcId,
+                                               const Ble::ChipBleUUID * charId)
 {
     /* Unsupported on TI peripheral device implementation */
-    return CHIP_ERROR_NOT_IMPLEMENTED;
+    return false;
 }
 
-CHIP_ERROR BLEManagerImpl::SendWriteRequest(BLE_CONNECTION_OBJECT conId, const ChipBleUUID * svcId, const ChipBleUUID * charId,
-                                            PacketBufferHandle pBuf)
+bool BLEManagerImpl::SendWriteRequest(BLE_CONNECTION_OBJECT conId, const ChipBleUUID * svcId, const ChipBleUUID * charId,
+                                      PacketBufferHandle pBuf)
 {
     /* Unsupported on TI peripheral device implementation */
-    return CHIP_ERROR_NOT_IMPLEMENTED;
+    BLEMGR_LOG("BLEMGR: BLE SendWriteRequest");
+    return false;
+}
+
+bool BLEManagerImpl::SendReadRequest(BLE_CONNECTION_OBJECT conId, const ChipBleUUID * svcId, const ChipBleUUID * charId,
+                                     PacketBufferHandle pBuf)
+{
+    /* Unsupported on TI peripheral device implementation */
+    return false;
+}
+
+bool BLEManagerImpl::SendReadResponse(BLE_CONNECTION_OBJECT conId, BLE_READ_REQUEST_CONTEXT requestContext,
+                                      const ChipBleUUID * svcId, const ChipBleUUID * charId)
+{
+    /* Unsupported on TI peripheral device implementation */
+    return false;
+}
+
+void BLEManagerImpl::HandleIncomingBleConnection(BLEEndPoint * bleEP)
+{
+    BLEMGR_LOG("BLEMGR: HandleIncomingBleConnection");
 }
 
 // ===== Helper Members that implement the Low level BLE Stack behavior.
@@ -376,7 +395,7 @@ void BLEManagerImpl::ConfigureAdvertisements(void)
                                   .primChanMap  = GAP_ADV_CHAN_ALL,
                                   .peerAddrType = PEER_ADDRTYPE_PUBLIC_OR_PUBLIC_ID,
                                   .peerAddr     = { 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa },
-                                  .filterPolicy = GAP_ADV_AL_POLICY_ANY_REQ,
+                                  .filterPolicy = GAP_ADV_WL_POLICY_ANY_REQ,
                                   .txPower      = GAP_ADV_TX_POWER_NO_PREFERENCE,
                                   .primPhy      = GAP_ADV_PRIM_PHY_1_MBPS,
                                   .secPhy       = GAP_ADV_SEC_PHY_1_MBPS,
@@ -521,7 +540,7 @@ void BLEManagerImpl::EventHandler_init(void)
     /* set the stacks in default states */
     DMMPolicy_updateStackState(DMMPolicy_StackRole_BlePeripheral, DMMPOLICY_BLE_IDLE);
 
-    vTaskPrioritySet(xTaskGetCurrentTaskHandle(), BLE_MANAGER_TASK_PRIORITY);
+    vTaskPrioritySet(xTaskGetCurrentTaskHandle(), 3);
 
     // ******************************************************************
     // N0 STACK API CALLS CAN OCCUR BEFORE THIS CALL TO ICall_registerApp
@@ -558,7 +577,7 @@ void BLEManagerImpl::EventHandler_init(void)
     CHIPoBLEProfile_AddService(GATT_ALL_SERVICES);
 
     // Start Bond Manager and register callback
-    VOID GAPBondMgr_Register(&BLEMgr_BondMgrCBs);
+    VOID GAPBondMgr_Register(BLEMgr_BondMgrCBs);
 
     // Register with GAP for HCI/Host messages. This is needed to receive HCI
     // events. For more information, see the HCI section in the User's Guide:
@@ -634,7 +653,7 @@ CHIP_ERROR BLEManagerImpl::CreateEventHandler(void)
                             "ble_hndlr",                         /* Text name for the task. */
                             BLEMANAGER_EVENT_HANDLER_STACK_SIZE, /* Stack size in words, not bytes. */
                             this,                                /* Parameter passed into the task. */
-                            BLE_STACK_TASK_PRIORITY,             /* Keep priority the same as ICALL until init is complete */
+                            ICALL_TASK_PRIORITIES,               /* Keep priority the same as ICALL until init is complete */
                             NULL);                               /* Used to pass out the created task's handle. */
 
     if (xReturned == errCOULD_NOT_ALLOCATE_REQUIRED_MEMORY)
@@ -951,6 +970,9 @@ void BLEManagerImpl::ProcessEvtHdrMsg(QueuedEvt_t * pMsg)
 
     case PAIR_STATE_EVT: {
         BLEMGR_LOG("BLEMGR: PAIR_STATE_EVT");
+
+        // Send passcode response
+        GAPBondMgr_PasscodeRsp(((PasscodeData_t *) (pMsg->pData))->connHandle, SUCCESS, B_APP_DEFAULT_PASSCODE);
     }
     break;
 
@@ -1287,7 +1309,7 @@ CHIP_ERROR BLEManagerImpl::ProcessParamUpdate(uint16_t connHandle)
     BLEMGR_LOG("BLEMGR: ProcessParamUpdate");
 
     req.connectionHandle = connHandle;
-    req.connLatency      = DEFAULT_DESIRED_PERIPHERAL_LATENCY;
+    req.connLatency      = DEFAULT_DESIRED_SLAVE_LATENCY;
     req.connTimeout      = DEFAULT_DESIRED_CONN_TIMEOUT;
     req.intervalMin      = DEFAULT_DESIRED_MIN_CONN_INTERVAL;
     req.intervalMax      = DEFAULT_DESIRED_MAX_CONN_INTERVAL;

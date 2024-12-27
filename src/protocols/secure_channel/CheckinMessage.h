@@ -30,6 +30,7 @@
 namespace chip {
 namespace Protocols {
 namespace SecureChannel {
+using namespace Crypto;
 
 using CounterType = uint32_t;
 
@@ -100,7 +101,7 @@ public:
     static size_t GetAppDataSize(const ByteSpan & payload);
 
     static constexpr uint16_t kMinPayloadSize =
-        Crypto::CHIP_CRYPTO_AEAD_NONCE_LENGTH_BYTES + sizeof(CounterType) + Crypto::CHIP_CRYPTO_AEAD_MIC_LENGTH_BYTES;
+        CHIP_CRYPTO_AEAD_NONCE_LENGTH_BYTES + sizeof(CounterType) + CHIP_CRYPTO_AEAD_MIC_LENGTH_BYTES;
 
 private:
     /**

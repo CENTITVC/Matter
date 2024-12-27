@@ -23,22 +23,14 @@
 
 #pragma once
 
-#ifndef _CHIP_BLE_BLE_H
-#error "Please include <ble/Ble.h> instead!"
-#endif
-
+#include <ble/BLEEndPoint.h>
+#include <ble/BleConfig.h>
+#include <ble/BleError.h>
+#include <ble/BleUUID.h>
 #include <system/SystemPacketBuffer.h>
-
-#include "BleConfig.h"
-#include "BleError.h"
-#include "BleUUID.h"
 
 namespace chip {
 namespace Ble {
-
-// BLEEndPoint holds a pointer to BleLayerDelegate for messages,
-// while BleLayerDelegate functions also accepts BLEEndPoint.
-class BLEEndPoint;
 
 class BleLayerDelegate
 {

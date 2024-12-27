@@ -24,8 +24,6 @@
 #include <setup_payload/QRCodeSetupPayloadParser.h>
 #include <setup_payload/SetupPayload.h>
 
-#include <string>
-
 using namespace ::chip;
 
 void SetupPayloadGenerateCommand::ConfigurePayload(SetupPayload & payload)

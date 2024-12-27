@@ -39,10 +39,8 @@ class BluezEndpoint;
 class BluezConnection
 {
 public:
-    BluezConnection(BluezDevice1 & aDevice) : mDevice(reinterpret_cast<BluezDevice1 *>(g_object_ref(&aDevice))) {}
+    BluezConnection(const BluezEndpoint & aEndpoint, BluezDevice1 * apDevice);
     ~BluezConnection() = default;
-
-    CHIP_ERROR Init(const BluezEndpoint & aEndpoint);
 
     const char * GetPeerAddress() const;
 
@@ -99,7 +97,9 @@ private:
         GAutoPtr<GVariant> mData;
     };
 
-    static CHIP_ERROR CloseConnectionImpl(BluezConnection * apConn);
+    CHIP_ERROR Init(const BluezEndpoint & aEndpoint);
+
+    static CHIP_ERROR BluezDisconnect(BluezConnection * apConn);
 
     static gboolean WriteHandlerCallback(GIOChannel * aChannel, GIOCondition aCond, BluezConnection * apConn);
     static gboolean NotifyHandlerCallback(GIOChannel * aChannel, GIOCondition aCond, BluezConnection * apConn);

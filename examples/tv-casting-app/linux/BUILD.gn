@@ -58,12 +58,10 @@ executable("chip-tv-casting-app") {
 
   if (chip_build_libshell) {
     defines += [ "ENABLE_CHIP_SHELL" ]
-    if (!chip_casting_simplified) {
-      sources += [
-        "CastingShellCommands.cpp",
-        "CastingShellCommands.h",
-      ]
-    }
+    sources += [
+      "CastingShellCommands.cpp",
+      "CastingShellCommands.h",
+    ]
   }
 
   output_dir = root_out_dir

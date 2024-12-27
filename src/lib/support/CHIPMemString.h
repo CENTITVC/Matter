@@ -82,20 +82,12 @@ inline void CopyString(char (&dest)[N], const char * source)
  */
 inline void CopyString(char * dest, size_t destLength, ByteSpan source)
 {
-    if ((dest == nullptr) || (destLength == 0))
+    if (dest && destLength)
     {
-        return; // no space to copy anything, not even a null terminator
+        size_t maxChars = std::min(destLength - 1, source.size());
+        memcpy(dest, source.data(), maxChars);
+        dest[maxChars] = '\0';
     }
-
-    if (source.empty())
-    {
-        *dest = '\0'; // just a null terminator, we are copying empty data
-        return;
-    }
-
-    size_t maxChars = std::min(destLength - 1, source.size());
-    memcpy(dest, source.data(), maxChars);
-    dest[maxChars] = '\0';
 }
 
 /**
@@ -121,20 +113,12 @@ inline void CopyString(char (&dest)[N], ByteSpan source)
  */
 inline void CopyString(char * dest, size_t destLength, CharSpan source)
 {
-    if ((dest == nullptr) || (destLength == 0))
+    if (dest && destLength)
     {
-        return; // no space to copy anything, not even a null terminator
+        size_t maxChars = std::min(destLength - 1, source.size());
+        memcpy(dest, source.data(), maxChars);
+        dest[maxChars] = '\0';
     }
-
-    if (source.empty())
-    {
-        *dest = '\0'; // just a null terminator, we are copying empty data
-        return;
-    }
-
-    size_t maxChars = std::min(destLength - 1, source.size());
-    memcpy(dest, source.data(), maxChars);
-    dest[maxChars] = '\0';
 }
 
 /**

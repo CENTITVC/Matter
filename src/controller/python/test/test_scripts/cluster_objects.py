@@ -38,8 +38,6 @@ ignoreAttributeDecodeFailureList = [
      Clusters.Objects.UnitTesting.Attributes.GeneralErrorBoolean),
     (1, Clusters.Objects.UnitTesting,
      Clusters.Objects.UnitTesting.Attributes.ClusterErrorBoolean),
-    (1, Clusters.Objects.UnitTesting,
-     Clusters.Objects.UnitTesting.Attributes.FailureInt32U),
 ]
 
 
@@ -166,7 +164,7 @@ class ClusterObjectTests:
             ]
         )
         expectedRes = [
-            AttributeStatus(Path=AttributePath.from_attribute(
+            AttributeStatus(Path=AttributePath(
                 EndpointId=1,
                 Attribute=Clusters.UnitTesting.Attributes.ListLongOctetString), Status=chip.interaction_model.Status.Success),
         ]
@@ -216,12 +214,12 @@ class ClusterObjectTests:
         sub.SetAttributeUpdateCallback(subUpdate)
 
         try:
+            data = sub.GetAttributes()
             req = Clusters.OnOff.Commands.On()
             await devCtrl.SendCommand(nodeid=NODE_ID, endpoint=1, payload=req)
 
             await asyncio.wait_for(event.wait(), timeout=11)
 
-            data = sub.GetAttributes()
             if (data[1][Clusters.OnOff][Clusters.OnOff.Attributes.OnOff] != 1):
                 raise ValueError("Current On/Off state should be 1")
 
@@ -232,7 +230,6 @@ class ClusterObjectTests:
 
             await asyncio.wait_for(event.wait(), timeout=11)
 
-            data = sub.GetAttributes()
             if (data[1][Clusters.OnOff][Clusters.OnOff.Attributes.OnOff] != 0):
                 raise ValueError("Current On/Off state should be 0")
 
@@ -255,12 +252,13 @@ class ClusterObjectTests:
         sub.SetAttributeUpdateCallback(subUpdate)
 
         try:
+            data = sub.GetAttributes()
+
             req = Clusters.OnOff.Commands.On()
             await devCtrl.SendCommand(nodeid=NODE_ID, endpoint=1, payload=req)
 
             await asyncio.wait_for(event.wait(), timeout=11)
 
-            data = sub.GetAttributes()
             cluster: Clusters.OnOff = data[1][Clusters.OnOff]
             if (not cluster.onOff):
                 raise ValueError("Current On/Off state should be True")
@@ -272,7 +270,6 @@ class ClusterObjectTests:
 
             await asyncio.wait_for(event.wait(), timeout=11)
 
-            data = sub.GetAttributes()
             cluster: Clusters.OnOff = data[1][Clusters.OnOff]
             if (cluster.onOff):
                 raise ValueError("Current On/Off state should be False")
@@ -299,6 +296,7 @@ class ClusterObjectTests:
         logger.info("Test Subscription With MinInterval of 0")
         sub = await devCtrl.ReadAttribute(nodeid=NODE_ID,
                                           attributes=[Clusters.OnOff, Clusters.LevelControl], reportInterval=(0, 60))
+        data = sub.GetAttributes()
 
         logger.info("Sending off command")
 
@@ -315,7 +313,6 @@ class ClusterObjectTests:
 
         logger.info("Checking read back value is indeed 254")
 
-        data = sub.GetAttributes()
         if (data[1][Clusters.LevelControl][Clusters.LevelControl.Attributes.CurrentLevel] != 254):
             raise ValueError("Current Level should have been 254")
 

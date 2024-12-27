@@ -31,7 +31,6 @@
 #include <lib/support/jsontlv/TlvToJson.h>
 #include <lib/support/logging/CHIPLogging.h>
 #include <platform/PlatformManager.h>
-#include <string>
 #include <type_traits>
 
 namespace chip {
@@ -93,7 +92,7 @@ void GetConnectedDeviceCallback::OnDeviceConnectedFn(void * context, Messaging::
 }
 
 void GetConnectedDeviceCallback::OnDeviceConnectionFailureFn(void * context,
-                                                             const OperationalSessionSetup::ConnectionFailureInfo & failureInfo)
+                                                             const OperationalSessionSetup::ConnnectionFailureInfo & failureInfo)
 {
     JNIEnv * env = JniReferences::GetInstance().GetEnvForCurrentThread();
     VerifyOrReturn(env != nullptr, ChipLogError(Controller, "Could not get JNIEnv for current thread"));

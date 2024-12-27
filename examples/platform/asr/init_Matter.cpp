@@ -85,10 +85,10 @@ CHIP_ERROR MatterInitializer::Init_Matter_Stack(const char * appName)
 
     chip::DeviceLayer::ConnectivityMgr().SetBLEDeviceName(appName);
 
-#if CONFIG_NETWORK_LAYER_BLE
-    ConnectivityMgr().SetBLEAdvertisingEnabled(true);
-#endif
-
+    if (CONFIG_NETWORK_LAYER_BLE)
+    {
+        ConnectivityMgr().SetBLEAdvertisingEnabled(true);
+    }
     return CHIP_NO_ERROR;
 }
 

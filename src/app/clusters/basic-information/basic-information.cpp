@@ -20,7 +20,6 @@
 
 #include <app-common/zap-generated/attributes/Accessors.h>
 #include <app-common/zap-generated/cluster-objects.h>
-#include <app/AttributeAccessInterfaceRegistry.h>
 #include <app/EventLogging.h>
 #include <app/InteractionModelEngine.h>
 #include <app/SpecificationDefinedRevisions.h>
@@ -342,7 +341,7 @@ CHIP_ERROR BasicAttrAccess::Write(const ConcreteDataAttributePath & aPath, Attri
 
     switch (aPath.mAttributeId)
     {
-    case Attributes::Location::Id: {
+    case Location::Id: {
         CHIP_ERROR err = WriteLocation(aDecoder);
 
         return err;
@@ -476,6 +475,6 @@ bool IsLocalConfigDisabled()
 
 void MatterBasicInformationPluginServerInitCallback()
 {
-    AttributeAccessInterfaceRegistry::Instance().Register(&gAttrAccess);
+    registerAttributeAccessOverride(&gAttrAccess);
     PlatformMgr().SetDelegate(&gPlatformMgrDelegate);
 }

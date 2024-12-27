@@ -28,7 +28,6 @@
 #include <app-common/zap-generated/ids/Attributes.h>
 #include <app-common/zap-generated/ids/Clusters.h>
 #include <app/AttributeAccessInterface.h>
-#include <app/AttributeAccessInterfaceRegistry.h>
 #include <app/EventLogging.h>
 #include <app/reporting/reporting.h>
 #include <app/util/attribute-storage.h>
@@ -491,7 +490,7 @@ void MatterGeneralDiagnosticsPluginServerInitCallback()
 {
     BootReasonEnum bootReason;
 
-    AttributeAccessInterfaceRegistry::Instance().Register(&gAttrAccess);
+    registerAttributeAccessOverride(&gAttrAccess);
     ConnectivityMgr().SetDelegate(&gDiagnosticDelegate);
 
     if (GetDiagnosticDataProvider().GetBootReason(bootReason) == CHIP_NO_ERROR)

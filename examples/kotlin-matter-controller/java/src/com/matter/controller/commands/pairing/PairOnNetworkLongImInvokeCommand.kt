@@ -22,7 +22,7 @@ import java.util.logging.Level
 import java.util.logging.Logger
 import kotlinx.coroutines.runBlocking
 import matter.controller.MatterController
-import matter.controller.cluster.clusters.UnitTestingCluster
+import matter.controller.cluster.clusters.IdentifyCluster
 
 class PairOnNetworkLongImInvokeCommand(
   controller: MatterController,
@@ -39,14 +39,12 @@ class PairOnNetworkLongImInvokeCommand(
   override fun runCommand() {
     runBlocking {
       try {
-        val arg1: UByte = 1u
-        val arg2: UByte = 2u
-        val testCluster = UnitTestingCluster(controller = currentCommissioner(), endpointId = 1u)
+        val identifyTime: UShort = 1u
+        val identifyCluster = IdentifyCluster(controller = currentCommissioner(), endpointId = 0u)
 
-        // By running command testAddArguments, we are implicitly requesting CASE to be established
-        // if it's
+        // By running command identify, we are implicitly requesting CASE to be established if it's
         // not already present.
-        testCluster.testAddArguments(arg1, arg2)
+        identifyCluster.identify(identifyTime)
         logger.log(Level.INFO, "Invoke command succeeded")
       } catch (ex: Exception) {
         setFailure("invoke failure: ${ex.message}")

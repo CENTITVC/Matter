@@ -33,8 +33,7 @@ struct ResolveResult
 {
     Transport::PeerAddress address;
     ReliableMessageProtocolConfig mrpRemoteConfig;
-    bool supportsTcpServer   = false;
-    bool supportsTcpClient   = false;
+    bool supportsTcp         = false;
     bool isICDOperatingAsLIT = false;
 
     ResolveResult() : address(Transport::Type::kUdp), mrpRemoteConfig(GetDefaultMRPConfig()) {}
@@ -143,14 +142,8 @@ public:
     }
 
 private:
-    static_assert((CHIP_CONFIG_ADDRESS_RESOLVE_MIN_LOOKUP_TIME_MS) <= (CHIP_CONFIG_ADDRESS_RESOLVE_MAX_LOOKUP_TIME_MS),
-                  "AddressResolveMinLookupTime must be equal or less than AddressResolveMaxLookupTime");
-    static_assert((CHIP_CONFIG_ADDRESS_RESOLVE_MIN_LOOKUP_TIME_MS) >= 0,
-                  "AddressResolveMinLookupTime must be equal or greater than 0");
-    static_assert((CHIP_CONFIG_ADDRESS_RESOLVE_MAX_LOOKUP_TIME_MS) < UINT32_MAX,
-                  "AddressResolveMaxLookupTime must be less than UINT32_MAX");
-    static constexpr uint32_t kMinLookupTimeMsDefault = CHIP_CONFIG_ADDRESS_RESOLVE_MIN_LOOKUP_TIME_MS;
-    static constexpr uint32_t kMaxLookupTimeMsDefault = CHIP_CONFIG_ADDRESS_RESOLVE_MAX_LOOKUP_TIME_MS;
+    static constexpr uint32_t kMinLookupTimeMsDefault = 200;
+    static constexpr uint32_t kMaxLookupTimeMsDefault = 45000;
 
     PeerId mPeerId;
     System::Clock::Milliseconds32 mMinLookupTimeMs{ kMinLookupTimeMsDefault };
@@ -260,17 +253,13 @@ public:
 } // namespace AddressResolve
 } // namespace chip
 
-// Include the required platform header for the actual implementation, if defined.
-// Otherwise assume the default implementation is being used.
+// outside the open space, include the required platform headers for the
+// actual implementation.
 // Expectations of this include:
 //   - define the `Impl::NodeLookupHandle` deriving from NodeLookupHandleBase
 //   - corresponding CPP file should provide a valid Resolver::Instance()
 //     implementation
-#ifdef CHIP_ADDRESS_RESOLVE_IMPL_INCLUDE_HEADER
 #include CHIP_ADDRESS_RESOLVE_IMPL_INCLUDE_HEADER
-#else
-#include <lib/address_resolve/AddressResolve_DefaultImpl.h>
-#endif
 
 namespace chip {
 namespace AddressResolve {

@@ -24,7 +24,6 @@
 
 #include <lib/support/CHIPMem.h>
 #include <lib/support/CodeUtils.h>
-#include <lib/support/ObjectDump.h>
 #include <system/SystemConfig.h>
 
 #include <lib/support/Iterators.h>
@@ -264,7 +263,7 @@ class BitMapObjectPool : public internal::StaticAllocatorBitmap
 {
 public:
     BitMapObjectPool() : StaticAllocatorBitmap(mData.mMemory, mUsage, N, sizeof(T)) {}
-    ~BitMapObjectPool() { VerifyOrDieWithObject(Allocated() == 0, this); }
+    ~BitMapObjectPool() { VerifyOrDie(Allocated() == 0); }
 
     BitmapActiveObjectIterator<T> begin() { return BitmapActiveObjectIterator<T>(this, FirstActiveIndex()); }
     BitmapActiveObjectIterator<T> end() { return BitmapActiveObjectIterator<T>(this, N); }
@@ -322,18 +321,6 @@ public:
                       "The function must take const T* and return Loop");
         internal::LambdaProxy<T, Function> proxy(std::forward<Function>(function));
         return ForEachActiveObjectInner(&proxy, &internal::LambdaProxy<T, Function>::ConstCall);
-    }
-
-    void DumpToLog() const
-    {
-        ChipLogError(Support, "BitMapObjectPool: %lu allocated", static_cast<unsigned long>(Allocated()));
-        if constexpr (IsDumpable<T>::value)
-        {
-            ForEachActiveObject([](const T * object) {
-                object->DumpToLog();
-                return Loop::Continue;
-            });
-        }
     }
 
 private:
@@ -402,7 +389,7 @@ public:
         if (!sIgnoringLeaksOnExit)
         {
             // Verify that no live objects remain, to prevent potential use-after-free.
-            VerifyOrDieWithObject(Allocated() == 0, this);
+            VerifyOrDie(Allocated() == 0);
         }
 #endif // __SANITIZE_ADDRESS__
     }
@@ -581,18 +568,6 @@ public:
                       "The function must take const T* and return Loop");
         internal::LambdaProxy<const T, Function> proxy(std::forward<Function>(function));
         return mObjects.ForEachNode(&proxy, &internal::LambdaProxy<const T, Function>::ConstCall);
-    }
-
-    void DumpToLog() const
-    {
-        ChipLogError(Support, "HeapObjectPool: %lu allocated", static_cast<unsigned long>(Allocated()));
-        if constexpr (IsDumpable<T>::value)
-        {
-            ForEachActiveObject([](const T * object) {
-                object->DumpToLog();
-                return Loop::Continue;
-            });
-        }
     }
 
 private:

@@ -40,8 +40,7 @@ chip::Protocols::Echo::EchoServer gEchoServer;
  */
 void HandleEchoRequestReceived(chip::Messaging::ExchangeContext * ec, chip::System::PacketBufferHandle && payload)
 {
-    ChipLogProgress(AppServer, "Echo Request, len=%" PRIu32 "... sending response.\n",
-                    static_cast<uint32_t>(payload->DataLength()));
+    ChipLogProgress(AppServer, "Echo Request, len=%u ... sending response.\n", payload->DataLength());
 }
 
 } // namespace

@@ -14,80 +14,79 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-
-#include <pw_unit_test/framework.h>
-
-#include <lib/core/StringBuilderAdapters.h>
 #include <lib/support/StringBuilder.h>
+#include <lib/support/UnitTestRegistration.h>
+
+#include <nlunit-test.h>
 
 namespace {
 
 using namespace chip;
 
-TEST(TestStringBuilder, TestStringBuilder)
+void TestStringBuilder(nlTestSuite * inSuite, void * inContext)
 {
 
     StringBuilder<64> builder;
 
-    EXPECT_TRUE(builder.Fit());
-    EXPECT_STREQ(builder.c_str(), "");
+    NL_TEST_ASSERT(inSuite, builder.Fit());
+    NL_TEST_ASSERT(inSuite, strcmp(builder.c_str(), "") == 0);
 
     builder.Add("foo");
-    EXPECT_TRUE(builder.Fit());
-    EXPECT_STREQ(builder.c_str(), "foo");
+    NL_TEST_ASSERT(inSuite, builder.Fit());
+    NL_TEST_ASSERT(inSuite, strcmp(builder.c_str(), "foo") == 0);
 
     builder.Add("bar");
-    EXPECT_TRUE(builder.Fit());
-    EXPECT_STREQ(builder.c_str(), "foobar");
+    NL_TEST_ASSERT(inSuite, builder.Fit());
+    NL_TEST_ASSERT(inSuite, strcmp(builder.c_str(), "foobar") == 0);
 }
 
-TEST(TestStringBuilder, TestIntegerAppend)
+void TestIntegerAppend(nlTestSuite * inSuite, void * inContext)
 {
 
     StringBuilder<64> builder;
 
     builder.Add("nr: ").Add(1234);
-    EXPECT_TRUE(builder.Fit());
-    EXPECT_STREQ(builder.c_str(), "nr: 1234");
+    NL_TEST_ASSERT(inSuite, builder.Fit());
+    NL_TEST_ASSERT(inSuite, strcmp(builder.c_str(), "nr: 1234") == 0);
 
     builder.Add(", ").Add(-22);
-    EXPECT_TRUE(builder.Fit());
-    EXPECT_STREQ(builder.c_str(), "nr: 1234, -22");
+    NL_TEST_ASSERT(inSuite, builder.Fit());
+    NL_TEST_ASSERT(inSuite, strcmp(builder.c_str(), "nr: 1234, -22") == 0);
 }
 
-TEST(TestStringBuilder, TestOverflow)
+void TestOverflow(nlTestSuite * inSuite, void * inContext)
 {
 
     {
         StringBuilder<4> builder;
 
         builder.Add("foo");
-        EXPECT_TRUE(builder.Fit());
-        EXPECT_STREQ(builder.c_str(), "foo");
+        NL_TEST_ASSERT(inSuite, builder.Fit());
+        NL_TEST_ASSERT(inSuite, strcmp(builder.c_str(), "foo") == 0);
 
         builder.Add("bar");
-        EXPECT_FALSE(builder.Fit());
-        EXPECT_STREQ(builder.c_str(), "foo");
+        NL_TEST_ASSERT(inSuite, !builder.Fit());
+        NL_TEST_ASSERT(inSuite, strcmp(builder.c_str(), "foo") == 0);
     }
 
     {
         StringBuilder<7> builder;
 
         builder.Add("x: ").Add(12345);
-        EXPECT_FALSE(builder.Fit());
-        EXPECT_STREQ(builder.c_str(), "x: 123");
+        NL_TEST_ASSERT(inSuite, !builder.Fit());
+        NL_TEST_ASSERT(inSuite, strcmp(builder.c_str(), "x: 123") == 0);
     }
 }
 
-TEST(TestStringBuilder, TestFormat)
+void TestFormat(nlTestSuite * inSuite, void * inContext)
 {
     {
         StringBuilder<100> builder;
 
         builder.AddFormat("Test: %d Hello %s\n", 123, "world");
 
-        EXPECT_TRUE(builder.Fit());
-        EXPECT_STREQ(builder.c_str(), "Test: 123 Hello world\n");
+        NL_TEST_ASSERT(inSuite, builder.Fit());
+        NL_TEST_ASSERT(inSuite, strcmp(builder.c_str(), "Test: 123 Hello world\n") == 0);
     }
 
     {
@@ -95,8 +94,8 @@ TEST(TestStringBuilder, TestFormat)
 
         builder.AddFormat("Align: %-5s", "abc");
 
-        EXPECT_TRUE(builder.Fit());
-        EXPECT_STREQ(builder.c_str(), "Align: abc  ");
+        NL_TEST_ASSERT(inSuite, builder.Fit());
+        NL_TEST_ASSERT(inSuite, strcmp(builder.c_str(), "Align: abc  ") == 0);
     }
 
     {
@@ -105,20 +104,20 @@ TEST(TestStringBuilder, TestFormat)
         builder.AddFormat("Multi: %d", 1234);
         builder.AddFormat(", then 0x%04X", 0xab);
 
-        EXPECT_TRUE(builder.Fit());
-        EXPECT_STREQ(builder.c_str(), "Multi: 1234, then 0x00AB");
+        NL_TEST_ASSERT(inSuite, builder.Fit());
+        NL_TEST_ASSERT(inSuite, strcmp(builder.c_str(), "Multi: 1234, then 0x00AB") == 0);
     }
 }
 
-TEST(TestStringBuilder, TestFormatOverflow)
+void TestFormatOverflow(nlTestSuite * inSuite, void * inContext)
 {
     {
         StringBuilder<13> builder;
 
         builder.AddFormat("Test: %d Hello %s\n", 123, "world");
 
-        EXPECT_FALSE(builder.Fit());
-        EXPECT_STREQ(builder.c_str(), "Test: 123 He");
+        NL_TEST_ASSERT(inSuite, !builder.Fit());
+        NL_TEST_ASSERT(inSuite, strcmp(builder.c_str(), "Test: 123 He") == 0);
     }
 
     {
@@ -126,48 +125,48 @@ TEST(TestStringBuilder, TestFormatOverflow)
 
         builder.AddFormat("%d %d %d %d %d", 1, 2, 3, 4, 1234);
 
-        EXPECT_FALSE(builder.Fit());
-        EXPECT_STREQ(builder.c_str(), "1 2 3 4 12");
+        NL_TEST_ASSERT(inSuite, !builder.Fit());
+        NL_TEST_ASSERT(inSuite, strcmp(builder.c_str(), "1 2 3 4 12") == 0);
 
         builder.AddMarkerIfOverflow();
-        EXPECT_STREQ(builder.c_str(), "1 2 3 4...");
+        NL_TEST_ASSERT(inSuite, strcmp(builder.c_str(), "1 2 3 4...") == 0);
     }
 
     {
         StringBuilder<11> builder;
 
         builder.AddFormat("%d", 1234);
-        EXPECT_TRUE(builder.Fit());
-        EXPECT_STREQ(builder.c_str(), "1234");
+        NL_TEST_ASSERT(inSuite, builder.Fit());
+        NL_TEST_ASSERT(inSuite, strcmp(builder.c_str(), "1234") == 0);
 
         builder.AddFormat("%s", "abc");
-        EXPECT_TRUE(builder.Fit());
-        EXPECT_STREQ(builder.c_str(), "1234abc");
+        NL_TEST_ASSERT(inSuite, builder.Fit());
+        NL_TEST_ASSERT(inSuite, strcmp(builder.c_str(), "1234abc") == 0);
 
         builder.AddMarkerIfOverflow(); // no overflow
-        EXPECT_STREQ(builder.c_str(), "1234abc");
+        NL_TEST_ASSERT(inSuite, strcmp(builder.c_str(), "1234abc") == 0);
 
         builder.AddFormat("%08x", 0x123456);
-        EXPECT_FALSE(builder.Fit());
-        EXPECT_STREQ(builder.c_str(), "1234abc001");
+        NL_TEST_ASSERT(inSuite, !builder.Fit());
+        NL_TEST_ASSERT(inSuite, strcmp(builder.c_str(), "1234abc001") == 0);
 
         builder.AddMarkerIfOverflow();
-        EXPECT_STREQ(builder.c_str(), "1234abc...");
+        NL_TEST_ASSERT(inSuite, strcmp(builder.c_str(), "1234abc...") == 0);
     }
 }
 
-TEST(TestStringBuilder, TestOverflowMarker)
+void TestOverflowMarker(nlTestSuite * inSuite, void * inContext)
 {
     {
         StringBuilder<1> builder; // useless builder, but ok
 
         builder.Add("abc123");
 
-        EXPECT_FALSE(builder.Fit());
-        EXPECT_STREQ(builder.c_str(), "");
+        NL_TEST_ASSERT(inSuite, !builder.Fit());
+        NL_TEST_ASSERT(inSuite, strcmp(builder.c_str(), "") == 0);
 
         builder.AddMarkerIfOverflow();
-        EXPECT_STREQ(builder.c_str(), "");
+        NL_TEST_ASSERT(inSuite, strcmp(builder.c_str(), "") == 0);
     }
 
     {
@@ -175,11 +174,11 @@ TEST(TestStringBuilder, TestOverflowMarker)
 
         builder.Add("abc123");
 
-        EXPECT_FALSE(builder.Fit());
-        EXPECT_STREQ(builder.c_str(), "a");
+        NL_TEST_ASSERT(inSuite, !builder.Fit());
+        NL_TEST_ASSERT(inSuite, strcmp(builder.c_str(), "a") == 0);
 
         builder.AddMarkerIfOverflow();
-        EXPECT_STREQ(builder.c_str(), ".");
+        NL_TEST_ASSERT(inSuite, strcmp(builder.c_str(), ".") == 0);
     }
 
     {
@@ -187,11 +186,11 @@ TEST(TestStringBuilder, TestOverflowMarker)
 
         builder.Add("abc123");
 
-        EXPECT_FALSE(builder.Fit());
-        EXPECT_STREQ(builder.c_str(), "ab");
+        NL_TEST_ASSERT(inSuite, !builder.Fit());
+        NL_TEST_ASSERT(inSuite, strcmp(builder.c_str(), "ab") == 0);
 
         builder.AddMarkerIfOverflow();
-        EXPECT_STREQ(builder.c_str(), "..");
+        NL_TEST_ASSERT(inSuite, strcmp(builder.c_str(), "..") == 0);
     }
 
     {
@@ -199,11 +198,11 @@ TEST(TestStringBuilder, TestOverflowMarker)
 
         builder.Add("abc123");
 
-        EXPECT_FALSE(builder.Fit());
-        EXPECT_STREQ(builder.c_str(), "abc");
+        NL_TEST_ASSERT(inSuite, !builder.Fit());
+        NL_TEST_ASSERT(inSuite, strcmp(builder.c_str(), "abc") == 0);
 
         builder.AddMarkerIfOverflow();
-        EXPECT_STREQ(builder.c_str(), "...");
+        NL_TEST_ASSERT(inSuite, strcmp(builder.c_str(), "...") == 0);
     }
 
     {
@@ -211,12 +210,31 @@ TEST(TestStringBuilder, TestOverflowMarker)
 
         builder.Add("abc123");
 
-        EXPECT_FALSE(builder.Fit());
-        EXPECT_STREQ(builder.c_str(), "abc1");
+        NL_TEST_ASSERT(inSuite, !builder.Fit());
+        NL_TEST_ASSERT(inSuite, strcmp(builder.c_str(), "abc1") == 0);
 
         builder.AddMarkerIfOverflow();
-        EXPECT_STREQ(builder.c_str(), "a...");
+        NL_TEST_ASSERT(inSuite, strcmp(builder.c_str(), "a...") == 0);
     }
 }
 
+const nlTest sTests[] = {
+    NL_TEST_DEF("TestStringBuilder", TestStringBuilder),   //
+    NL_TEST_DEF("TestIntegerAppend", TestIntegerAppend),   //
+    NL_TEST_DEF("TestOverflow", TestOverflow),             //
+    NL_TEST_DEF("TestFormat", TestFormat),                 //
+    NL_TEST_DEF("TestFormatOverflow", TestFormatOverflow), //
+    NL_TEST_DEF("TestOverflowMarker", TestOverflowMarker), //
+    NL_TEST_SENTINEL()                                     //
+};
+
 } // namespace
+
+int TestStringBuilder()
+{
+    nlTestSuite theSuite = { "StringBuilder", sTests, nullptr, nullptr };
+    nlTestRunner(&theSuite, nullptr);
+    return nlTestRunnerStats(&theSuite);
+}
+
+CHIP_REGISTER_TEST_SUITE(TestStringBuilder)

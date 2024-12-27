@@ -22,13 +22,12 @@
  *      the SecureSessionTable class within the transport layer
  *
  */
-
-#include <pw_unit_test/framework.h>
-
 #include <lib/core/ErrorStr.h>
-#include <lib/core/StringBuilderAdapters.h>
 #include <lib/support/CodeUtils.h>
+#include <lib/support/UnitTestRegistration.h>
 #include <transport/SecureSessionTable.h>
+
+#include <nlunit-test.h>
 
 namespace {
 
@@ -57,14 +56,7 @@ const FabricIndex kFabricIndex = 8;
 const CATValues kPeer1CATs = { { 0xABCD0001, 0xABCE0100, 0xABCD0020 } };
 const CATValues kPeer2CATs = { { 0xABCD0012, kUndefinedCAT, kUndefinedCAT } };
 
-class TestPeerConnections : public ::testing::Test
-{
-public:
-    static void SetUpTestSuite() { ASSERT_EQ(chip::Platform::MemoryInit(), CHIP_NO_ERROR); }
-    static void TearDownTestSuite() { chip::Platform::MemoryShutdown(); }
-};
-
-TEST_F(TestPeerConnections, TestBasicFunctionality)
+void TestBasicFunctionality(nlTestSuite * inSuite, void * inContext)
 {
     SecureSessionTable connections;
     System::Clock::Internal::MockClock clock;
@@ -77,27 +69,27 @@ TEST_F(TestPeerConnections, TestBasicFunctionality)
     // First node, peer session id 1, local session id 2
     auto optionalSession = connections.CreateNewSecureSessionForTest(SecureSession::Type::kCASE, 2, kLocalNodeId, kCasePeer1NodeId,
                                                                      kPeer1CATs, 1, kFabricIndex, GetDefaultMRPConfig());
-    EXPECT_TRUE(optionalSession.HasValue());
-    EXPECT_EQ(optionalSession.Value()->AsSecureSession()->GetSecureSessionType(), SecureSession::Type::kCASE);
-    EXPECT_EQ(optionalSession.Value()->AsSecureSession()->GetPeerNodeId(), kCasePeer1NodeId);
-    EXPECT_EQ(optionalSession.Value()->AsSecureSession()->GetLocalNodeId(), kLocalNodeId);
-    EXPECT_EQ(optionalSession.Value()->GetPeer(), ScopedNodeId(kCasePeer1NodeId, kFabricIndex));
-    EXPECT_EQ(optionalSession.Value()->GetLocalScopedNodeId(), ScopedNodeId(kLocalNodeId, kFabricIndex));
+    NL_TEST_ASSERT(inSuite, optionalSession.HasValue());
+    NL_TEST_ASSERT(inSuite, optionalSession.Value()->AsSecureSession()->GetSecureSessionType() == SecureSession::Type::kCASE);
+    NL_TEST_ASSERT(inSuite, optionalSession.Value()->AsSecureSession()->GetPeerNodeId() == kCasePeer1NodeId);
+    NL_TEST_ASSERT(inSuite, optionalSession.Value()->AsSecureSession()->GetLocalNodeId() == kLocalNodeId);
+    NL_TEST_ASSERT(inSuite, optionalSession.Value()->GetPeer() == ScopedNodeId(kCasePeer1NodeId, kFabricIndex));
+    NL_TEST_ASSERT(inSuite, optionalSession.Value()->GetLocalScopedNodeId() == ScopedNodeId(kLocalNodeId, kFabricIndex));
     peerCATs = optionalSession.Value()->AsSecureSession()->GetPeerCATs();
-    EXPECT_EQ(memcmp(&peerCATs, &kPeer1CATs, sizeof(CATValues)), 0);
+    NL_TEST_ASSERT(inSuite, memcmp(&peerCATs, &kPeer1CATs, sizeof(CATValues)) == 0);
 
     // Second node, peer session id 3, local session id 4
     optionalSession = connections.CreateNewSecureSessionForTest(SecureSession::Type::kCASE, 4, kLocalNodeId, kCasePeer2NodeId,
                                                                 kPeer2CATs, 3, kFabricIndex, GetDefaultMRPConfig());
-    EXPECT_TRUE(optionalSession.HasValue());
-    EXPECT_EQ(optionalSession.Value()->AsSecureSession()->GetSecureSessionType(), SecureSession::Type::kCASE);
-    EXPECT_EQ(optionalSession.Value()->AsSecureSession()->GetPeerNodeId(), kCasePeer2NodeId);
-    EXPECT_EQ(optionalSession.Value()->AsSecureSession()->GetLocalNodeId(), kLocalNodeId);
-    EXPECT_EQ(optionalSession.Value()->GetPeer(), ScopedNodeId(kCasePeer2NodeId, kFabricIndex));
-    EXPECT_EQ(optionalSession.Value()->GetLocalScopedNodeId(), ScopedNodeId(kLocalNodeId, kFabricIndex));
-    EXPECT_EQ(optionalSession.Value()->AsSecureSession()->GetLastActivityTime(), 100_ms64);
+    NL_TEST_ASSERT(inSuite, optionalSession.HasValue());
+    NL_TEST_ASSERT(inSuite, optionalSession.Value()->AsSecureSession()->GetSecureSessionType() == SecureSession::Type::kCASE);
+    NL_TEST_ASSERT(inSuite, optionalSession.Value()->AsSecureSession()->GetPeerNodeId() == kCasePeer2NodeId);
+    NL_TEST_ASSERT(inSuite, optionalSession.Value()->AsSecureSession()->GetLocalNodeId() == kLocalNodeId);
+    NL_TEST_ASSERT(inSuite, optionalSession.Value()->GetPeer() == ScopedNodeId(kCasePeer2NodeId, kFabricIndex));
+    NL_TEST_ASSERT(inSuite, optionalSession.Value()->GetLocalScopedNodeId() == ScopedNodeId(kLocalNodeId, kFabricIndex));
+    NL_TEST_ASSERT(inSuite, optionalSession.Value()->AsSecureSession()->GetLastActivityTime() == 100_ms64);
     peerCATs = optionalSession.Value()->AsSecureSession()->GetPeerCATs();
-    EXPECT_EQ(memcmp(&peerCATs, &kPeer2CATs, sizeof(CATValues)), 0);
+    NL_TEST_ASSERT(inSuite, memcmp(&peerCATs, &kPeer2CATs, sizeof(CATValues)) == 0);
 
     //
     // Fill up the session table.
@@ -107,14 +99,14 @@ TEST_F(TestPeerConnections, TestBasicFunctionality)
         sessions[i] = connections.CreateNewSecureSessionForTest(
             SecureSession::Type::kCASE, static_cast<uint16_t>(static_cast<uint16_t>(i) + 6u), kLocalNodeId, kCasePeer2NodeId,
             kPeer2CATs, 3, kFabricIndex, GetDefaultMRPConfig());
-        EXPECT_TRUE(sessions[i].HasValue());
+        NL_TEST_ASSERT(inSuite, sessions[i].HasValue());
     }
 
     // #endif
     System::Clock::Internal::SetSystemClockForTesting(realClock);
 }
 
-TEST_F(TestPeerConnections, TestFindByKeyId)
+void TestFindByKeyId(nlTestSuite * inSuite, void * inContext)
 {
     SecureSessionTable connections;
     System::Clock::Internal::MockClock clock;
@@ -124,18 +116,18 @@ TEST_F(TestPeerConnections, TestFindByKeyId)
     // First node, peer session id 1, local session id 2
     auto optionalSession = connections.CreateNewSecureSessionForTest(SecureSession::Type::kCASE, 2, kLocalNodeId, kCasePeer1NodeId,
                                                                      kPeer1CATs, 1, kFabricIndex, GetDefaultMRPConfig());
-    EXPECT_TRUE(optionalSession.HasValue());
+    NL_TEST_ASSERT(inSuite, optionalSession.HasValue());
 
-    EXPECT_FALSE(connections.FindSecureSessionByLocalKey(1).HasValue());
-    EXPECT_TRUE(connections.FindSecureSessionByLocalKey(2).HasValue());
+    NL_TEST_ASSERT(inSuite, !connections.FindSecureSessionByLocalKey(1).HasValue());
+    NL_TEST_ASSERT(inSuite, connections.FindSecureSessionByLocalKey(2).HasValue());
 
     // Second node, peer session id 3, local session id 4
     optionalSession = connections.CreateNewSecureSessionForTest(SecureSession::Type::kCASE, 4, kLocalNodeId, kCasePeer2NodeId,
                                                                 kPeer2CATs, 3, kFabricIndex, GetDefaultMRPConfig());
-    EXPECT_TRUE(optionalSession.HasValue());
+    NL_TEST_ASSERT(inSuite, optionalSession.HasValue());
 
-    EXPECT_FALSE(connections.FindSecureSessionByLocalKey(3).HasValue());
-    EXPECT_TRUE(connections.FindSecureSessionByLocalKey(4).HasValue());
+    NL_TEST_ASSERT(inSuite, !connections.FindSecureSessionByLocalKey(3).HasValue());
+    NL_TEST_ASSERT(inSuite, connections.FindSecureSessionByLocalKey(4).HasValue());
 
     System::Clock::Internal::SetSystemClockForTesting(realClock);
 }
@@ -147,4 +139,34 @@ struct ExpiredCallInfo
     PeerAddress lastCallPeerAddress = PeerAddress::Uninitialized();
 };
 
+int Initialize(void * apSuite)
+{
+    VerifyOrReturnError(chip::Platform::MemoryInit() == CHIP_NO_ERROR, FAILURE);
+    return SUCCESS;
+}
+
+int Finalize(void * aContext)
+{
+    chip::Platform::MemoryShutdown();
+    return SUCCESS;
+}
+
 } // namespace
+
+// clang-format off
+static const nlTest sTests[] =
+{
+    NL_TEST_DEF("BasicFunctionality", TestBasicFunctionality),
+    NL_TEST_DEF("FindByKeyId", TestFindByKeyId),
+    NL_TEST_SENTINEL()
+};
+// clang-format on
+
+int TestPeerConnectionsFn()
+{
+    nlTestSuite theSuite = { "Transport-SecureSessionTable", &sTests[0], Initialize, Finalize };
+    nlTestRunner(&theSuite, nullptr);
+    return nlTestRunnerStats(&theSuite);
+}
+
+CHIP_REGISTER_TEST_SUITE(TestPeerConnectionsFn)

@@ -34,7 +34,9 @@ using namespace ::chip::DeviceLayer;
 
 CHIP_ERROR PlatformEventing::ScheduleLambdaBridge(System::Layer & aLayer, LambdaBridge && bridge)
 {
-    ChipDeviceEvent event{ .Type = DeviceEventType::kChipLambdaEvent, .LambdaEvent = std::move(bridge) };
+    ChipDeviceEvent event;
+    event.Type        = DeviceEventType::kChipLambdaEvent;
+    event.LambdaEvent = std::move(bridge);
 
     return PlatformMgr().PostEvent(&event);
 }

@@ -23,7 +23,6 @@
  */
 
 #include <platform/internal/CHIPDeviceLayerInternal.h>
-#include <tracing/metric_macros.h>
 
 #if !CHIP_DISABLE_PLATFORM_KVS
 #include <platform/Darwin/DeviceInstanceInfoProviderImpl.h>
@@ -31,51 +30,37 @@
 #endif
 
 #include <platform/Darwin/DiagnosticDataProviderImpl.h>
-#include <platform/Darwin/PlatformMetricKeys.h>
 #include <platform/PlatformManager.h>
 
 // Include the non-inline definitions for the GenericPlatformManagerImpl<> template,
-#if CHIP_SYSTEM_CONFIG_USE_DISPATCH
 #include <platform/internal/GenericPlatformManagerImpl.ipp>
-#else
-#include <platform/internal/GenericPlatformManagerImpl_POSIX.ipp>
-#endif // CHIP_SYSTEM_CONFIG_USE_DISPATCH
 
 #include <CoreFoundation/CoreFoundation.h>
-#include <tracing/metric_event.h>
-
-using namespace chip::Tracing::DarwinPlatform;
 
 namespace chip {
 namespace DeviceLayer {
 
-AtomicGlobal<PlatformManagerImpl> PlatformManagerImpl::sInstance;
-
-PlatformManagerImpl::PlatformManagerImpl() :
-    mWorkQueue(dispatch_queue_create("org.csa-iot.matter.workqueue",
-                                     dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL_WITH_AUTORELEASE_POOL,
-                                                                             QOS_CLASS_USER_INITIATED, QOS_MIN_RELATIVE_PRIORITY)))
-{
-    // Tag our queue for IsWorkQueueCurrentQueue()
-    dispatch_queue_set_specific(mWorkQueue, this, this, nullptr);
-    dispatch_suspend(mWorkQueue);
-}
+Global<PlatformManagerImpl> PlatformManagerImpl::sInstance;
 
 CHIP_ERROR PlatformManagerImpl::_InitChipStack()
 {
+    CHIP_ERROR err;
+
     // Initialize the configuration system.
 #if !CHIP_DISABLE_PLATFORM_KVS
-    ReturnErrorOnFailure(Internal::PosixConfig::Init());
+    err = Internal::PosixConfig::Init();
+    SuccessOrExit(err);
 #endif // CHIP_DISABLE_PLATFORM_KVS
 
-#if CHIP_SYSTEM_CONFIG_USE_DISPATCH
+#if !CHIP_SYSTEM_CONFIG_USE_LIBEV
     // Ensure there is a dispatch queue available
     static_cast<System::LayerSocketsLoop &>(DeviceLayer::SystemLayer()).SetDispatchQueue(GetWorkQueue());
 #endif
 
     // Call _InitChipStack() on the generic implementation base class
     // to finish the initialization process.
-    ReturnErrorOnFailure(Internal::GenericPlatformManagerImpl<PlatformManagerImpl>::_InitChipStack());
+    err = Internal::GenericPlatformManagerImpl<PlatformManagerImpl>::_InitChipStack();
+    SuccessOrExit(err);
 
 #if !CHIP_DISABLE_PLATFORM_KVS
     // Now set up our device instance info provider.  We couldn't do that
@@ -84,37 +69,53 @@ CHIP_ERROR PlatformManagerImpl::_InitChipStack()
 #endif // CHIP_DISABLE_PLATFORM_KVS
 
     mStartTime = System::SystemClock().GetMonotonicTimestamp();
-    return CHIP_NO_ERROR;
+
+exit:
+    return err;
 }
 
-#if CHIP_SYSTEM_CONFIG_USE_DISPATCH
 CHIP_ERROR PlatformManagerImpl::_StartEventLoopTask()
 {
-    auto expected = WorkQueueState::kSuspended;
-    VerifyOrReturnError(mWorkQueueState.compare_exchange_strong(expected, WorkQueueState::kRunning), CHIP_ERROR_INCORRECT_STATE);
-    dispatch_resume(mWorkQueue);
+    if (mIsWorkQueueSuspended)
+    {
+        mIsWorkQueueSuspended = false;
+        dispatch_resume(mWorkQueue);
+    }
+
     return CHIP_NO_ERROR;
 };
 
 CHIP_ERROR PlatformManagerImpl::_StopEventLoopTask()
 {
-    auto expected = WorkQueueState::kRunning;
-    VerifyOrReturnError(mWorkQueueState.compare_exchange_strong(expected, WorkQueueState::kSuspensionPending),
-                        CHIP_ERROR_INCORRECT_STATE);
-
-    // We need to dispatch to the work queue to ensure any currently queued jobs
-    // finish executing. When called from outside the work queue we also need to
-    // wait for them to complete before returning to the caller, so we use
-    // dispatch_sync in that case.
-    (IsWorkQueueCurrentQueue() ? dispatch_async : dispatch_sync)(mWorkQueue, ^{
-        dispatch_suspend(mWorkQueue);
-        mWorkQueueState.store(WorkQueueState::kSuspended);
-        auto * semaphore = mRunLoopSem;
-        if (semaphore != nullptr)
+    if (!mIsWorkQueueSuspended && !mIsWorkQueueSuspensionPending)
+    {
+        mIsWorkQueueSuspensionPending = true;
+        if (!IsWorkQueueCurrentQueue())
         {
-            dispatch_semaphore_signal(semaphore);
+            // dispatch_sync is used in order to guarantee serialization of the caller with
+            // respect to any tasks that might already be on the queue, or running.
+            dispatch_sync(mWorkQueue, ^{
+                dispatch_suspend(mWorkQueue);
+            });
+
+            mIsWorkQueueSuspended         = true;
+            mIsWorkQueueSuspensionPending = false;
         }
-    });
+        else
+        {
+            // We are called from a task running on our work queue.  Dispatch async,
+            // so we don't deadlock ourselves.  Note that we do have to dispatch to
+            // guarantee that we don't signal the semaphore until we have ensured
+            // that no more tasks will run on the queue.
+            dispatch_async(mWorkQueue, ^{
+                dispatch_suspend(mWorkQueue);
+                mIsWorkQueueSuspended         = true;
+                mIsWorkQueueSuspensionPending = false;
+                dispatch_semaphore_signal(mRunLoopSem);
+            });
+        }
+    }
+
     return CHIP_NO_ERROR;
 }
 
@@ -133,47 +134,79 @@ void PlatformManagerImpl::_RunEventLoop()
     mRunLoopSem = nullptr;
 }
 
+void PlatformManagerImpl::_Shutdown()
+{
+    // Call up to the base class _Shutdown() to perform the bulk of the shutdown.
+    GenericPlatformManagerImpl<ImplClass>::_Shutdown();
+}
+
 CHIP_ERROR PlatformManagerImpl::_PostEvent(const ChipDeviceEvent * event)
 {
+    if (mWorkQueue == nullptr)
+    {
+        return CHIP_ERROR_INCORRECT_STATE;
+    }
+
     const ChipDeviceEvent eventCopy = *event;
     dispatch_async(mWorkQueue, ^{
-        DispatchEvent(&eventCopy);
+        Impl()->DispatchEvent(&eventCopy);
     });
     return CHIP_NO_ERROR;
 }
-#endif // CHIP_SYSTEM_CONFIG_USE_DISPATCH
 
 #if CHIP_STACK_LOCK_TRACKING_ENABLED
 bool PlatformManagerImpl::_IsChipStackLockedByCurrentThread() const
 {
-    // Assume our caller knows what they are doing in terms of concurrency if the work queue is suspended.
-    return IsWorkQueueCurrentQueue() || mWorkQueueState.load() == WorkQueueState::kSuspended;
+    // If we have no work queue, or it's suspended, then we assume our caller
+    // knows what they are doing in terms of their own concurrency.
+    return !mWorkQueue || mIsWorkQueueSuspended || IsWorkQueueCurrentQueue();
 };
 #endif
 
-bool PlatformManagerImpl::IsWorkQueueCurrentQueue() const
+static int sPlatformManagerKey; // We use pointer to this as key.
+
+dispatch_queue_t PlatformManagerImpl::GetWorkQueue()
 {
-    return dispatch_get_specific(this) == this;
+    if (mWorkQueue == nullptr)
+    {
+        mWorkQueue =
+            dispatch_queue_create(CHIP_CONTROLLER_QUEUE,
+                                  dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL_WITH_AUTORELEASE_POOL,
+                                                                          QOS_CLASS_USER_INITIATED, QOS_MIN_RELATIVE_PRIORITY));
+        dispatch_suspend(mWorkQueue);
+        dispatch_queue_set_specific(mWorkQueue, &sPlatformManagerKey, this, nullptr);
+        mIsWorkQueueSuspended = true;
+    }
+    return mWorkQueue;
 }
 
-CHIP_ERROR PlatformManagerImpl::StartBleScan(BleScannerDelegate * delegate, BleScanMode mode)
+bool PlatformManagerImpl::IsWorkQueueCurrentQueue() const
+{
+    return dispatch_get_specific(&sPlatformManagerKey) == this;
+}
+
+CHIP_ERROR PlatformManagerImpl::StartBleScan(BleScannerDelegate * delegate)
 {
 #if CONFIG_NETWORK_LAYER_BLE
-    ReturnErrorOnFailureWithMetric(kMetricBLEScan, Internal::BLEMgrImpl().StartScan(delegate, mode));
-    return CHIP_NO_ERROR;
-#else
-    return CHIP_ERROR_NOT_IMPLEMENTED;
+    ReturnErrorOnFailure(Internal::BLEMgrImpl().StartScan(delegate));
 #endif // CONFIG_NETWORK_LAYER_BLE
+    return CHIP_NO_ERROR;
 }
 
 CHIP_ERROR PlatformManagerImpl::StopBleScan()
 {
 #if CONFIG_NETWORK_LAYER_BLE
-    ReturnErrorOnFailureWithMetric(kMetricBLEScan, Internal::BLEMgrImpl().StopScan());
-    return CHIP_NO_ERROR;
-#else
-    return CHIP_ERROR_NOT_IMPLEMENTED;
+    ReturnErrorOnFailure(Internal::BLEMgrImpl().StopScan());
 #endif // CONFIG_NETWORK_LAYER_BLE
+    return CHIP_NO_ERROR;
+}
+
+CHIP_ERROR PlatformManagerImpl::PrepareCommissioning()
+{
+#if CONFIG_NETWORK_LAYER_BLE
+    ReturnErrorOnFailure(Internal::BLEMgrImpl().StartScan());
+#endif // CONFIG_NETWORK_LAYER_BLE
+    return CHIP_NO_ERROR;
 }
 
 } // namespace DeviceLayer

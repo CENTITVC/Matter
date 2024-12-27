@@ -33,6 +33,9 @@
     /* Cluster: Level Control, Attribute: StartUpCurrentLevel, Privilege: view */ \
     0x0000001F, /* Cluster: Access Control, Attribute: ACL, Privilege: administer */ \
     0x0000001F, /* Cluster: Access Control, Attribute: Extension, Privilege: administer */ \
+    /* Cluster: Access Control, Attribute: SubjectsPerAccessControlEntry, Privilege: view */ \
+    /* Cluster: Access Control, Attribute: TargetsPerAccessControlEntry, Privilege: view */ \
+    /* Cluster: Access Control, Attribute: AccessControlEntriesPerFabric, Privilege: view */ \
     /* Cluster: Basic Information, Attribute: NodeLabel, Privilege: view */ \
     /* Cluster: Basic Information, Attribute: Location, Privilege: view */ \
     /* Cluster: Basic Information, Attribute: LocalConfigDisabled, Privilege: view */ \
@@ -56,6 +59,9 @@
     /* Cluster: Level Control, Attribute: StartUpCurrentLevel, Privilege: view */ \
     0x00000000, /* Cluster: Access Control, Attribute: ACL, Privilege: administer */ \
     0x00000001, /* Cluster: Access Control, Attribute: Extension, Privilege: administer */ \
+    /* Cluster: Access Control, Attribute: SubjectsPerAccessControlEntry, Privilege: view */ \
+    /* Cluster: Access Control, Attribute: TargetsPerAccessControlEntry, Privilege: view */ \
+    /* Cluster: Access Control, Attribute: AccessControlEntriesPerFabric, Privilege: view */ \
     /* Cluster: Basic Information, Attribute: NodeLabel, Privilege: view */ \
     /* Cluster: Basic Information, Attribute: Location, Privilege: view */ \
     /* Cluster: Basic Information, Attribute: LocalConfigDisabled, Privilege: view */ \
@@ -79,6 +85,9 @@
     /* Cluster: Level Control, Attribute: StartUpCurrentLevel, Privilege: view */ \
     chip::Access::Privilege::kAdminister, /* Cluster: Access Control, Attribute: ACL, Privilege: administer */ \
     chip::Access::Privilege::kAdminister, /* Cluster: Access Control, Attribute: Extension, Privilege: administer */ \
+    /* Cluster: Access Control, Attribute: SubjectsPerAccessControlEntry, Privilege: view */ \
+    /* Cluster: Access Control, Attribute: TargetsPerAccessControlEntry, Privilege: view */ \
+    /* Cluster: Access Control, Attribute: AccessControlEntriesPerFabric, Privilege: view */ \
     /* Cluster: Basic Information, Attribute: NodeLabel, Privilege: view */ \
     /* Cluster: Basic Information, Attribute: Location, Privilege: view */ \
     /* Cluster: Basic Information, Attribute: LocalConfigDisabled, Privilege: view */ \
@@ -196,10 +205,6 @@
     0x0000003F, /* Cluster: Group Key Management, Command: KeySetRead, Privilege: administer */ \
     0x0000003F, /* Cluster: Group Key Management, Command: KeySetRemove, Privilege: administer */ \
     0x0000003F, /* Cluster: Group Key Management, Command: KeySetReadAllIndices, Privilege: administer */ \
-    0x00000062, /* Cluster: Scenes Management, Command: AddScene, Privilege: manage */ \
-    0x00000062, /* Cluster: Scenes Management, Command: RemoveScene, Privilege: manage */ \
-    0x00000062, /* Cluster: Scenes Management, Command: RemoveAllScenes, Privilege: manage */ \
-    0x00000062, /* Cluster: Scenes Management, Command: StoreScene, Privilege: manage */ \
 }
 
 // Parallel array data (cluster, *command*, privilege) for invoke command
@@ -238,10 +243,6 @@
     0x00000001, /* Cluster: Group Key Management, Command: KeySetRead, Privilege: administer */ \
     0x00000003, /* Cluster: Group Key Management, Command: KeySetRemove, Privilege: administer */ \
     0x00000004, /* Cluster: Group Key Management, Command: KeySetReadAllIndices, Privilege: administer */ \
-    0x00000000, /* Cluster: Scenes Management, Command: AddScene, Privilege: manage */ \
-    0x00000002, /* Cluster: Scenes Management, Command: RemoveScene, Privilege: manage */ \
-    0x00000003, /* Cluster: Scenes Management, Command: RemoveAllScenes, Privilege: manage */ \
-    0x00000004, /* Cluster: Scenes Management, Command: StoreScene, Privilege: manage */ \
 }
 
 // Parallel array data (cluster, command, *privilege*) for invoke command
@@ -280,10 +281,6 @@
     chip::Access::Privilege::kAdminister, /* Cluster: Group Key Management, Command: KeySetRead, Privilege: administer */ \
     chip::Access::Privilege::kAdminister, /* Cluster: Group Key Management, Command: KeySetRemove, Privilege: administer */ \
     chip::Access::Privilege::kAdminister, /* Cluster: Group Key Management, Command: KeySetReadAllIndices, Privilege: administer */ \
-    chip::Access::Privilege::kManage, /* Cluster: Scenes Management, Command: AddScene, Privilege: manage */ \
-    chip::Access::Privilege::kManage, /* Cluster: Scenes Management, Command: RemoveScene, Privilege: manage */ \
-    chip::Access::Privilege::kManage, /* Cluster: Scenes Management, Command: RemoveAllScenes, Privilege: manage */ \
-    chip::Access::Privilege::kManage, /* Cluster: Scenes Management, Command: StoreScene, Privilege: manage */ \
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -292,21 +289,18 @@
 #define GENERATED_ACCESS_READ_EVENT__CLUSTER { \
     0x0000001F, /* Cluster: Access Control, Event: AccessControlEntryChanged, Privilege: administer */ \
     0x0000001F, /* Cluster: Access Control, Event: AccessControlExtensionChanged, Privilege: administer */ \
-    0x0000001F, /* Cluster: Access Control, Event: FabricRestrictionReviewUpdate, Privilege: administer */ \
 }
 
 // Parallel array data (cluster, *event*, privilege) for read event
 #define GENERATED_ACCESS_READ_EVENT__EVENT { \
     0x00000000, /* Cluster: Access Control, Event: AccessControlEntryChanged, Privilege: administer */ \
     0x00000001, /* Cluster: Access Control, Event: AccessControlExtensionChanged, Privilege: administer */ \
-    0x00000002, /* Cluster: Access Control, Event: FabricRestrictionReviewUpdate, Privilege: administer */ \
 }
 
 // Parallel array data (cluster, event, *privilege*) for read event
 #define GENERATED_ACCESS_READ_EVENT__PRIVILEGE { \
     chip::Access::Privilege::kAdminister, /* Cluster: Access Control, Event: AccessControlEntryChanged, Privilege: administer */ \
     chip::Access::Privilege::kAdminister, /* Cluster: Access Control, Event: AccessControlExtensionChanged, Privilege: administer */ \
-    chip::Access::Privilege::kAdminister, /* Cluster: Access Control, Event: FabricRestrictionReviewUpdate, Privilege: administer */ \
 }
 
 ////////////////////////////////////////////////////////////////////////////////

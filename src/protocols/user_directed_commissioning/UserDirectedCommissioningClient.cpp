@@ -24,7 +24,6 @@
  */
 
 #include "UserDirectedCommissioning.h"
-#include <transport/raw/Base.h>
 
 #ifdef __ZEPHYR__
 #include <zephyr/kernel.h>
@@ -223,9 +222,6 @@ CHIP_ERROR CommissionerDeclaration::ReadPayload(uint8_t * udcPayload, size_t pay
         case kQRCodeDisplayedTag:
             err = reader.Get(mQRCodeDisplayed);
             break;
-        case kCancelPasscodeTag:
-            err = reader.Get(mCancelPasscode);
-            break;
         }
     }
 
@@ -239,13 +235,12 @@ CHIP_ERROR CommissionerDeclaration::ReadPayload(uint8_t * udcPayload, size_t pay
     return CHIP_NO_ERROR;
 }
 
-void UserDirectedCommissioningClient::OnMessageReceived(const Transport::PeerAddress & source, System::PacketBufferHandle && msg,
-                                                        Transport::MessageTransportContext * ctxt)
+void UserDirectedCommissioningClient::OnMessageReceived(const Transport::PeerAddress & source, System::PacketBufferHandle && msg)
 {
     char addrBuffer[chip::Transport::PeerAddress::kMaxToStringSize];
     source.ToString(addrBuffer);
 
-    ChipLogProgress(AppServer, "UserDirectedCommissioningClient::OnMessageReceived() from %s", addrBuffer);
+    ChipLogProgress(AppServer, "UserDirectedCommissioningClient::OnMessageReceived from %s", addrBuffer);
 
     PacketHeader packetHeader;
 
@@ -253,16 +248,14 @@ void UserDirectedCommissioningClient::OnMessageReceived(const Transport::PeerAdd
 
     if (packetHeader.IsEncrypted())
     {
-        ChipLogError(AppServer, "UserDirectedCommissioningClient::OnMessageReceived() UDC encryption flag set - ignoring");
+        ChipLogError(AppServer, "UDC encryption flag set - ignoring");
         return;
     }
 
     PayloadHeader payloadHeader;
     ReturnOnFailure(payloadHeader.DecodeAndConsume(msg));
 
-    ChipLogProgress(AppServer,
-                    "UserDirectedCommissioningClient::OnMessageReceived() CommissionerDeclaration DataLength() = %" PRIu32,
-                    static_cast<uint32_t>(msg->DataLength()));
+    ChipLogProgress(AppServer, "CommissionerDeclaration DataLength()=%d", msg->DataLength());
 
     uint8_t udcPayload[IdentificationDeclaration::kUdcTLVDataMaxBytes];
     size_t udcPayloadLength = std::min<size_t>(msg->DataLength(), sizeof(udcPayload));
@@ -276,10 +269,6 @@ void UserDirectedCommissioningClient::OnMessageReceived(const Transport::PeerAdd
     if (mCommissionerDeclarationHandler != nullptr)
     {
         mCommissionerDeclarationHandler->OnCommissionerDeclarationMessage(source, cd);
-    }
-    else
-    {
-        ChipLogProgress(AppServer, "UserDirectedCommissioningClient::OnMessageReceived() No registered handler for UDC messages");
     }
 }
 

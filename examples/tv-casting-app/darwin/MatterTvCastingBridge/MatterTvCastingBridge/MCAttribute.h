@@ -15,6 +15,8 @@
  *    limitations under the License.
  */
 
+#import "MCObserver.h"
+
 #import <Foundation/Foundation.h>
 
 #ifndef MCAttribute_h

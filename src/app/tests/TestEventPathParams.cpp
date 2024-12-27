@@ -16,120 +16,65 @@
  *    limitations under the License.
  */
 
-#include <app/EventPathParams.h>
-#include <app/util/mock/Constants.h>
-#include <lib/core/StringBuilderAdapters.h>
-#include <pw_unit_test/framework.h>
+/**
+ *    @file
+ *      This file implements unit tests for EventPathParams
+ *
+ */
 
-using namespace chip::Test;
+#include <app/EventPathParams.h>
+#include <lib/support/UnitTestRegistration.h>
+#include <nlunit-test.h>
 
 namespace chip {
 namespace app {
 namespace TestEventPathParams {
-
-class TestEventPathParams : public ::testing::Test
-{
-public:
-    static void SetUpTestSuite() { InitEventPaths(); }
-
-    static void InitEventPaths();
-
-    static chip::app::EventPathParams validEventpaths[6];
-};
-
-chip::app::EventPathParams TestEventPathParams::validEventpaths[6];
-
-TEST_F(TestEventPathParams, SamePath)
+void TestSamePath(nlTestSuite * apSuite, void * apContext)
 {
     EventPathParams eventPathParams1(2, 3, 4);
     EventPathParams eventPathParams2(2, 3, 4);
-    EXPECT_TRUE(eventPathParams1.IsSamePath(eventPathParams2));
+    NL_TEST_ASSERT(apSuite, eventPathParams1.IsSamePath(eventPathParams2));
 }
 
-TEST_F(TestEventPathParams, DifferentEndpointId)
+void TestDifferentEndpointId(nlTestSuite * apSuite, void * apContext)
 {
     EventPathParams eventPathParams1(2, 3, 4);
     EventPathParams eventPathParams2(6, 3, 4);
-    EXPECT_FALSE(eventPathParams1.IsSamePath(eventPathParams2));
+    NL_TEST_ASSERT(apSuite, !eventPathParams1.IsSamePath(eventPathParams2));
 }
 
-TEST_F(TestEventPathParams, DifferentClusterId)
+void TestDifferentClusterId(nlTestSuite * apSuite, void * apContext)
 {
     EventPathParams eventPathParams1(2, 3, 4);
     EventPathParams eventPathParams2(2, 6, 4);
-    EXPECT_FALSE(eventPathParams1.IsSamePath(eventPathParams2));
+    NL_TEST_ASSERT(apSuite, !eventPathParams1.IsSamePath(eventPathParams2));
 }
 
-TEST_F(TestEventPathParams, DifferentEventId)
+void TestDifferentEventId(nlTestSuite * apSuite, void * apContext)
 {
     EventPathParams eventPathParams1(2, 3, 4);
     EventPathParams eventPathParams2(2, 3, 6);
-    EXPECT_FALSE(eventPathParams1.IsSamePath(eventPathParams2));
+    NL_TEST_ASSERT(apSuite, !eventPathParams1.IsSamePath(eventPathParams2));
 }
-
-/* after Init, validEventpaths array will have the following values:
-{kInvalidEndpointId, kInvalidClusterId, kInvalidEventId},
-{kInvalidEndpointId, MockClusterId(1), kInvalidEventId},
-{kInvalidEndpointId, MockClusterId(1), MockEventId(1)},
-{kMockEndpoint1, kInvalidClusterId, kInvalidEventId},
-{kMockEndpoint1, MockClusterId(1), kInvalidEventId},
-{kMockEndpoint1, MockClusterId(1), MockEventId(1)},
-*/
-void TestEventPathParams::InitEventPaths()
-{
-    validEventpaths[1].mClusterId  = MockClusterId(1);
-    validEventpaths[2].mClusterId  = MockClusterId(1);
-    validEventpaths[2].mEventId    = MockEventId(1);
-    validEventpaths[3].mEndpointId = kMockEndpoint1;
-    validEventpaths[4].mEndpointId = kMockEndpoint1;
-    validEventpaths[4].mClusterId  = MockClusterId(1);
-    validEventpaths[5].mEndpointId = kMockEndpoint1;
-    validEventpaths[5].mClusterId  = MockClusterId(1);
-    validEventpaths[5].mEventId    = MockEventId(1);
-}
-
-TEST_F(TestEventPathParams, ConcreteEventPathSameEventId)
-{
-    ConcreteEventPath testPath(kMockEndpoint1, MockClusterId(1), MockEventId(1));
-    for (auto & path : validEventpaths)
-    {
-        EXPECT_TRUE(path.IsValidEventPath());
-        EXPECT_TRUE(path.IsEventPathSupersetOf(testPath));
-    }
-}
-TEST_F(TestEventPathParams, ConcreteEventPathDifferentEndpointId)
-{
-    ConcreteEventPath testPath(kMockEndpoint2, MockClusterId(1), MockEventId(1));
-    EXPECT_TRUE(validEventpaths[0].IsEventPathSupersetOf(testPath));
-    EXPECT_TRUE(validEventpaths[1].IsEventPathSupersetOf(testPath));
-    EXPECT_TRUE(validEventpaths[2].IsEventPathSupersetOf(testPath));
-    EXPECT_FALSE(validEventpaths[3].IsEventPathSupersetOf(testPath));
-    EXPECT_FALSE(validEventpaths[4].IsEventPathSupersetOf(testPath));
-    EXPECT_FALSE(validEventpaths[5].IsEventPathSupersetOf(testPath));
-}
-
-TEST_F(TestEventPathParams, ConcreteEventPathDifferentClusterId)
-{
-    ConcreteEventPath testPath(kMockEndpoint1, MockClusterId(2), MockEventId(1));
-    EXPECT_TRUE(validEventpaths[0].IsEventPathSupersetOf(testPath));
-    EXPECT_FALSE(validEventpaths[1].IsEventPathSupersetOf(testPath));
-    EXPECT_FALSE(validEventpaths[2].IsEventPathSupersetOf(testPath));
-    EXPECT_TRUE(validEventpaths[3].IsEventPathSupersetOf(testPath));
-    EXPECT_FALSE(validEventpaths[4].IsEventPathSupersetOf(testPath));
-    EXPECT_FALSE(validEventpaths[5].IsEventPathSupersetOf(testPath));
-}
-
-TEST_F(TestEventPathParams, ConcreteEventPathDifferentEventId)
-{
-    ConcreteEventPath testPath(kMockEndpoint1, MockClusterId(1), MockEventId(2));
-    EXPECT_TRUE(validEventpaths[0].IsEventPathSupersetOf(testPath));
-    EXPECT_TRUE(validEventpaths[1].IsEventPathSupersetOf(testPath));
-    EXPECT_FALSE(validEventpaths[2].IsEventPathSupersetOf(testPath));
-    EXPECT_TRUE(validEventpaths[3].IsEventPathSupersetOf(testPath));
-    EXPECT_TRUE(validEventpaths[4].IsEventPathSupersetOf(testPath));
-    EXPECT_FALSE(validEventpaths[5].IsEventPathSupersetOf(testPath));
-}
-
 } // namespace TestEventPathParams
 } // namespace app
 } // namespace chip
+
+namespace {
+const nlTest sTests[] = { NL_TEST_DEF("TestSamePath", chip::app::TestEventPathParams::TestSamePath),
+                          NL_TEST_DEF("TestDifferentEndpointId", chip::app::TestEventPathParams::TestDifferentEndpointId),
+                          NL_TEST_DEF("TestDifferentClusterId", chip::app::TestEventPathParams::TestDifferentClusterId),
+                          NL_TEST_DEF("TestDifferentEventId", chip::app::TestEventPathParams::TestDifferentEventId),
+                          NL_TEST_SENTINEL() };
+}
+
+int TestEventPathParams()
+{
+    nlTestSuite theSuite = { "EventPathParams", &sTests[0], nullptr, nullptr };
+
+    nlTestRunner(&theSuite, nullptr);
+
+    return (nlTestRunnerStats(&theSuite));
+}
+
+CHIP_REGISTER_TEST_SUITE(TestEventPathParams)

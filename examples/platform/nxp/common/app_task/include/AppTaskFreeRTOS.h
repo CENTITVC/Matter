@@ -21,8 +21,9 @@
 
 #include "AppTaskBase.h"
 
-namespace chip::NXP::App {
-
+namespace chip {
+namespace NXP {
+namespace App {
 class AppTaskFreeRTOS : public AppTaskBase
 {
 public:
@@ -52,7 +53,7 @@ public:
      * \brief Send event to the event queue.
      *
      */
-    void PostEvent(const AppEvent & event) override;
+    void PostEvent(const AppEvent & event);
 
     /**
      * \brief Return a pointer to the NXP Wifi Driver instance.
@@ -64,27 +65,29 @@ public:
 #endif
 
     /**
-     * \brief This function registers custom matter CLI and button features.
+     * \brief This function register matter CLI and button features.
      *
      * \return CHIP_ERROR
      *
      */
     virtual CHIP_ERROR AppMatter_Register(void) override;
 
-    /**
-     * \brief The app event queue handle should be static such that the concrete
-     * application task can initialize it during Start() call.
-     */
-    QueueHandle_t appEventQueue;
+    /* Functions that would be called in the Matter task context */
+    static void StartCommissioning(intptr_t arg);
+    static void StopCommissioning(intptr_t arg);
+    static void SwitchCommissioningState(intptr_t arg);
 
-    /**
-     * \brief This value is used when xQueueReceive is called to specify
-     * the maximum amount of time the task should block waiting for an event.
-     * This can be modified according to the application needs.
-     */
-    TickType_t ticksToWait;
+    /* Commissioning handlers */
+    virtual void StartCommissioningHandler(void) override;
+    virtual void StopCommissioningHandler(void) override;
+    virtual void SwitchCommissioningStateHandler(void) override;
+
+    /* FactoryResetHandler */
+    virtual void FactoryResetHandler(void) override;
 
 private:
     void DispatchEvent(const AppEvent & event);
 };
-} // namespace chip::NXP::App
+} // namespace App
+} // namespace NXP
+} // namespace chip

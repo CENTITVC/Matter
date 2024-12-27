@@ -14,17 +14,16 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-
-#include <pw_unit_test/framework.h>
-
-#include <lib/core/StringBuilderAdapters.h>
 #include <lib/support/StringSplitter.h>
+#include <lib/support/UnitTestRegistration.h>
+
+#include <nlunit-test.h>
 
 namespace {
 
 using namespace chip;
 
-TEST(TestStringSplitter, TestStrdupSplitter)
+void TestStrdupSplitter(nlTestSuite * inSuite, void * inContext)
 {
     CharSpan out;
 
@@ -33,107 +32,122 @@ TEST(TestStringSplitter, TestStrdupSplitter)
         StringSplitter splitter("", ',');
 
         // next stays at nullptr
-        EXPECT_FALSE(splitter.Next(out));
-        EXPECT_EQ(out.data(), nullptr);
-        EXPECT_FALSE(splitter.Next(out));
-        EXPECT_EQ(out.data(), nullptr);
-        EXPECT_FALSE(splitter.Next(out));
-        EXPECT_EQ(out.data(), nullptr);
+        NL_TEST_ASSERT(inSuite, !splitter.Next(out));
+        NL_TEST_ASSERT(inSuite, out.data() == nullptr);
+        NL_TEST_ASSERT(inSuite, !splitter.Next(out));
+        NL_TEST_ASSERT(inSuite, out.data() == nullptr);
+        NL_TEST_ASSERT(inSuite, !splitter.Next(out));
+        NL_TEST_ASSERT(inSuite, out.data() == nullptr);
     }
 
     // single item
     {
         StringSplitter splitter("single", ',');
 
-        EXPECT_TRUE(splitter.Next(out));
-        EXPECT_TRUE(out.data_equal("single"_span));
+        NL_TEST_ASSERT(inSuite, splitter.Next(out));
+        NL_TEST_ASSERT(inSuite, out.data_equal("single"_span));
 
         // next stays at nullptr also after valid data
-        EXPECT_FALSE(splitter.Next(out));
-        EXPECT_EQ(out.data(), nullptr);
-        EXPECT_FALSE(splitter.Next(out));
-        EXPECT_EQ(out.data(), nullptr);
+        NL_TEST_ASSERT(inSuite, !splitter.Next(out));
+        NL_TEST_ASSERT(inSuite, out.data() == nullptr);
+        NL_TEST_ASSERT(inSuite, !splitter.Next(out));
+        NL_TEST_ASSERT(inSuite, out.data() == nullptr);
     }
 
     // multi-item
     {
         StringSplitter splitter("one,two,three", ',');
 
-        EXPECT_TRUE(splitter.Next(out));
-        EXPECT_TRUE(out.data_equal("one"_span));
-        EXPECT_TRUE(splitter.Next(out));
-        EXPECT_TRUE(out.data_equal("two"_span));
-        EXPECT_TRUE(splitter.Next(out));
-        EXPECT_TRUE(out.data_equal("three"_span));
-        EXPECT_FALSE(splitter.Next(out));
-        EXPECT_EQ(out.data(), nullptr);
+        NL_TEST_ASSERT(inSuite, splitter.Next(out));
+        NL_TEST_ASSERT(inSuite, out.data_equal("one"_span));
+        NL_TEST_ASSERT(inSuite, splitter.Next(out));
+        NL_TEST_ASSERT(inSuite, out.data_equal("two"_span));
+        NL_TEST_ASSERT(inSuite, splitter.Next(out));
+        NL_TEST_ASSERT(inSuite, out.data_equal("three"_span));
+        NL_TEST_ASSERT(inSuite, !splitter.Next(out));
+        NL_TEST_ASSERT(inSuite, out.data() == nullptr);
     }
 
     // mixed
     {
         StringSplitter splitter("a**bc*d,e*f", '*');
 
-        EXPECT_TRUE(splitter.Next(out));
-        EXPECT_TRUE(out.data_equal("a"_span));
-        EXPECT_TRUE(splitter.Next(out));
-        EXPECT_TRUE(out.data_equal(""_span));
-        EXPECT_TRUE(splitter.Next(out));
-        EXPECT_TRUE(out.data_equal("bc"_span));
-        EXPECT_TRUE(splitter.Next(out));
-        EXPECT_TRUE(out.data_equal("d,e"_span));
-        EXPECT_TRUE(splitter.Next(out));
-        EXPECT_TRUE(out.data_equal("f"_span));
-        EXPECT_FALSE(splitter.Next(out));
+        NL_TEST_ASSERT(inSuite, splitter.Next(out));
+        NL_TEST_ASSERT(inSuite, out.data_equal("a"_span));
+        NL_TEST_ASSERT(inSuite, splitter.Next(out));
+        NL_TEST_ASSERT(inSuite, out.data_equal(""_span));
+        NL_TEST_ASSERT(inSuite, splitter.Next(out));
+        NL_TEST_ASSERT(inSuite, out.data_equal("bc"_span));
+        NL_TEST_ASSERT(inSuite, splitter.Next(out));
+        NL_TEST_ASSERT(inSuite, out.data_equal("d,e"_span));
+        NL_TEST_ASSERT(inSuite, splitter.Next(out));
+        NL_TEST_ASSERT(inSuite, out.data_equal("f"_span));
+        NL_TEST_ASSERT(inSuite, !splitter.Next(out));
     }
 
     // some edge cases
     {
         StringSplitter splitter(",", ',');
         // Note that even though "" is nullptr right away, "," becomes two empty strings
-        EXPECT_TRUE(splitter.Next(out));
-        EXPECT_TRUE(out.data_equal(""_span));
-        EXPECT_TRUE(splitter.Next(out));
-        EXPECT_TRUE(out.data_equal(""_span));
-        EXPECT_FALSE(splitter.Next(out));
+        NL_TEST_ASSERT(inSuite, splitter.Next(out));
+        NL_TEST_ASSERT(inSuite, out.data_equal(""_span));
+        NL_TEST_ASSERT(inSuite, splitter.Next(out));
+        NL_TEST_ASSERT(inSuite, out.data_equal(""_span));
+        NL_TEST_ASSERT(inSuite, !splitter.Next(out));
     }
     {
         StringSplitter splitter("log,", ',');
-        EXPECT_TRUE(splitter.Next(out));
-        EXPECT_TRUE(out.data_equal("log"_span));
-        EXPECT_TRUE(splitter.Next(out));
-        EXPECT_TRUE(out.data_equal(""_span));
-        EXPECT_FALSE(splitter.Next(out));
+        NL_TEST_ASSERT(inSuite, splitter.Next(out));
+        NL_TEST_ASSERT(inSuite, out.data_equal("log"_span));
+        NL_TEST_ASSERT(inSuite, splitter.Next(out));
+        NL_TEST_ASSERT(inSuite, out.data_equal(""_span));
+        NL_TEST_ASSERT(inSuite, !splitter.Next(out));
     }
     {
         StringSplitter splitter(",log", ',');
-        EXPECT_TRUE(splitter.Next(out));
-        EXPECT_TRUE(out.data_equal(""_span));
-        EXPECT_TRUE(splitter.Next(out));
-        EXPECT_TRUE(out.data_equal("log"_span));
-        EXPECT_FALSE(splitter.Next(out));
+        NL_TEST_ASSERT(inSuite, splitter.Next(out));
+        NL_TEST_ASSERT(inSuite, out.data_equal(""_span));
+        NL_TEST_ASSERT(inSuite, splitter.Next(out));
+        NL_TEST_ASSERT(inSuite, out.data_equal("log"_span));
+        NL_TEST_ASSERT(inSuite, !splitter.Next(out));
     }
     {
         StringSplitter splitter(",,,", ',');
-        EXPECT_TRUE(splitter.Next(out));
-        EXPECT_TRUE(out.data_equal(""_span));
-        EXPECT_TRUE(splitter.Next(out));
-        EXPECT_TRUE(out.data_equal(""_span));
-        EXPECT_TRUE(splitter.Next(out));
-        EXPECT_TRUE(out.data_equal(""_span));
-        EXPECT_TRUE(splitter.Next(out));
-        EXPECT_TRUE(out.data_equal(""_span));
-        EXPECT_FALSE(splitter.Next(out));
+        NL_TEST_ASSERT(inSuite, splitter.Next(out));
+        NL_TEST_ASSERT(inSuite, out.data_equal(""_span));
+        NL_TEST_ASSERT(inSuite, splitter.Next(out));
+        NL_TEST_ASSERT(inSuite, out.data_equal(""_span));
+        NL_TEST_ASSERT(inSuite, splitter.Next(out));
+        NL_TEST_ASSERT(inSuite, out.data_equal(""_span));
+        NL_TEST_ASSERT(inSuite, splitter.Next(out));
+        NL_TEST_ASSERT(inSuite, out.data_equal(""_span));
+        NL_TEST_ASSERT(inSuite, !splitter.Next(out));
     }
 }
 
-TEST(TestStringSplitter, TestNullResilience)
+void TestNullResilience(nlTestSuite * inSuite, void * inContext)
 {
     {
         StringSplitter splitter(nullptr, ',');
         CharSpan span;
-        EXPECT_FALSE(splitter.Next(span));
-        EXPECT_EQ(span.data(), nullptr);
+        NL_TEST_ASSERT(inSuite, !splitter.Next(span));
+        NL_TEST_ASSERT(inSuite, span.data() == nullptr);
     }
 }
 
+const nlTest sTests[] = {
+    NL_TEST_DEF("TestSplitter", TestStrdupSplitter),       //
+    NL_TEST_DEF("TestNullResilience", TestNullResilience), //
+    NL_TEST_SENTINEL()                                     //
+};
+
 } // namespace
+
+int TestStringSplitter()
+{
+    nlTestSuite theSuite = { "StringSplitter", sTests, nullptr, nullptr };
+    nlTestRunner(&theSuite, nullptr);
+    return nlTestRunnerStats(&theSuite);
+}
+
+CHIP_REGISTER_TEST_SUITE(TestStringSplitter)

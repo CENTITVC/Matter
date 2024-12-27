@@ -34,7 +34,6 @@ struct AppEvent
         kEventType_IdentifyStop,
         kEventType_Light,
         kEventType_Timer,
-        kEventType_Identify,
     };
 
     enum AppEventButtonType

@@ -24,7 +24,6 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <filesystem>
 
 namespace chip {
 namespace Tracing {
@@ -37,14 +36,6 @@ CHIP_ERROR FileTraceOutput::Open(const char * file_name)
 
     // Close any existing files
     Close();
-
-    std::error_code ec;
-    std::filesystem::path filePath(file_name);
-    // Create directories if they don't exist
-    if (!std::filesystem::create_directories(filePath.remove_filename(), ec))
-    {
-        return CHIP_ERROR_POSIX(ec.value());
-    }
 
     // Create a trace file and start sending data to it
     mTraceFileId = open(file_name, O_RDWR | O_CREAT | O_TRUNC, 0640);

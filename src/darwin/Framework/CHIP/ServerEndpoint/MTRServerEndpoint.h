@@ -26,7 +26,7 @@ NS_ASSUME_NONNULL_BEGIN
  * A representation of an endpoint implemented by an MTRDeviceController.
  */
 NS_SWIFT_SENDABLE
-MTR_AVAILABLE(ios(17.6), macos(14.6), watchos(10.6), tvos(17.6))
+MTR_NEWLY_AVAILABLE
 @interface MTRServerEndpoint : NSObject
 
 - (instancetype)init NS_UNAVAILABLE;

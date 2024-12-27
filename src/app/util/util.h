@@ -21,7 +21,6 @@
 
 #include <app/util/af-types.h>
 #include <app/util/endpoint-config-api.h>
-#include <lib/core/DataModelTypes.h>
 
 void emberAfInit();
 

@@ -33,7 +33,6 @@ import chip.platform.NsdManagerServiceResolver
 import chip.platform.PreferencesConfigurationManager
 import chip.platform.PreferencesKeyValueStoreManager
 import com.google.chip.chiptool.attestation.ExampleAttestationTrustStoreDelegate
-import com.google.chip.chiptool.clusterclient.ICDCheckInCallback
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -45,8 +44,6 @@ object ChipClient {
   private lateinit var androidPlatform: AndroidChipPlatform
   /* 0xFFF4 is a test vendor ID, replace with your assigned company ID */
   const val VENDOR_ID = 0xFFF4
-
-  private var icdCheckInCallback: ICDCheckInCallback? = null
 
   fun getDeviceController(context: Context): ChipDeviceController {
     getAndroidChipPlatform(context)
@@ -70,7 +67,6 @@ object ChipClient {
         object : ICDCheckInDelegate {
           override fun onCheckInComplete(info: ICDClientInfo) {
             Log.d(TAG, "onCheckInComplete : $info")
-            icdCheckInCallback?.notifyCheckInMessage(info)
           }
 
           override fun onKeyRefreshNeeded(info: ICDClientInfo): ByteArray? {
@@ -108,25 +104,6 @@ object ChipClient {
     }
 
     return androidPlatform
-  }
-
-  fun setICDCheckInCallback(callback: ICDCheckInCallback) {
-    icdCheckInCallback = callback
-  }
-
-  fun startDnssd(context: Context) {
-    if (!this::chipDeviceController.isInitialized) {
-      getDeviceController(context)
-    } else {
-      chipDeviceController.startDnssd()
-    }
-  }
-
-  fun stopDnssd(context: Context) {
-    if (!this::chipDeviceController.isInitialized) {
-      getDeviceController(context)
-    }
-    chipDeviceController.stopDnssd()
   }
 
   /**

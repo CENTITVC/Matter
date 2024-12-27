@@ -24,15 +24,11 @@ import subprocess
 import sys
 from pathlib import Path
 
-BASIC_INFORMATION_CLUSTER_ID = int("0x0039", 16)
 CHIP_ROOT_DIR = os.path.realpath(
     os.path.join(os.path.dirname(__file__), '../../..'))
-EXCLUDE_FROM_UPDATE_DICTIONARY = {
-    BASIC_INFORMATION_CLUSTER_ID: ["lighting-app-data-mode-no-unique-id"]
-}
 
 
-def getTargets(cluster_id: int):
+def getTargets():
     ROOTS_TO_SEARCH = [
         './examples',
         './src/controller/data_model',
@@ -43,10 +39,6 @@ def getTargets(cluster_id: int):
     for root in ROOTS_TO_SEARCH:
         for filepath in Path(root).rglob('*.zap'):
             targets.append(filepath)
-
-    if cluster_id in EXCLUDE_FROM_UPDATE_DICTIONARY:
-        for target_to_exclude in EXCLUDE_FROM_UPDATE_DICTIONARY[cluster_id]:
-            targets = [target for target in targets if target_to_exclude not in target.parts]
 
     return targets
 
@@ -138,7 +130,7 @@ def main():
 
     os.chdir(CHIP_ROOT_DIR)
 
-    targets = getTargets(args.cluster_id)
+    targets = getTargets()
 
     if args.dry_run:
         for target in targets:

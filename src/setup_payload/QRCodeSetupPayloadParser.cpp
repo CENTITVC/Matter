@@ -24,6 +24,7 @@
 #include "QRCodeSetupPayloadParser.h"
 #include "Base38Decode.h"
 
+#include <memory>
 #include <string.h>
 #include <vector>
 

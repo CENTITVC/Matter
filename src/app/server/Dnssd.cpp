@@ -188,7 +188,7 @@ void DnssdServer::GetPrimaryOrFallbackMACAddress(chip::MutableByteSpan mac)
 /// Set MDNS operational advertisement
 CHIP_ERROR DnssdServer::AdvertiseOperational()
 {
-    VerifyOrReturnError(mFabricTable != nullptr, CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrDie(mFabricTable != nullptr);
 
     for (const FabricInfo & fabricInfo : *mFabricTable)
     {
@@ -206,16 +206,13 @@ CHIP_ERROR DnssdServer::AdvertiseOperational()
                                        .SetMac(mac)
                                        .SetPort(GetSecuredPort())
                                        .SetInterfaceId(GetInterfaceId())
-                                       .SetLocalMRPConfig(GetLocalMRPConfig().std_optional())
+                                       .SetLocalMRPConfig(GetLocalMRPConfig())
                                        .EnableIpV4(true);
 
 #if CHIP_CONFIG_ENABLE_ICD_SERVER
         AddICDKeyToAdvertisement(advertiseParameters);
 #endif
 
-#if INET_CONFIG_ENABLE_TCP_ENDPOINT
-        advertiseParameters.SetTCPSupportModes(chip::Dnssd::TCPModeAdvertise::kTCPClientServer);
-#endif
         auto & mdnsAdvertiser = chip::Dnssd::ServiceAdvertiser::Instance();
 
         ChipLogProgress(Discovery, "Advertise operational node " ChipLogFormatX64 "-" ChipLogFormatX64,
@@ -254,7 +251,7 @@ CHIP_ERROR DnssdServer::Advertise(bool commissionableNode, chip::Dnssd::Commissi
     }
     else
     {
-        advertiseParameters.SetVendorId(std::make_optional<uint16_t>(value));
+        advertiseParameters.SetVendorId(chip::Optional<uint16_t>::Value(value));
     }
 
     if (DeviceLayer::GetDeviceInstanceInfoProvider()->GetProductId(value) != CHIP_NO_ERROR)
@@ -263,23 +260,23 @@ CHIP_ERROR DnssdServer::Advertise(bool commissionableNode, chip::Dnssd::Commissi
     }
     else
     {
-        advertiseParameters.SetProductId(std::make_optional<uint16_t>(value));
+        advertiseParameters.SetProductId(chip::Optional<uint16_t>::Value(value));
     }
 
     if (DeviceLayer::ConfigurationMgr().IsCommissionableDeviceTypeEnabled() &&
         DeviceLayer::ConfigurationMgr().GetDeviceTypeId(val32) == CHIP_NO_ERROR)
     {
-        advertiseParameters.SetDeviceType(std::make_optional<uint32_t>(val32));
+        advertiseParameters.SetDeviceType(chip::Optional<uint32_t>::Value(val32));
     }
 
     char deviceName[chip::Dnssd::kKeyDeviceNameMaxLength + 1];
     if (DeviceLayer::ConfigurationMgr().IsCommissionableDeviceNameEnabled() &&
         DeviceLayer::ConfigurationMgr().GetCommissionableDeviceName(deviceName, sizeof(deviceName)) == CHIP_NO_ERROR)
     {
-        advertiseParameters.SetDeviceName(std::make_optional<const char *>(deviceName));
+        advertiseParameters.SetDeviceName(chip::Optional<const char *>::Value(deviceName));
     }
 
-    advertiseParameters.SetLocalMRPConfig(GetLocalMRPConfig().std_optional());
+    advertiseParameters.SetLocalMRPConfig(GetLocalMRPConfig());
 
 #if CHIP_CONFIG_ENABLE_ICD_SERVER
     AddICDKeyToAdvertisement(advertiseParameters);
@@ -306,7 +303,7 @@ CHIP_ERROR DnssdServer::Advertise(bool commissionableNode, chip::Dnssd::Commissi
 #if CHIP_ENABLE_ROTATING_DEVICE_ID && defined(CHIP_DEVICE_CONFIG_ROTATING_DEVICE_ID_UNIQUE_ID)
         char rotatingDeviceIdHexBuffer[RotatingDeviceId::kHexMaxLength];
         ReturnErrorOnFailure(GenerateRotatingDeviceId(rotatingDeviceIdHexBuffer, ArraySize(rotatingDeviceIdHexBuffer)));
-        advertiseParameters.SetRotatingDeviceId(std::make_optional<const char *>(rotatingDeviceIdHexBuffer));
+        advertiseParameters.SetRotatingDeviceId(chip::Optional<const char *>::Value(rotatingDeviceIdHexBuffer));
 #endif
 
         if (!HaveOperationalCredentials())
@@ -317,7 +314,7 @@ CHIP_ERROR DnssdServer::Advertise(bool commissionableNode, chip::Dnssd::Commissi
             }
             else
             {
-                advertiseParameters.SetPairingHint(std::make_optional<uint16_t>(value));
+                advertiseParameters.SetPairingHint(chip::Optional<uint16_t>::Value(value));
             }
 
             if (DeviceLayer::ConfigurationMgr().GetInitialPairingInstruction(pairingInst, sizeof(pairingInst)) != CHIP_NO_ERROR)
@@ -326,7 +323,7 @@ CHIP_ERROR DnssdServer::Advertise(bool commissionableNode, chip::Dnssd::Commissi
             }
             else
             {
-                advertiseParameters.SetPairingInstruction(std::make_optional<const char *>(pairingInst));
+                advertiseParameters.SetPairingInstruction(chip::Optional<const char *>::Value(pairingInst));
             }
         }
         else
@@ -337,7 +334,7 @@ CHIP_ERROR DnssdServer::Advertise(bool commissionableNode, chip::Dnssd::Commissi
             }
             else
             {
-                advertiseParameters.SetPairingHint(std::make_optional<uint16_t>(value));
+                advertiseParameters.SetPairingHint(chip::Optional<uint16_t>::Value(value));
             }
 
             if (DeviceLayer::ConfigurationMgr().GetSecondaryPairingInstruction(pairingInst, sizeof(pairingInst)) != CHIP_NO_ERROR)
@@ -346,24 +343,24 @@ CHIP_ERROR DnssdServer::Advertise(bool commissionableNode, chip::Dnssd::Commissi
             }
             else
             {
-                advertiseParameters.SetPairingInstruction(std::make_optional<const char *>(pairingInst));
+                advertiseParameters.SetPairingInstruction(chip::Optional<const char *>::Value(pairingInst));
             }
         }
     }
 #if CHIP_DEVICE_CONFIG_ENABLE_COMMISSIONER_PASSCODE
     else
     {
-        advertiseParameters.SetCommissionerPasscodeSupported(std::make_optional<bool>(true));
+        advertiseParameters.SetCommissionerPasscodeSupported(Optional<bool>(true));
     }
 #endif
 
     auto & mdnsAdvertiser = chip::Dnssd::ServiceAdvertiser::Instance();
 
     ChipLogProgress(Discovery, "Advertise commission parameter vendorID=%u productID=%u discriminator=%04u/%02u cm=%u cp=%u",
-                    advertiseParameters.GetVendorId().value_or(0), advertiseParameters.GetProductId().value_or(0),
+                    advertiseParameters.GetVendorId().ValueOr(0), advertiseParameters.GetProductId().ValueOr(0),
                     advertiseParameters.GetLongDiscriminator(), advertiseParameters.GetShortDiscriminator(),
                     to_underlying(advertiseParameters.GetCommissioningMode()),
-                    advertiseParameters.GetCommissionerPasscodeSupported().value_or(false) ? 1 : 0);
+                    advertiseParameters.GetCommissionerPasscodeSupported().ValueOr(false) ? 1 : 0);
     return mdnsAdvertiser.Advertise(advertiseParameters);
 }
 

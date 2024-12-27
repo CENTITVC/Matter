@@ -16,6 +16,7 @@
 #
 
 import argparse
+import fcntl
 import json
 import os
 import shutil
@@ -28,9 +29,6 @@ from pathlib import Path
 from typing import Optional
 
 from zap_execution import ZapTool
-
-# TODO: Can we share this constant definition with zap_regen_all.py?
-DEFAULT_DATA_MODEL_DESCRIPTION_FILE = 'src/app/zap-templates/zcl/zcl.json'
 
 
 @dataclass
@@ -90,23 +88,22 @@ def detectZclFile(zapFile):
     print(f"Searching for zcl file from {zapFile}")
 
     prefix_chip_root_dir = True
-    path = DEFAULT_DATA_MODEL_DESCRIPTION_FILE
+    path = 'src/app/zap-templates/zcl/zcl.json'
 
-    if zapFile:
-        data = json.load(open(zapFile))
-        for package in data["package"]:
-            if package["type"] != "zcl-properties":
-                continue
+    data = json.load(open(zapFile))
+    for package in data["package"]:
+        if package["type"] != "zcl-properties":
+            continue
 
-            prefix_chip_root_dir = (package["pathRelativity"] != "resolveEnvVars")
-            # found the right path, try to figure out the actual path
-            if package["pathRelativity"] == "relativeToZap":
-                path = os.path.abspath(os.path.join(
-                    os.path.dirname(zapFile), package["path"]))
-            elif package["pathRelativity"] == "resolveEnvVars":
-                path = os.path.expandvars(package["path"])
-            else:
-                path = package["path"]
+        prefix_chip_root_dir = (package["pathRelativity"] != "resolveEnvVars")
+        # found the right path, try to figure out the actual path
+        if package["pathRelativity"] == "relativeToZap":
+            path = os.path.abspath(os.path.join(
+                os.path.dirname(zapFile), package["path"]))
+        elif package["pathRelativity"] == "resolveEnvVars":
+            path = os.path.expandvars(package["path"])
+        else:
+            path = package["path"]
 
     return getFilePath(path, prefix_chip_root_dir)
 
@@ -337,29 +334,15 @@ class LockFileSerializer:
             return
 
         self.lock_file = open(self.lock_file_path, 'wb')
-        self._lock()
+        fcntl.lockf(self.lock_file, fcntl.LOCK_EX)
 
     def __exit__(self, *args):
         if not self.lock_file:
             return
 
-        self._unlock()
+        fcntl.lockf(self.lock_file, fcntl.LOCK_UN)
         self.lock_file.close()
         self.lock_file = None
-
-    def _lock(self):
-        if sys.platform == 'linux' or sys.platform == 'darwin':
-            import fcntl
-            fcntl.lockf(self.lock_file, fcntl.LOCK_EX)
-        else:
-            print(f"Warning: lock does nothing on {sys.platform} platform")
-
-    def _unlock(self):
-        if sys.platform == 'linux' or sys.platform == 'darwin':
-            import fcntl
-            fcntl.lockf(self.lock_file, fcntl.LOCK_UN)
-        else:
-            print(f"Warning: unlock does nothing on {sys.platform} platform")
 
 
 def main():

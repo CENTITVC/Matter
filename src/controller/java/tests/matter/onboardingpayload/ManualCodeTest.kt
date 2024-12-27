@@ -24,7 +24,6 @@ import kotlin.math.ceil
 import kotlin.math.log10
 import kotlin.math.pow
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.JUnit4
@@ -445,7 +444,7 @@ class ManualCodeTest {
     // Override the discriminator in the input payload with the short version,
     // since that's what we will produce.
     inPayload.setShortDiscriminatorValue(inPayload.getShortDiscriminatorValue())
-    assertEquals(inPayload, outPayload)
+    assertThat(inPayload == outPayload)
   }
 
   /*
@@ -465,7 +464,7 @@ class ManualCodeTest {
     // Override the discriminator in the input payload with the short version,
     // since that's what we will produce.
     inPayload.setShortDiscriminatorValue(inPayload.getShortDiscriminatorValue())
-    assertEquals(inPayload, outPayload)
+    assertThat(inPayload == outPayload)
   }
 
   /*
@@ -480,7 +479,7 @@ class ManualCodeTest {
 
     try {
       ManualOnboardingPayloadParser.checkDecimalStringValidity(representationWithoutCheckDigit)
-      assertTrue(false)
+      assertThat(false)
     } catch (e: Exception) {
       println("Expected exception occurred: ${e.message}")
     }
@@ -488,7 +487,7 @@ class ManualCodeTest {
     representationWithoutCheckDigit = "1"
     try {
       ManualOnboardingPayloadParser.checkDecimalStringValidity(representationWithoutCheckDigit)
-      assertTrue(false)
+      assertThat(false)
     } catch (e: Exception) {
       println("Expected exception occurred: ${e.message}")
     }
@@ -517,28 +516,28 @@ class ManualCodeTest {
 
     try {
       ManualOnboardingPayloadParser.checkCodeLengthValidity("01234567891", false)
-      assertTrue(false)
+      assertThat(false)
     } catch (e: Exception) {
       println("Expected exception occurred: ${e.message}")
     }
 
     try {
       ManualOnboardingPayloadParser.checkCodeLengthValidity("012345678", false)
-      assertTrue(false)
+      assertThat(false)
     } catch (e: Exception) {
       println("Expected exception occurred: ${e.message}")
     }
 
     try {
       ManualOnboardingPayloadParser.checkCodeLengthValidity("012345678901234567891", true)
-      assertTrue(false)
+      assertThat(false)
     } catch (e: Exception) {
       println("Expected exception occurred: ${e.message}")
     }
 
     try {
       ManualOnboardingPayloadParser.checkCodeLengthValidity("0123456789012345678", true)
-      assertTrue(false)
+      assertThat(false)
     } catch (e: Exception) {
       println("Expected exception occurred: ${e.message}")
     }
@@ -563,14 +562,14 @@ class ManualCodeTest {
 
     try {
       ManualOnboardingPayloadParser.toNumber("012345.123456789")
-      assertTrue(false)
+      assertThat(false)
     } catch (e: Exception) {
       println("Expected exception occurred: ${e.message}")
     }
 
     try {
       ManualOnboardingPayloadParser.toNumber("/")
-      assertTrue(false)
+      assertThat(false)
     } catch (e: Exception) {
       println("Expected exception occurred: ${e.message}")
     }
@@ -632,14 +631,14 @@ class ManualCodeTest {
     try {
       index.set(1)
       ManualOnboardingPayloadParser.readDigitsFromDecimalString("12345", index, 5)
-      assertTrue(false)
+      assertThat(false)
     } catch (e: Exception) {
       println("Expected exception occurred: ${e.message}")
     }
 
     try {
       ManualOnboardingPayloadParser.readDigitsFromDecimalString("12", index, 5)
-      assertTrue(false)
+      assertThat(false)
     } catch (e: Exception) {
       println("Expected exception occurred: ${e.message}")
     }
@@ -647,7 +646,7 @@ class ManualCodeTest {
     try {
       index.set(200)
       ManualOnboardingPayloadParser.readDigitsFromDecimalString("6256276377282", index, 1)
-      assertTrue(false)
+      assertThat(false)
     } catch (e: Exception) {
       println("Expected exception occurred: ${e.message}")
     }

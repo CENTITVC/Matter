@@ -105,6 +105,7 @@ CHIP_ERROR Engine::ExecCommand(int argc, char * argv[])
 
 void Engine::RegisterDefaultCommands()
 {
+    RegisterBase64Commands();
     RegisterMetaCommands();
 #if CHIP_DEVICE_CONFIG_ENABLE_CHIPOBLE
     RegisterBLECommands();

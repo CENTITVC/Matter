@@ -32,17 +32,17 @@ class MessagesClusterMessagePresentedEvent(val messageID: ByteArray) {
   fun toTlv(tlvTag: Tag, tlvWriter: TlvWriter) {
     tlvWriter.apply {
       startStructure(tlvTag)
-      put(ContextSpecificTag(TAG_MESSAGE_ID), messageID)
+      put(ContextSpecificTag(TAG_MESSAGE_I_D), messageID)
       endStructure()
     }
   }
 
   companion object {
-    private const val TAG_MESSAGE_ID = 0
+    private const val TAG_MESSAGE_I_D = 0
 
     fun fromTlv(tlvTag: Tag, tlvReader: TlvReader): MessagesClusterMessagePresentedEvent {
       tlvReader.enterStructure(tlvTag)
-      val messageID = tlvReader.getByteArray(ContextSpecificTag(TAG_MESSAGE_ID))
+      val messageID = tlvReader.getByteArray(ContextSpecificTag(TAG_MESSAGE_I_D))
 
       tlvReader.exitContainer()
 

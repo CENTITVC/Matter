@@ -35,7 +35,6 @@
 
 #include <mutex>
 #include <platform/webos/CHIPWebOSStorageIni.h>
-#include <string>
 
 #ifndef FATCONFDIR
 #define FATCONFDIR "/tmp"

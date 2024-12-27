@@ -38,7 +38,6 @@
 #else
 #include "esp_spi_flash.h"
 #endif
-#include "esp_mac.h"
 #include "esp_system.h"
 #include "esp_wifi.h"
 
@@ -206,7 +205,7 @@ CHIP_ERROR DiagnosticDataProviderImpl::GetNetworkInterfaces(NetworkInterface ** 
     esp_netif_t * netif     = esp_netif_next(NULL);
     NetworkInterface * head = NULL;
     uint8_t ipv6_addr_count = 0;
-    esp_ip6_addr_t ip6_addr[LWIP_IPV6_NUM_ADDRESSES];
+    esp_ip6_addr_t ip6_addr[kMaxIPv6AddrCount];
     if (netif == NULL)
     {
         ChipLogError(DeviceLayer, "Failed to get network interfaces");
@@ -217,47 +216,31 @@ CHIP_ERROR DiagnosticDataProviderImpl::GetNetworkInterfaces(NetworkInterface ** 
         {
             NetworkInterface * ifp = new NetworkInterface();
             esp_netif_ip_info_t ipv4_info;
-            uint8_t addressSize = 0;
             Platform::CopyString(ifp->Name, esp_netif_get_ifkey(ifa));
             ifp->name          = CharSpan::fromCharString(ifp->Name);
             ifp->isOperational = true;
             ifp->type          = GetInterfaceType(esp_netif_get_desc(ifa));
             ifp->offPremiseServicesReachableIPv4.SetNull();
             ifp->offPremiseServicesReachableIPv6.SetNull();
-#if CHIP_DEVICE_CONFIG_ENABLE_THREAD
-            if (ifp->type == InterfaceTypeEnum::kThread)
-            {
-                static_assert(OT_EXT_ADDRESS_SIZE <= sizeof(ifp->MacAddress), "Unexpected extended address size");
-                if (ThreadStackMgr().GetPrimary802154MACAddress(ifp->MacAddress) == CHIP_NO_ERROR)
-                {
-                    addressSize = OT_EXT_ADDRESS_SIZE;
-                }
-            }
-            else
-#endif
-                if (esp_netif_get_mac(ifa, ifp->MacAddress) == ESP_OK)
-            {
-                // For Wi-Fi or Ethernet interface, the MAC address size should be 6
-                addressSize = 6;
-            }
-            if (addressSize != 0)
-            {
-                ifp->hardwareAddress = ByteSpan(ifp->MacAddress, addressSize);
-            }
-            else
+            if (esp_netif_get_mac(ifa, ifp->MacAddress) != ESP_OK)
             {
                 ChipLogError(DeviceLayer, "Failed to get network hardware address");
             }
-#ifndef CONFIG_DISABLE_IPV4
+            else
+            {
+                ifp->hardwareAddress = ByteSpan(ifp->MacAddress, 6);
+            }
+#if !CONFIG_DISABLE_IPV4
             if (esp_netif_get_ip_info(ifa, &ipv4_info) == ESP_OK)
             {
                 memcpy(ifp->Ipv4AddressesBuffer[0], &(ipv4_info.ip.addr), kMaxIPv4AddrSize);
                 ifp->Ipv4AddressSpans[0] = ByteSpan(ifp->Ipv4AddressesBuffer[0], kMaxIPv4AddrSize);
                 ifp->IPv4Addresses       = app::DataModel::List<ByteSpan>(ifp->Ipv4AddressSpans, 1);
             }
-#endif // !defined(CONFIG_DISABLE_IPV4)
+#endif
 
             static_assert(kMaxIPv6AddrCount <= UINT8_MAX, "Count might not fit in ipv6_addr_count");
+            static_assert(ArraySize(ip6_addr) >= LWIP_IPV6_NUM_ADDRESSES, "Not enough space for our addresses.");
             auto addr_count = esp_netif_get_all_ip6(ifa, ip6_addr);
             if (addr_count < 0)
             {

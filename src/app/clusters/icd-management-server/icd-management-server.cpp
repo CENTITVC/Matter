@@ -23,9 +23,9 @@
 #include <app-common/zap-generated/cluster-objects.h>
 #include <app-common/zap-generated/ids/Clusters.h>
 #include <app/AttributeAccessInterface.h>
-#include <app/AttributeAccessInterfaceRegistry.h>
 #include <app/icd/server/ICDNotifier.h>
 #include <app/server/Server.h>
+#include <app/util/af.h>
 #include <app/util/attribute-storage.h>
 
 using namespace chip;
@@ -69,7 +69,6 @@ private:
     CHIP_ERROR ReadRegisteredClients(EndpointId endpoint, AttributeValueEncoder & encoder);
     CHIP_ERROR ReadICDCounter(EndpointId endpoint, AttributeValueEncoder & encoder);
     CHIP_ERROR ReadClientsSupportedPerFabric(EndpointId endpoint, AttributeValueEncoder & encoder);
-    CHIP_ERROR ReadMaximumCheckInBackOff(EndpointId endpoint, AttributeValueEncoder & encoder);
 
     PersistentStorageDelegate * mStorage           = nullptr;
     Crypto::SymmetricKeystore * mSymmetricKeystore = nullptr;
@@ -103,9 +102,6 @@ CHIP_ERROR IcdManagementAttributeAccess::Read(const ConcreteReadAttributePath & 
 
     case IcdManagement::Attributes::ClientsSupportedPerFabric::Id:
         return ReadClientsSupportedPerFabric(aPath.mEndpointId, aEncoder);
-
-    case IcdManagement::Attributes::MaximumCheckInBackOff::Id:
-        return ReadMaximumCheckInBackOff(aPath.mEndpointId, aEncoder);
 #endif // CHIP_CONFIG_ENABLE_ICD_CIP
     }
 
@@ -206,7 +202,6 @@ CHIP_ERROR IcdManagementAttributeAccess::ReadRegisteredClients(EndpointId endpoi
 
                 Structs::MonitoringRegistrationStruct::Type s{ .checkInNodeID    = e.checkInNodeID,
                                                                .monitoredSubject = e.monitoredSubject,
-                                                               .clientType       = e.clientType,
                                                                .fabricIndex      = e.fabricIndex };
                 ReturnErrorOnFailure(subEncoder.Encode(s));
             }
@@ -225,11 +220,6 @@ CHIP_ERROR IcdManagementAttributeAccess::ReadClientsSupportedPerFabric(EndpointI
     return encoder.Encode(mICDConfigurationData->GetClientsSupportedPerFabric());
 }
 
-CHIP_ERROR IcdManagementAttributeAccess::ReadMaximumCheckInBackOff(EndpointId endpoint, AttributeValueEncoder & encoder)
-{
-    return encoder.Encode(mICDConfigurationData->GetMaximumCheckInBackoff().count());
-}
-
 /**
  * @brief Function checks if the client has admin permissions to the cluster in the commandPath
  *
@@ -240,10 +230,7 @@ CHIP_ERROR IcdManagementAttributeAccess::ReadMaximumCheckInBackOff(EndpointId en
  */
 CHIP_ERROR CheckAdmin(CommandHandler * commandObj, const ConcreteCommandPath & commandPath, bool & isClientAdmin)
 {
-    RequestPath requestPath{ .cluster     = commandPath.mClusterId,
-                             .endpoint    = commandPath.mEndpointId,
-                             .requestType = RequestType::kCommandInvokeRequest,
-                             .entityId    = commandPath.mCommandId };
+    RequestPath requestPath{ .cluster = commandPath.mClusterId, .endpoint = commandPath.mEndpointId };
     CHIP_ERROR err = GetAccessControl().Check(commandObj->GetSubjectDescriptor(), requestPath, Privilege::kAdminister);
     if (CHIP_NO_ERROR == err)
     {
@@ -265,16 +252,12 @@ Status ICDManagementServer::RegisterClient(CommandHandler * commandObj, const Co
     FabricIndex fabricIndex            = commandObj->GetAccessingFabricIndex();
     NodeId nodeId                      = commandData.checkInNodeID;
     uint64_t monitoredSubject          = commandData.monitoredSubject;
-    ClientTypeEnum clientType          = commandData.clientType;
     ByteSpan key                       = commandData.key;
     Optional<ByteSpan> verificationKey = commandData.verificationKey;
     bool isClientAdmin                 = false;
 
-    // Check if ClientType is valid
-    VerifyOrReturnError(clientType != ClientTypeEnum::kUnknownEnumValue, Status::ConstraintError);
-
     // Check if client is admin
-    VerifyOrReturnError(CHIP_NO_ERROR == CheckAdmin(commandObj, commandPath, isClientAdmin), Status::Failure);
+    VerifyOrReturnError(CHIP_NO_ERROR == CheckAdmin(commandObj, commandPath, isClientAdmin), InteractionModel::Status::Failure);
 
     bool isFirstEntryForFabric = false;
     ICDMonitoringTable table(*mStorage, fabricIndex, mICDConfigurationData->GetClientsSupportedPerFabric(), mSymmetricKeystore);
@@ -287,14 +270,14 @@ Status ICDManagementServer::RegisterClient(CommandHandler * commandObj, const Co
         // Existing entry: Validate Key if, and only if, the ISD does NOT have administrator permissions
         if (!isClientAdmin)
         {
-            VerifyOrReturnError(verificationKey.HasValue(), Status::Failure);
-            VerifyOrReturnError(entry.IsKeyEquivalent(verificationKey.Value()), Status::Failure);
+            VerifyOrReturnError(verificationKey.HasValue(), InteractionModel::Status::Failure);
+            VerifyOrReturnError(entry.IsKeyEquivalent(verificationKey.Value()), InteractionModel::Status::Failure);
         }
     }
     else if (CHIP_ERROR_NOT_FOUND == err)
     {
         // New entry
-        VerifyOrReturnError(entry.index < table.Limit(), Status::ResourceExhausted);
+        VerifyOrReturnError(entry.index < table.Limit(), InteractionModel::Status::ResourceExhausted);
 
         // Check if it's going to be the first entry for fabric
         isFirstEntryForFabric = table.IsEmpty();
@@ -302,22 +285,20 @@ Status ICDManagementServer::RegisterClient(CommandHandler * commandObj, const Co
     else
     {
         // Error
-        return Status::Failure;
+        return InteractionModel::Status::Failure;
     }
 
     // Save
     entry.checkInNodeID    = nodeId;
     entry.monitoredSubject = monitoredSubject;
-    entry.clientType       = clientType;
-
     if (entry.keyHandleValid)
     {
         entry.DeleteKey();
     }
 
     err = entry.SetKey(key);
-    VerifyOrReturnError(CHIP_ERROR_INVALID_ARGUMENT != err, Status::ConstraintError);
-    VerifyOrReturnError(CHIP_NO_ERROR == err, Status::Failure);
+    VerifyOrReturnError(CHIP_ERROR_INVALID_ARGUMENT != err, InteractionModel::Status::ConstraintError);
+    VerifyOrReturnError(CHIP_NO_ERROR == err, InteractionModel::Status::Failure);
     err = table.Set(entry.index, entry);
 
     // Delete key upon failure to prevent key storage leakage.
@@ -326,8 +307,8 @@ Status ICDManagementServer::RegisterClient(CommandHandler * commandObj, const Co
         entry.DeleteKey();
     }
 
-    VerifyOrReturnError(CHIP_ERROR_INVALID_ARGUMENT != err, Status::ConstraintError);
-    VerifyOrReturnError(CHIP_NO_ERROR == err, Status::Failure);
+    VerifyOrReturnError(CHIP_ERROR_INVALID_ARGUMENT != err, InteractionModel::Status::ConstraintError);
+    VerifyOrReturnError(CHIP_NO_ERROR == err, InteractionModel::Status::Failure);
 
     if (isFirstEntryForFabric)
     {
@@ -336,7 +317,7 @@ Status ICDManagementServer::RegisterClient(CommandHandler * commandObj, const Co
     }
 
     icdCounter = mICDConfigurationData->GetICDCounter().GetValue();
-    return Status::Success;
+    return InteractionModel::Status::Success;
 }
 
 Status ICDManagementServer::UnregisterClient(CommandHandler * commandObj, const ConcreteCommandPath & commandPath,
@@ -348,32 +329,32 @@ Status ICDManagementServer::UnregisterClient(CommandHandler * commandObj, const 
     bool isClientAdmin                 = false;
 
     // Check if client is admin
-    VerifyOrReturnError(CHIP_NO_ERROR == CheckAdmin(commandObj, commandPath, isClientAdmin), Status::Failure);
+    VerifyOrReturnError(CHIP_NO_ERROR == CheckAdmin(commandObj, commandPath, isClientAdmin), InteractionModel::Status::Failure);
 
     ICDMonitoringTable table(*mStorage, fabricIndex, mICDConfigurationData->GetClientsSupportedPerFabric(), mSymmetricKeystore);
 
     // Get current entry, if exists
     ICDMonitoringEntry entry(mSymmetricKeystore);
     CHIP_ERROR err = table.Find(nodeId, entry);
-    VerifyOrReturnError(CHIP_ERROR_NOT_FOUND != err, Status::NotFound);
-    VerifyOrReturnError(CHIP_NO_ERROR == err, Status::Failure);
+    VerifyOrReturnError(CHIP_ERROR_NOT_FOUND != err, InteractionModel::Status::NotFound);
+    VerifyOrReturnError(CHIP_NO_ERROR == err, InteractionModel::Status::Failure);
 
     // Existing entry: Validate Key if, and only if, the ISD has NOT administrator permissions
     if (!isClientAdmin)
     {
-        VerifyOrReturnError(verificationKey.HasValue(), Status::Failure);
-        VerifyOrReturnError(entry.IsKeyEquivalent(verificationKey.Value()), Status::Failure);
+        VerifyOrReturnError(verificationKey.HasValue(), InteractionModel::Status::Failure);
+        VerifyOrReturnError(entry.IsKeyEquivalent(verificationKey.Value()), InteractionModel::Status::Failure);
     }
 
     err = table.Remove(entry.index);
-    VerifyOrReturnError(CHIP_NO_ERROR == err, Status::Failure);
+    VerifyOrReturnError(CHIP_NO_ERROR == err, InteractionModel::Status::Failure);
 
     if (table.IsEmpty())
     {
         TriggerICDMTableUpdatedEvent();
     }
 
-    return Status::Success;
+    return InteractionModel::Status::Success;
 }
 
 void ICDManagementServer::TriggerICDMTableUpdatedEvent()
@@ -408,9 +389,9 @@ bool emberAfIcdManagementClusterRegisterClientCallback(CommandHandler * commandO
     uint32_t icdCounter = 0;
 
     ICDManagementServer server;
-    Status status = server.RegisterClient(commandObj, commandPath, commandData, icdCounter);
+    InteractionModel::Status status = server.RegisterClient(commandObj, commandPath, commandData, icdCounter);
 
-    if (Status::Success == status)
+    if (InteractionModel::Status::Success == status)
     {
         // Response
         IcdManagement::Commands::RegisterClientResponse::Type response{ .ICDCounter = icdCounter };
@@ -431,7 +412,7 @@ bool emberAfIcdManagementClusterUnregisterClientCallback(CommandHandler * comman
                                                          const Commands::UnregisterClient::DecodableType & commandData)
 {
     ICDManagementServer server;
-    Status status = server.UnregisterClient(commandObj, commandPath, commandData);
+    InteractionModel::Status status = server.UnregisterClient(commandObj, commandPath, commandData);
 
     commandObj->AddStatus(commandPath, status);
     return true;
@@ -470,7 +451,7 @@ void MatterIcdManagementPluginServerInitCallback()
 
     // Configure and register Attribute Access Override
     gAttribute.Init(storage, symmetricKeystore, fabricTable, icdConfigurationData);
-    AttributeAccessInterfaceRegistry::Instance().Register(&gAttribute);
+    registerAttributeAccessOverride(&gAttribute);
 
     // Configure ICD Management
     ICDManagementServer::Init(storage, symmetricKeystore, icdConfigurationData);

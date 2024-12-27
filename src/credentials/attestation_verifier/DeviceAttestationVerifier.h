@@ -47,7 +47,6 @@ enum class AttestationVerificationResult : uint16_t
     kPaiVendorIdMismatch  = 205,
     kPaiAuthorityNotFound = 206,
     kPaiMissing           = 207,
-    kPaiAndDacRevoked     = 208,
 
     kDacExpired           = 300,
     kDacSignatureInvalid  = 301,
@@ -388,16 +387,6 @@ public:
                                                            const ByteSpan & csrNonce) = 0;
 
     /**
-     * @brief Verify whether or not the given DAC chain is revoked.
-     *
-     * @param[in] info All of the information required to check for revoked DAC chain.
-     * @param[in] onCompletion Callback handler to provide Attestation Information Verification result to the caller of
-     *                         CheckForRevokedDACChain()
-     */
-    virtual void CheckForRevokedDACChain(const AttestationInfo & info,
-                                         Callback::Callback<OnAttestationInformationVerification> * onCompletion) = 0;
-
-    /**
      * @brief Get the trust store used for the attestation verifier.
      *
      * Returns nullptr if not supported. Be careful not to hold-on to the trust store
@@ -417,28 +406,6 @@ protected:
     // Default to support the "development" test key for legacy purposes (since the DefaultDACVerifier)
     // always supported development keys.
     bool mEnableCdTestKeySupport = true;
-};
-
-/**
- * @brief Interface for checking the device attestation revocation status
- *
- */
-class DeviceAttestationRevocationDelegate
-{
-public:
-    DeviceAttestationRevocationDelegate()          = default;
-    virtual ~DeviceAttestationRevocationDelegate() = default;
-
-    /**
-     * @brief Verify whether or not the given DAC chain is revoked.
-     *
-     * @param[in] info All of the information required to check for revoked DAC chain.
-     * @param[in] onCompletion Callback handler to provide Attestation Information Verification result to the caller of
-     *                         CheckForRevokedDACChain().
-     */
-    virtual void
-    CheckForRevokedDACChain(const DeviceAttestationVerifier::AttestationInfo & info,
-                            Callback::Callback<DeviceAttestationVerifier::OnAttestationInformationVerification> * onCompletion) = 0;
 };
 
 /**

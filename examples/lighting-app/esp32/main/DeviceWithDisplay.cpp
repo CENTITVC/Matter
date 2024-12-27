@@ -25,8 +25,6 @@
 #include <app-common/zap-generated/ids/Clusters.h>
 #include <setup_payload/QRCodeSetupPayloadGenerator.h>
 
-#include <string>
-
 using namespace ::chip;
 using namespace ::chip::Credentials;
 using namespace ::chip::DeviceManager;

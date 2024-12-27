@@ -42,10 +42,6 @@ struct SubjectDescriptor
 
     // CASE Authenticated Tags (CATs) only valid if auth mode is CASE.
     CATValues cats;
-
-    // Whether the subject is currently a pending commissionee. See `IsCommissioning`
-    // definition in Core Specification's ACL Architecture pseudocode.
-    bool isCommissioning = false;
 };
 
 } // namespace Access

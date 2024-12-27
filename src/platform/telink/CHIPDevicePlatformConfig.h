@@ -1,6 +1,6 @@
 /*
  *
- *    Copyright (c) 2022-2024 Project CHIP Authors
+ *    Copyright (c) 2022-2023 Project CHIP Authors
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -87,26 +87,19 @@
 #define CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION_STRING CONFIG_CHIP_DEVICE_SOFTWARE_VERSION_STRING
 #endif
 
-#ifdef CONFIG_NET_L2_OPENTHREAD
 #define CHIP_DEVICE_CONFIG_ENABLE_THREAD CONFIG_NET_L2_OPENTHREAD
-#else
-#define CHIP_DEVICE_CONFIG_ENABLE_THREAD 0
+
+#ifndef CHIP_DEVICE_CONFIG_ENABLE_WIFI
+#define CHIP_DEVICE_CONFIG_ENABLE_WIFI 0
 #endif
 
-#ifdef CONFIG_WIFI_W91
-#define CHIP_DEVICE_CONFIG_ENABLE_WIFI CONFIG_WIFI_W91
+#if CHIP_DEVICE_CONFIG_ENABLE_WIFI
 #define CHIP_DEVICE_CONFIG_ENABLE_WIFI_STATION 1
 #define CHIP_DEVICE_CONFIG_ENABLE_WIFI_AP 0
 #else
-#define CHIP_DEVICE_CONFIG_ENABLE_WIFI 0
 #define CHIP_DEVICE_CONFIG_ENABLE_WIFI_STATION 0
 #define CHIP_DEVICE_CONFIG_ENABLE_WIFI_AP 0
 #endif
-
-// telink platform does not support ethernet yet, but we need this config defined as we share the Zephyr platform
-#ifndef CHIP_DEVICE_CONFIG_ENABLE_ETHERNET
-#define CHIP_DEVICE_CONFIG_ENABLE_ETHERNET 0
-#endif // CHIP_DEVICE_CONFIG_ENABLE_ETHERNET
 
 #ifdef CONFIG_BT
 #define CHIP_DEVICE_CONFIG_ENABLE_CHIPOBLE CONFIG_BT

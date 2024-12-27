@@ -49,45 +49,24 @@
 #endif
 
 #if CONFIG_NETWORK_LAYER_BLE
-#include <ble/Ble.h>
+#include <ble/BleLayer.h>
 #include <transport/raw/BLE.h>
-#endif
-#if CHIP_DEVICE_CONFIG_ENABLE_WIFIPAF
-#include <transport/raw/WiFiPAF.h>
 #endif
 
 namespace chip {
 
 inline constexpr size_t kMaxDeviceTransportBlePendingPackets = 1;
-#if CHIP_DEVICE_CONFIG_ENABLE_WIFIPAF
-inline constexpr size_t kMaxDeviceTransportWiFiPAFPendingPackets = 1;
-#endif
 
-#if INET_CONFIG_ENABLE_TCP_ENDPOINT
-inline constexpr size_t kMaxDeviceTransportTcpActiveConnectionCount = CHIP_CONFIG_MAX_ACTIVE_TCP_CONNECTIONS;
-
-inline constexpr size_t kMaxDeviceTransportTcpPendingPackets = CHIP_CONFIG_MAX_TCP_PENDING_PACKETS;
-#endif // INET_CONFIG_ENABLE_TCP_ENDPOINT
-
-using DeviceTransportMgr =
-    TransportMgr<Transport::UDP /* IPv6 */
+using DeviceTransportMgr = TransportMgr<Transport::UDP /* IPv6 */
 #if INET_CONFIG_ENABLE_IPV4
-                 ,
-                 Transport::UDP /* IPv4 */
+                                        ,
+                                        Transport::UDP /* IPv4 */
 #endif
 #if CONFIG_NETWORK_LAYER_BLE
-                 ,
-                 Transport::BLE<kMaxDeviceTransportBlePendingPackets> /* BLE */
+                                        ,
+                                        Transport::BLE<kMaxDeviceTransportBlePendingPackets> /* BLE */
 #endif
-#if INET_CONFIG_ENABLE_TCP_ENDPOINT
-                 ,
-                 Transport::TCP<kMaxDeviceTransportTcpActiveConnectionCount, kMaxDeviceTransportTcpPendingPackets>
-#endif
-#if CHIP_DEVICE_CONFIG_ENABLE_WIFIPAF
-                 ,
-                 Transport::WiFiPAF<kMaxDeviceTransportWiFiPAFPendingPackets> /* WiFiPAF */
-#endif
-                 >;
+                                        >;
 
 namespace Controller {
 
@@ -103,9 +82,6 @@ struct DeviceControllerSystemStateParams
     FabricTable * fabricTable                                     = nullptr;
 #if CONFIG_NETWORK_LAYER_BLE
     Ble::BleLayer * bleLayer = nullptr;
-#endif
-#if CHIP_DEVICE_CONFIG_ENABLE_WIFIPAF
-    Transport::WiFiPAFLayer * wifipaf_layer = nullptr;
 #endif
     Credentials::GroupDataProvider * groupDataProvider = nullptr;
     Crypto::SessionKeystore * sessionKeystore          = nullptr;
@@ -191,9 +167,8 @@ public:
     // should be called to release the reference once it is no longer needed.
     DeviceControllerSystemState * Retain()
     {
-        auto count = mRefCount++;
-        VerifyOrDie(count < std::numeric_limits<decltype(count)>::max()); // overflow
-        VerifyOrDie(!IsShutDown());                                       // avoid zombie
+        VerifyOrDie(mRefCount < std::numeric_limits<uint32_t>::max());
+        ++mRefCount;
         return this;
     };
 
@@ -203,15 +178,14 @@ public:
     //
     // NB: The system state is owned by the factory; Relase() will not free it
     // but will free its members (Shutdown()).
-    //
-    // Returns true if the system state was shut down in response to this call.
-    bool Release()
+    void Release()
     {
-        auto count = mRefCount--;
-        VerifyOrDie(count > 0); // underflow
-        VerifyOrReturnValue(count == 1, false);
-        Shutdown();
-        return true;
+        VerifyOrDie(mRefCount > 0);
+
+        if (--mRefCount == 0)
+        {
+            Shutdown();
+        }
     };
     bool IsInitialized()
     {
@@ -221,7 +195,6 @@ public:
             mGroupDataProvider != nullptr && mReportScheduler != nullptr && mTimerDelegate != nullptr &&
             mSessionKeystore != nullptr && mSessionResumptionStorage != nullptr && mBDXTransferServer != nullptr;
     };
-    bool IsShutDown() const { return mHaveShutDown; }
 
     System::Layer * SystemLayer() const { return mSystemLayer; };
     Inet::EndPointManager<Inet::TCPEndPoint> * TCPEndPointManager() const { return mTCPEndPointManager; };

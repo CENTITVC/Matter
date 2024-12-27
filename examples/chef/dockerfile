@@ -1,12 +1,10 @@
-FROM debian:trixie
+FROM debian:bullseye
 
 ARG DEVICE_NAME
 
 RUN apt-get update && \
     apt-get install -y \
-    libglib2.0-0 \
-    libc6 \
-    libssl3 && \
+    libglib2.0-0 && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 

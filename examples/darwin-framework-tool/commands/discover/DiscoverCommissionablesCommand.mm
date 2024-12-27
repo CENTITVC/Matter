@@ -18,7 +18,7 @@
 #include "DiscoverCommissionablesCommand.h"
 
 NSMutableArray * gDiscoveredDevices = [[NSMutableArray alloc] init];
-auto gDispatchQueue = dispatch_queue_create("com.chip.discover", DISPATCH_QUEUE_SERIAL_WITH_AUTORELEASE_POOL);
+auto gDispatchQueue = dispatch_queue_create("com.chip.discover", DISPATCH_QUEUE_SERIAL);
 
 @interface DeviceScannerDelegate : NSObject <MTRCommissionableBrowserDelegate>
 - (void)controller:(MTRDeviceController *)controller didFindCommissionableDevice:(MTRCommissionableBrowserResult *)device;

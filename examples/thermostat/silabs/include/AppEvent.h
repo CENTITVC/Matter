@@ -18,7 +18,6 @@
  */
 
 #pragma once
-#include <stdint.h>
 
 struct AppEvent;
 typedef void (*EventHandler)(AppEvent *);

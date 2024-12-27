@@ -17,13 +17,15 @@
 
 #pragma once
 
-#include <cmsis_os2.h>
+#include <FreeRTOS.h>
+
+#include "semphr.h"
 #include <cstdint>
 
 namespace PigweedLogger {
 
 void init(void);
 int putString(const char * buffer, size_t size);
-osMutexId_t * GetMutex();
+SemaphoreHandle_t * GetSemaphore();
 
 } // namespace PigweedLogger

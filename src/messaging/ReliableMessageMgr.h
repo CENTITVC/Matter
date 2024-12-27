@@ -112,8 +112,8 @@ public:
      *
      *  @retval  The backoff time value, including jitter.
      */
-    static System::Clock::Timeout GetBackoff(System::Clock::Timeout baseInterval, uint8_t sendCount,
-                                             bool computeMaxPossible = false);
+    static System::Clock::Timestamp GetBackoff(System::Clock::Timestamp baseInterval, uint8_t sendCount,
+                                               bool computeMaxPossible = false);
 
     /**
      *  Start retranmisttion of cached encryped packet for current entry.
@@ -206,6 +206,7 @@ public:
     }
 #endif // CHIP_CONFIG_TEST
 
+#if CHIP_DEVICE_CONFIG_ENABLE_DYNAMIC_MRP_CONFIG
     /**
      * Set the value to add to the MRP backoff time we compute.  This is meant to
      * account for high network latency on the sending side (us) that can't be
@@ -219,7 +220,11 @@ public:
      * set this before actually bringing up the stack and having access to a
      * ReliableMessageMgr.
      */
-    static void SetAdditionalMRPBackoffTime(const Optional<System::Clock::Timeout> & additionalTime);
+    static void SetAdditionalMRPBackoffTime(const Optional<System::Clock::Milliseconds64> & additionalTime)
+    {
+        sAdditionalMRPBackoffTime = additionalTime;
+    }
+#endif // CHIP_DEVICE_CONFIG_ENABLE_DYNAMIC_MRP_CONFIG
 
 private:
     /**
@@ -250,7 +255,9 @@ private:
 
     SessionUpdateDelegate * mSessionUpdateDelegate = nullptr;
 
-    static System::Clock::Timeout sAdditionalMRPBackoffTime;
+#if CHIP_DEVICE_CONFIG_ENABLE_DYNAMIC_MRP_CONFIG
+    static Optional<System::Clock::Milliseconds64> sAdditionalMRPBackoffTime;
+#endif // CHIP_DEVICE_CONFIG_ENABLE_DYNAMIC_MRP_CONFIG
 };
 
 } // namespace Messaging

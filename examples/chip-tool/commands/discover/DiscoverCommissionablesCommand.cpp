@@ -23,7 +23,7 @@
 
 using namespace ::chip;
 
-void DiscoverCommissionablesCommandBase::OnDiscoveredDevice(const chip::Dnssd::CommissionNodeData & nodeData)
+void DiscoverCommissionablesCommandBase::OnDiscoveredDevice(const chip::Dnssd::DiscoveredNodeData & nodeData)
 {
     nodeData.LogDetail();
     LogErrorOnFailure(RemoteDataModelLogger::LogDiscoveredNodeData(nodeData));
@@ -120,13 +120,5 @@ CHIP_ERROR DiscoverCommissionableByDeviceTypeCommand::RunCommand()
     mCommissioner = &CurrentCommissioner();
     mCommissioner->RegisterDeviceDiscoveryDelegate(this);
     chip::Dnssd::DiscoveryFilter filter(chip::Dnssd::DiscoveryFilterType::kDeviceType, mDeviceType);
-    return mCommissioner->DiscoverCommissionableNodes(filter);
-}
-
-CHIP_ERROR DiscoverCommissionableByInstanceNameCommand::RunCommand()
-{
-    mCommissioner = &CurrentCommissioner();
-    mCommissioner->RegisterDeviceDiscoveryDelegate(this);
-    chip::Dnssd::DiscoveryFilter filter(chip::Dnssd::DiscoveryFilterType::kInstanceName, mInstanceName);
     return mCommissioner->DiscoverCommissionableNodes(filter);
 }

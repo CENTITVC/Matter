@@ -299,22 +299,8 @@
       android:textSize="16sp"
       android:visibility="gone"
       app:layout_constraintStart_toStartOf="parent"
-      app:layout_constraintEnd_toStartOf="@id/writeInvokeresetBtn"
+      app:layout_constraintEnd_toStartOf="@id/sendBtn"
       app:layout_constraintTop_toBottomOf="@id/addLayout"/>
-
-  <Button
-      android:id="@+id/writeInvokeresetBtn"
-      android:layout_width="wrap_content"
-      android:layout_height="wrap_content"
-      android:padding="16dp"
-      android:layout_marginTop="16dp"
-      android:layout_marginBottom="8dp"
-      android:text="@string/wildcard_reset_btn_text"
-      app:layout_constraintStart_toEndOf="@id/addListBtn"
-      app:layout_constraintEnd_toEndOf="parent"
-      app:layout_constraintTop_toBottomOf="@id/addLayout"
-      android:visibility="gone"
-      android:textSize="16sp" />
 
     <Button
         android:id="@+id/sendBtn"
@@ -327,25 +313,8 @@
         android:text="@string/wildcard_send_btn_text"
         android:textSize="16sp"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toStartOf="@id/icdQueueBtn"
-        app:layout_constraintTop_toBottomOf="@id/addListBtn"/>
-
-  <ToggleButton
-      android:id="@+id/icdQueueBtn"
-      android:layout_width="wrap_content"
-      android:layout_height="wrap_content"
-      android:padding="16dp"
-      android:layout_marginTop="16dp"
-      android:layout_marginBottom="8dp"
-      android:layout_gravity="center"
-      android:textOn="@string/wildcard_wait_check_in_message_btn_text"
-      android:textOff="@string/wildcard_send_when_check_in_message_btn_text"
-      android:textSize="16sp"
-      app:layout_constraintStart_toEndOf="@id/sendBtn"
-      app:layout_constraintEnd_toEndOf="parent"
-      app:layout_constraintTop_toBottomOf="@id/addListBtn"/>
-
-
+        app:layout_constraintEnd_toStartOf="@id/shutdownSubscriptionBtn"
+        app:layout_constraintTop_toBottomOf="@id/addLayout"/>
 
   <Button
       android:id="@+id/shutdownSubscriptionBtn"
@@ -358,9 +327,23 @@
       android:text="@string/wildcard_shutdown_subscription_btn_text"
       android:textSize="16sp"
       android:visibility="gone"
-      app:layout_constraintStart_toStartOf="parent"
+      app:layout_constraintStart_toEndOf="@id/sendBtn"
       app:layout_constraintEnd_toEndOf="parent"
-      app:layout_constraintTop_toBottomOf="@id/sendBtn"/>
+      app:layout_constraintTop_toBottomOf="@id/addLayout"/>
+
+  <Button
+      android:id="@+id/writeInvokeresetBtn"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:padding="16dp"
+      android:layout_marginTop="16dp"
+      android:layout_marginBottom="8dp"
+      android:text="@string/wildcard_reset_btn_text"
+      app:layout_constraintStart_toEndOf="@id/sendBtn"
+      app:layout_constraintEnd_toEndOf="parent"
+      app:layout_constraintTop_toBottomOf="@id/addLayout"
+      android:visibility="gone"
+      android:textSize="16sp" />
 
   <ScrollView
       android:layout_width="match_parent"
@@ -368,7 +351,7 @@
       android:fadeScrollbars="false"
       app:layout_constraintBottom_toBottomOf="parent"
       app:layout_constraintStart_toStartOf="parent"
-      app:layout_constraintTop_toBottomOf="@id/shutdownSubscriptionBtn">
+      app:layout_constraintTop_toBottomOf="@id/sendBtn">
     <TextView
         android:id="@+id/outputTv"
         android:layout_width="match_parent"

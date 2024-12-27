@@ -16,10 +16,10 @@
  *    limitations under the License.
  */
 
-#include <pw_unit_test/framework.h>
-
-#include <lib/core/StringBuilderAdapters.h>
 #include <lib/dnssd/minimal_mdns/records/ResourceRecord.h>
+#include <lib/support/UnitTestRegistration.h>
+
+#include <nlunit-test.h>
 
 namespace {
 
@@ -41,7 +41,7 @@ private:
     const char * mData;
 };
 
-TEST(TestResourceRecord, CanWriteSimpleRecord)
+void CanWriteSimpleRecord(nlTestSuite * inSuite, void * inContext)
 {
     uint8_t headerBuffer[HeaderRef::kSizeBytes];
     uint8_t dataBuffer[128];
@@ -68,15 +68,15 @@ TEST(TestResourceRecord, CanWriteSimpleRecord)
         's',  'o',  'm',  'e',  'd', 'a', 't', 'a',
     };
 
-    EXPECT_TRUE(record.Append(header, ResourceType::kAnswer, writer));
-    EXPECT_EQ(header.GetAnswerCount(), 1);
-    EXPECT_EQ(header.GetAuthorityCount(), 0);
-    EXPECT_EQ(header.GetAdditionalCount(), 0);
-    EXPECT_EQ(output.Needed(), sizeof(expectedOutput));
-    EXPECT_EQ(memcmp(dataBuffer, expectedOutput, sizeof(expectedOutput)), 0);
+    NL_TEST_ASSERT(inSuite, record.Append(header, ResourceType::kAnswer, writer));
+    NL_TEST_ASSERT(inSuite, header.GetAnswerCount() == 1);
+    NL_TEST_ASSERT(inSuite, header.GetAuthorityCount() == 0);
+    NL_TEST_ASSERT(inSuite, header.GetAdditionalCount() == 0);
+    NL_TEST_ASSERT(inSuite, output.Needed() == sizeof(expectedOutput));
+    NL_TEST_ASSERT(inSuite, memcmp(dataBuffer, expectedOutput, sizeof(expectedOutput)) == 0);
 }
 
-TEST(TestResourceRecord, CanWriteMultipleRecords)
+void CanWriteMultipleRecords(nlTestSuite * inSuite, void * inContext)
 {
     uint8_t headerBuffer[HeaderRef::kSizeBytes];
     uint8_t dataBuffer[128];
@@ -118,26 +118,26 @@ TEST(TestResourceRecord, CanWriteMultipleRecords)
         'x',  'y',  'z',
     };
 
-    EXPECT_TRUE(record1.Append(header, ResourceType::kAnswer, writer));
-    EXPECT_EQ(header.GetAnswerCount(), 1);
-    EXPECT_EQ(header.GetAuthorityCount(), 0);
-    EXPECT_EQ(header.GetAdditionalCount(), 0);
+    NL_TEST_ASSERT(inSuite, record1.Append(header, ResourceType::kAnswer, writer));
+    NL_TEST_ASSERT(inSuite, header.GetAnswerCount() == 1);
+    NL_TEST_ASSERT(inSuite, header.GetAuthorityCount() == 0);
+    NL_TEST_ASSERT(inSuite, header.GetAdditionalCount() == 0);
 
-    EXPECT_TRUE(record2.Append(header, ResourceType::kAuthority, writer));
-    EXPECT_EQ(header.GetAnswerCount(), 1);
-    EXPECT_EQ(header.GetAuthorityCount(), 1);
-    EXPECT_EQ(header.GetAdditionalCount(), 0);
+    NL_TEST_ASSERT(inSuite, record2.Append(header, ResourceType::kAuthority, writer));
+    NL_TEST_ASSERT(inSuite, header.GetAnswerCount() == 1);
+    NL_TEST_ASSERT(inSuite, header.GetAuthorityCount() == 1);
+    NL_TEST_ASSERT(inSuite, header.GetAdditionalCount() == 0);
 
-    EXPECT_TRUE(record3.Append(header, ResourceType::kAdditional, writer));
-    EXPECT_EQ(header.GetAnswerCount(), 1);
-    EXPECT_EQ(header.GetAuthorityCount(), 1);
-    EXPECT_EQ(header.GetAdditionalCount(), 1);
+    NL_TEST_ASSERT(inSuite, record3.Append(header, ResourceType::kAdditional, writer));
+    NL_TEST_ASSERT(inSuite, header.GetAnswerCount() == 1);
+    NL_TEST_ASSERT(inSuite, header.GetAuthorityCount() == 1);
+    NL_TEST_ASSERT(inSuite, header.GetAdditionalCount() == 1);
 
-    EXPECT_EQ(output.Needed(), sizeof(expectedOutput));
-    EXPECT_EQ(memcmp(dataBuffer, expectedOutput, sizeof(expectedOutput)), 0);
+    NL_TEST_ASSERT(inSuite, output.Needed() == sizeof(expectedOutput));
+    NL_TEST_ASSERT(inSuite, memcmp(dataBuffer, expectedOutput, sizeof(expectedOutput)) == 0);
 }
 
-TEST(TestResourceRecord, RecordOrderIsEnforced)
+void RecordOrderIsEnforced(nlTestSuite * inSuite, void * inContext)
 {
     uint8_t headerBuffer[HeaderRef::kSizeBytes];
     uint8_t dataBuffer[128];
@@ -151,15 +151,15 @@ TEST(TestResourceRecord, RecordOrderIsEnforced)
 
     header.Clear();
     header.SetAuthorityCount(1);
-    EXPECT_EQ(record.Append(header, ResourceType::kAnswer, writer), false);
+    NL_TEST_ASSERT(inSuite, record.Append(header, ResourceType::kAnswer, writer) == false);
 
     header.Clear();
     header.SetAdditionalCount(1);
-    EXPECT_EQ(record.Append(header, ResourceType::kAnswer, writer), false);
-    EXPECT_EQ(record.Append(header, ResourceType::kAuthority, writer), false);
+    NL_TEST_ASSERT(inSuite, record.Append(header, ResourceType::kAnswer, writer) == false);
+    NL_TEST_ASSERT(inSuite, record.Append(header, ResourceType::kAuthority, writer) == false);
 }
 
-TEST(TestResourceRecord, ErrorsOutOnSmallBuffers)
+void ErrorsOutOnSmallBuffers(nlTestSuite * inSuite, void * inContext)
 {
     uint8_t headerBuffer[HeaderRef::kSizeBytes];
     uint8_t dataBuffer[123];
@@ -191,23 +191,23 @@ TEST(TestResourceRecord, ErrorsOutOnSmallBuffers)
         BufferWriter output(dataBuffer, i);
         RecordWriter writer(&output);
 
-        EXPECT_EQ(record.Append(header, ResourceType::kAnswer, writer), false);
+        NL_TEST_ASSERT(inSuite, record.Append(header, ResourceType::kAnswer, writer) == false);
 
         // header untouched
-        EXPECT_EQ(memcmp(headerBuffer, clearHeader, HeaderRef::kSizeBytes), 0);
+        NL_TEST_ASSERT(inSuite, memcmp(headerBuffer, clearHeader, HeaderRef::kSizeBytes) == 0);
     }
 
     memset(dataBuffer, 0, sizeof(dataBuffer));
     BufferWriter output(dataBuffer, sizeof(expectedOutput));
     RecordWriter writer(&output);
 
-    EXPECT_TRUE(record.Append(header, ResourceType::kAnswer, writer));
-    EXPECT_EQ(output.Needed(), sizeof(expectedOutput));
-    EXPECT_EQ(memcmp(dataBuffer, expectedOutput, sizeof(expectedOutput)), 0);
-    EXPECT_NE(memcmp(headerBuffer, clearHeader, HeaderRef::kSizeBytes), 0);
+    NL_TEST_ASSERT(inSuite, record.Append(header, ResourceType::kAnswer, writer));
+    NL_TEST_ASSERT(inSuite, output.Needed() == sizeof(expectedOutput));
+    NL_TEST_ASSERT(inSuite, memcmp(dataBuffer, expectedOutput, sizeof(expectedOutput)) == 0);
+    NL_TEST_ASSERT(inSuite, memcmp(headerBuffer, clearHeader, HeaderRef::kSizeBytes) != 0);
 }
 
-TEST(TestResourceRecord, RecordCount)
+void RecordCount(nlTestSuite * inSuite, void * inContext)
 {
     constexpr int kAppendCount = 10;
     uint8_t headerBuffer[HeaderRef::kSizeBytes];
@@ -223,10 +223,10 @@ TEST(TestResourceRecord, RecordCount)
         BufferWriter output(dataBuffer, sizeof(dataBuffer));
         RecordWriter writer(&output);
 
-        EXPECT_TRUE(record.Append(header, ResourceType::kAnswer, writer));
-        EXPECT_EQ(header.GetAnswerCount(), i + 1);
-        EXPECT_EQ(header.GetAuthorityCount(), 0);
-        EXPECT_EQ(header.GetAdditionalCount(), 0);
+        NL_TEST_ASSERT(inSuite, record.Append(header, ResourceType::kAnswer, writer));
+        NL_TEST_ASSERT(inSuite, header.GetAnswerCount() == i + 1);
+        NL_TEST_ASSERT(inSuite, header.GetAuthorityCount() == 0);
+        NL_TEST_ASSERT(inSuite, header.GetAdditionalCount() == 0);
     }
 
     for (int i = 0; i < kAppendCount; i++)
@@ -234,10 +234,10 @@ TEST(TestResourceRecord, RecordCount)
         BufferWriter output(dataBuffer, sizeof(dataBuffer));
         RecordWriter writer(&output);
 
-        EXPECT_TRUE(record.Append(header, ResourceType::kAuthority, writer));
-        EXPECT_EQ(header.GetAnswerCount(), kAppendCount);
-        EXPECT_EQ(header.GetAuthorityCount(), i + 1);
-        EXPECT_EQ(header.GetAdditionalCount(), 0);
+        NL_TEST_ASSERT(inSuite, record.Append(header, ResourceType::kAuthority, writer));
+        NL_TEST_ASSERT(inSuite, header.GetAnswerCount() == kAppendCount);
+        NL_TEST_ASSERT(inSuite, header.GetAuthorityCount() == i + 1);
+        NL_TEST_ASSERT(inSuite, header.GetAdditionalCount() == 0);
     }
 
     for (int i = 0; i < kAppendCount; i++)
@@ -245,27 +245,47 @@ TEST(TestResourceRecord, RecordCount)
         BufferWriter output(dataBuffer, sizeof(dataBuffer));
         RecordWriter writer(&output);
 
-        EXPECT_TRUE(record.Append(header, ResourceType::kAdditional, writer));
-        EXPECT_EQ(header.GetAnswerCount(), kAppendCount);
-        EXPECT_EQ(header.GetAuthorityCount(), kAppendCount);
-        EXPECT_EQ(header.GetAdditionalCount(), i + 1);
+        NL_TEST_ASSERT(inSuite, record.Append(header, ResourceType::kAdditional, writer));
+        NL_TEST_ASSERT(inSuite, header.GetAnswerCount() == kAppendCount);
+        NL_TEST_ASSERT(inSuite, header.GetAuthorityCount() == kAppendCount);
+        NL_TEST_ASSERT(inSuite, header.GetAdditionalCount() == i + 1);
     }
 }
-TEST(TestResourceRecord, CacheFlushBit)
+void CacheFlushBit(nlTestSuite * inSuite, void * inContext)
 {
     FakeResourceRecord record("somedata");
     // No cache flush bit by default.
-    EXPECT_EQ(record.GetClass(), QClass::IN);
-    EXPECT_EQ(record.GetCacheFlush(), false);
+    NL_TEST_ASSERT(inSuite, record.GetClass() == QClass::IN);
+    NL_TEST_ASSERT(inSuite, record.GetCacheFlush() == false);
 
     // Check we can set flush bit and the class marker reflects that.
     record.SetCacheFlush(true);
-    EXPECT_EQ(record.GetClass(), QClass::IN_FLUSH);
-    EXPECT_EQ(record.GetCacheFlush(), true);
+    NL_TEST_ASSERT(inSuite, record.GetClass() == QClass::IN_FLUSH);
+    NL_TEST_ASSERT(inSuite, record.GetCacheFlush() == true);
 
     // Check we can unset.
     record.SetCacheFlush(false);
-    EXPECT_EQ(record.GetClass(), QClass::IN);
-    EXPECT_EQ(record.GetCacheFlush(), false);
+    NL_TEST_ASSERT(inSuite, record.GetClass() == QClass::IN);
+    NL_TEST_ASSERT(inSuite, record.GetCacheFlush() == false);
 }
+
+const nlTest sTests[] = {
+    NL_TEST_DEF("CanWriteSimpleRecord", CanWriteSimpleRecord),       //
+    NL_TEST_DEF("CanWriteMultipleRecords", CanWriteMultipleRecords), //
+    NL_TEST_DEF("RecordOrderIsEnforced", RecordOrderIsEnforced),     //
+    NL_TEST_DEF("ErrorsOutOnSmallBuffers", ErrorsOutOnSmallBuffers), //
+    NL_TEST_DEF("RecordCount", RecordCount),                         //
+    NL_TEST_DEF("CacheFlushBit", CacheFlushBit),                     //
+    NL_TEST_SENTINEL()                                               //
+};
+
 } // namespace
+
+int TestResourceRecord()
+{
+    nlTestSuite theSuite = { "ResourceRecord", sTests, nullptr, nullptr };
+    nlTestRunner(&theSuite, nullptr);
+    return nlTestRunnerStats(&theSuite);
+}
+
+CHIP_REGISTER_TEST_SUITE(TestResourceRecord)

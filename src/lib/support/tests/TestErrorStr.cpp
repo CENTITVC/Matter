@@ -19,32 +19,33 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <pw_unit_test/framework.h>
-
 #include <lib/core/CHIPCore.h>
+
 #include <lib/core/ErrorStr.h>
-#include <lib/core/StringBuilderAdapters.h>
+#include <lib/support/UnitTestRegistration.h>
+
+#include <nlunit-test.h>
 
 using namespace chip;
 
 #if CHIP_CONFIG_ERROR_SOURCE && !CHIP_CONFIG_SHORT_ERROR_STR
 
-const char * CheckAndSkipSource(const char * s, const char * file, unsigned int line)
+const char * CheckAndSkipSource(nlTestSuite * inSuite, const char * s, const char * file, unsigned int line)
 {
     size_t fileLength = strlen(file);
-    EXPECT_EQ(strncmp(s, file, fileLength), 0);
-    EXPECT_EQ(s[fileLength], ':');
+    NL_TEST_ASSERT(inSuite, strncmp(s, file, fileLength) == 0);
+    NL_TEST_ASSERT(inSuite, s[fileLength] == ':');
     char * end;
-    EXPECT_EQ(strtoul(&s[fileLength + 1], &end, 10), line);
-    EXPECT_EQ(strncmp(end, ": ", 2), 0);
+    NL_TEST_ASSERT(inSuite, strtoul(&s[fileLength + 1], &end, 10) == line);
+    NL_TEST_ASSERT(inSuite, strncmp(end, ": ", 2) == 0);
     return end + 2;
 }
 
-#define CHECK_AND_SKIP_SOURCE(s) CheckAndSkipSource((s), __FILE__, __LINE__)
+#define CHECK_AND_SKIP_SOURCE(suite, s) CheckAndSkipSource((suite), (s), __FILE__, __LINE__)
 
 #else // CHIP_CONFIG_ERROR_SOURCE && !CHIP_CONFIG_SHORT_ERROR_STR
 
-#define CHECK_AND_SKIP_SOURCE(s) (s)
+#define CHECK_AND_SKIP_SOURCE(suite, s) (s)
 
 #endif // CHIP_CONFIG_ERROR_SOURCE && !CHIP_CONFIG_SHORT_ERROR_STR
 
@@ -67,7 +68,7 @@ static bool trueFormat(char * buf, uint16_t bufSize, CHIP_ERROR err)
     return true; // means I handled it
 }
 
-TEST(TestErrorStr, CheckRegisterDeregisterErrorFormatter)
+static void CheckRegisterDeregisterErrorFormatter(nlTestSuite * inSuite, void * inContext)
 {
     static ErrorFormatter falseFormatter  = { falseFormat, nullptr };
     static ErrorFormatter falseFormatter2 = { falseFormat2, nullptr };
@@ -76,22 +77,22 @@ TEST(TestErrorStr, CheckRegisterDeregisterErrorFormatter)
     // simple case
     RegisterErrorFormatter(&falseFormatter);
     ErrorStr(CHIP_ERROR_INTERNAL);
-    EXPECT_EQ(falseFormatCalled, 1);
+    NL_TEST_ASSERT(inSuite, falseFormatCalled == 1);
     // reset
     falseFormatCalled = 0;
 
     // re-registration should be ignored
     RegisterErrorFormatter(&falseFormatter);
     ErrorStr(CHIP_ERROR_INTERNAL);
-    EXPECT_EQ(falseFormatCalled, 1);
+    NL_TEST_ASSERT(inSuite, falseFormatCalled == 1);
     // reset
     falseFormatCalled = 0;
 
     // registration of a new handler, nobody handling anything
     RegisterErrorFormatter(&falseFormatter2);
     ErrorStr(CHIP_ERROR_INTERNAL);
-    EXPECT_EQ(falseFormatCalled, 1);
-    EXPECT_EQ(falseFormat2Called, 1);
+    NL_TEST_ASSERT(inSuite, falseFormatCalled == 1);
+    NL_TEST_ASSERT(inSuite, falseFormat2Called == 1);
     // reset
     falseFormatCalled  = 0;
     falseFormat2Called = 0;
@@ -99,29 +100,29 @@ TEST(TestErrorStr, CheckRegisterDeregisterErrorFormatter)
     // registration of a true handler, gets first crack
     RegisterErrorFormatter(&trueFormatter);
     ErrorStr(CHIP_ERROR_INTERNAL);
-    EXPECT_EQ(trueFormatCalled, 1);
-    EXPECT_EQ(falseFormatCalled, 0);
-    EXPECT_EQ(falseFormat2Called, 0);
+    NL_TEST_ASSERT(inSuite, trueFormatCalled == 1);
+    NL_TEST_ASSERT(inSuite, falseFormatCalled == 0);
+    NL_TEST_ASSERT(inSuite, falseFormat2Called == 0);
     // reset
     trueFormatCalled = 0;
 
     // deregister true
     DeregisterErrorFormatter(&trueFormatter);
     ErrorStr(CHIP_ERROR_INTERNAL);
-    EXPECT_EQ(trueFormatCalled, 0);
-    EXPECT_EQ(falseFormatCalled, 1);
-    EXPECT_EQ(falseFormat2Called, 1);
+    NL_TEST_ASSERT(inSuite, trueFormatCalled == 0);
+    NL_TEST_ASSERT(inSuite, falseFormatCalled == 1);
+    NL_TEST_ASSERT(inSuite, falseFormat2Called == 1);
 
     // verify this doesn't crash
     DeregisterErrorFormatter(&trueFormatter);
 }
 
-TEST(TestErrorStr, CheckNoError)
+static void CheckNoError(nlTestSuite * inSuite, void * inContext)
 {
-    EXPECT_STREQ(CHECK_AND_SKIP_SOURCE(ErrorStr(CHIP_NO_ERROR)), CHIP_NO_ERROR_STRING);
+    NL_TEST_ASSERT(inSuite, strcmp(CHECK_AND_SKIP_SOURCE(inSuite, ErrorStr(CHIP_NO_ERROR)), CHIP_NO_ERROR_STRING) == 0);
 }
 
-TEST(TestErrorStr, CheckFormatErr)
+static void CheckFormatErr(nlTestSuite * inSuite, void * inContext)
 {
 #if CHIP_CONFIG_SHORT_ERROR_STR
 
@@ -136,28 +137,63 @@ TEST(TestErrorStr, CheckFormatErr)
     strcpy(buf, "hi");
     // shouldn't touch the buffer
     FormatError(buf, 0, subsys, CHIP_ERROR_INTERNAL, desc);
-    EXPECT_STREQ(buf, "hi");
+    NL_TEST_ASSERT(inSuite, strcmp(buf, "hi") == 0);
 
     // guarantees null termination, doesn't touch past 1st byte
     strcpy(buf, "hi");
     FormatError(buf, 1, subsys, CHIP_ERROR_INTERNAL, desc);
-    EXPECT_STREQ(buf, "");
-    EXPECT_EQ(buf[1], 'i');
+    NL_TEST_ASSERT(inSuite, strcmp(buf, "") == 0);
+    NL_TEST_ASSERT(inSuite, buf[1] == 'i');
 
     // whole shebang
     FormatError(buf, kBufSize, subsys, CHIP_CORE_ERROR(1), desc);
-    EXPECT_STREQ(buf, "subsys Error 0x00000001: desc");
+    NL_TEST_ASSERT(inSuite, strcmp(buf, "subsys Error 0x00000001: desc") == 0);
 
     // skip desc
     FormatError(buf, kBufSize, subsys, CHIP_CORE_ERROR(1), nullptr);
-    EXPECT_STREQ(buf, "subsys Error 0x00000001");
+    NL_TEST_ASSERT(inSuite, strcmp(buf, "subsys Error 0x00000001") == 0);
 
     // skip subsys
     FormatError(buf, kBufSize, nullptr, CHIP_CORE_ERROR(1), desc);
-    EXPECT_STREQ(buf, "Error 0x00000001: desc");
+    NL_TEST_ASSERT(inSuite, strcmp(buf, "Error 0x00000001: desc") == 0);
 
     // skip both
     FormatError(buf, kBufSize, nullptr, CHIP_CORE_ERROR(1), nullptr);
-    EXPECT_STREQ(buf, "Error 0x00000001");
+    NL_TEST_ASSERT(inSuite, strcmp(buf, "Error 0x00000001") == 0);
 #endif
 }
+
+/**
+ *   Test Suite. It lists all the test functions.
+ */
+
+// clang-format off
+static const nlTest sTests[] =
+{
+    NL_TEST_DEF("NoError",                          CheckNoError),
+    NL_TEST_DEF("RegisterDeregisterErrorFormatter", CheckRegisterDeregisterErrorFormatter),
+    NL_TEST_DEF("FormatErr",                        CheckFormatErr),
+
+    NL_TEST_SENTINEL()
+};
+// clang-format on
+
+int TestErrorStr()
+{
+    // clang-format off
+    nlTestSuite theSuite =
+	{
+        "Test the ErrorStr primitives",
+        &sTests[0],
+        nullptr,
+        nullptr
+    };
+    // clang-format on
+
+    // Run test suite against one context.
+    nlTestRunner(&theSuite, nullptr);
+
+    return nlTestRunnerStats(&theSuite);
+}
+
+CHIP_REGISTER_TEST_SUITE(TestErrorStr)

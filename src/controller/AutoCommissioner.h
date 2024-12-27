@@ -19,7 +19,6 @@
 #include <controller/CommissioneeDeviceProxy.h>
 #include <controller/CommissioningDelegate.h>
 #include <credentials/DeviceAttestationConstructor.h>
-#include <crypto/CHIPCryptoPAL.h>
 #include <protocols/secure_channel/RendezvousParameters.h>
 
 namespace chip {
@@ -71,8 +70,7 @@ private:
     ByteSpan GetDAC() const { return ByteSpan(mDAC, mDACLen); }
     ByteSpan GetPAI() const { return ByteSpan(mPAI, mPAILen); }
 
-    CHIP_ERROR NOCChainGenerated(ByteSpan noc, ByteSpan icac, ByteSpan rcac, Crypto::IdentityProtectionKeySpan ipk,
-                                 NodeId adminSubject);
+    CHIP_ERROR NOCChainGenerated(ByteSpan noc, ByteSpan icac, ByteSpan rcac, IdentityProtectionKeySpan ipk, NodeId adminSubject);
     EndpointId GetEndpoint(const CommissioningStage & stage) const;
     CommissioningStage GetNextCommissioningStageInternal(CommissioningStage currentStage, CHIP_ERROR & lastErr);
 
@@ -93,22 +91,6 @@ private:
                 (mParams.GetAttemptThreadNetworkScan().ValueOr(false) &&
                  mDeviceCommissioningInfo.network.thread.endpoint != kInvalidEndpointId));
     };
-
-    // Helper function to Determine whether secondary network interface is supported.
-    // Only true if information is provided for both networks, and the target has endpoint
-    // for wifi and thread.
-    bool IsSecondaryNetworkSupported() const
-    {
-        return ((mParams.GetSupportsConcurrentConnection().ValueOr(false) && mParams.GetWiFiCredentials().HasValue() &&
-                 mDeviceCommissioningInfo.network.wifi.endpoint != kInvalidEndpointId) &&
-                mParams.GetThreadOperationalDataset().HasValue() &&
-                mDeviceCommissioningInfo.network.thread.endpoint != kInvalidEndpointId);
-    }
-
-    void TrySecondaryNetwork() { mTryingSecondaryNetwork = true; }
-    bool TryingSecondaryNetwork() const { return mTryingSecondaryNetwork; }
-    void ResetTryingSecondaryNetwork() { mTryingSecondaryNetwork = false; }
-    bool mTryingSecondaryNetwork = false;
 
     bool mStopCommissioning = false;
 

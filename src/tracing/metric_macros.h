@@ -434,15 +434,14 @@
  *  @param[in]  kMetricKey  Metric key for the metric event to be emitted.
  *                          Value of the metric is set to false.
  *  @param[in]  expr        A Boolean expression to be evaluated.
- *  @param[in]  code        Error code to emit as part of the metric.
  *  @param[in]  ...         Statements to execute.
  */
-#define VerifyOrDoWithMetric(kMetricKey, expr, code, ...)                                                                          \
+#define VerifyOrDoWithMetric(kMetricKey, expr, ...)                                                                                \
     do                                                                                                                             \
     {                                                                                                                              \
         if (!(expr))                                                                                                               \
         {                                                                                                                          \
-            MATTER_LOG_METRIC(kMetricKey, code);                                                                                   \
+            MATTER_LOG_METRIC(kMetricKey, false);                                                                                  \
             __VA_ARGS__;                                                                                                           \
         }                                                                                                                          \
     } while (false)
@@ -593,7 +592,7 @@
 
 #define LogErrorOnFailureWithMetric(kMetricKey, expr) LogErrorOnFailure(expr)
 
-#define VerifyOrDoWithMetric(kMetricKey, expr, code, ...) VerifyOrDo(expr, ##__VA_ARGS__)
+#define VerifyOrDoWithMetric(kMetricKey, expr, ...) VerifyOrDo(expr, ##__VA_ARGS__)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Map all MATTER_LOG_METRIC_XYZ macros to noops

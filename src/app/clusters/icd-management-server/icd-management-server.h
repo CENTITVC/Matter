@@ -34,6 +34,8 @@
 #include <lib/core/CHIPPersistentStorageDelegate.h>
 #endif // CHIP_CONFIG_ENABLE_ICD_CIP
 
+using chip::Protocols::InteractionModel::Status;
+
 namespace chip {
 namespace Crypto {
 using SymmetricKeystore = SessionKeystore;

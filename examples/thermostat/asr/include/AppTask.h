@@ -26,7 +26,7 @@
 #include "SensorManager.h"
 #include "TemperatureManager.h"
 #include "timers.h" // provides FreeRTOS timer support
-#include <ble/Ble.h>
+#include <ble/BLEEndPoint.h>
 #include <platform/CHIPDeviceLayer.h>
 
 #include <FreeRTOS.h>

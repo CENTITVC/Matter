@@ -26,14 +26,12 @@
 
 #pragma once
 
-#include <app/AppConfig.h>
 #include <app/CASEClient.h>
 #include <app/CASEClientPool.h>
 #include <app/DeviceProxy.h>
 #include <app/util/basic-types.h>
 #include <credentials/GroupDataProvider.h>
 #include <lib/address_resolve/AddressResolve.h>
-#include <lib/core/GroupedCallbackList.h>
 #include <messaging/ExchangeContext.h>
 #include <messaging/ExchangeDelegate.h>
 #include <messaging/ExchangeMgr.h>
@@ -157,25 +155,18 @@ typedef void (*OnDeviceConnectionRetry)(void * context, const ScopedNodeId & pee
 class DLL_EXPORT OperationalSessionSetup : public SessionEstablishmentDelegate, public AddressResolve::NodeListener
 {
 public:
-    struct ConnectionFailureInfo
+    struct ConnnectionFailureInfo
     {
         const ScopedNodeId peerId;
         CHIP_ERROR error;
         SessionEstablishmentStage sessionStage;
 
-        // When the response was BUSY, error will be CHIP_ERROR_BUSY and
-        // requestedBusyDelay will be set, if handling of BUSY responses is
-        // enabled.
-#if CHIP_CONFIG_ENABLE_BUSY_HANDLING_FOR_OPERATIONAL_SESSION_SETUP
-        Optional<System::Clock::Milliseconds16> requestedBusyDelay;
-#endif // CHIP_CONFIG_ENABLE_BUSY_HANDLING_FOR_OPERATIONAL_SESSION_SETUP
-
-        ConnectionFailureInfo(const ScopedNodeId & peer, CHIP_ERROR err, SessionEstablishmentStage stage) :
+        ConnnectionFailureInfo(const ScopedNodeId & peer, CHIP_ERROR err, SessionEstablishmentStage stage) :
             peerId(peer), error(err), sessionStage(stage)
         {}
     };
 
-    using OnSetupFailure = void (*)(void * context, const ConnectionFailureInfo & failureInfo);
+    using OnSetupFailure = void (*)(void * context, const ConnnectionFailureInfo & failureInfo);
 
     ~OperationalSessionSetup() override;
 
@@ -211,12 +202,8 @@ public:
      * `onFailure` may be called before the Connect call returns, for error
      * cases that are detected synchronously (e.g. inability to start an address
      * lookup).
-     *
-     * `transportPayloadCapability` is set to kLargePayload when the session needs to be established
-     * over a transport that allows large payloads to be transferred, e.g., TCP.
      */
-    void Connect(Callback::Callback<OnDeviceConnected> * onConnection, Callback::Callback<OnDeviceConnectionFailure> * onFailure,
-                 TransportPayloadCapability transportPayloadCapability = TransportPayloadCapability::kMRPPayload);
+    void Connect(Callback::Callback<OnDeviceConnected> * onConnection, Callback::Callback<OnDeviceConnectionFailure> * onFailure);
 
     /*
      * This function can be called to establish a secure session with the device.
@@ -232,12 +219,8 @@ public:
      *
      * `onSetupFailure` may be called before the Connect call returns, for error cases that are detected synchronously
      * (e.g. inability to start an address lookup).
-     *
-     * `transportPayloadCapability` is set to kLargePayload when the session needs to be established
-     * over a transport that allows large payloads to be transferred, e.g., TCP.
      */
-    void Connect(Callback::Callback<OnDeviceConnected> * onConnection, Callback::Callback<OnSetupFailure> * onSetupFailure,
-                 TransportPayloadCapability transportPayloadCapability = TransportPayloadCapability::kMRPPayload);
+    void Connect(Callback::Callback<OnDeviceConnected> * onConnection, Callback::Callback<OnSetupFailure> * onSetupFailure);
 
     bool IsForAddressUpdate() const { return mPerformingAddressUpdate; }
 
@@ -310,8 +293,9 @@ private:
 
     SessionHolder mSecureSession;
 
-    typedef Callback::GroupedCallbackList<OnDeviceConnected, OnDeviceConnectionFailure, OnSetupFailure> SuccessFailureCallbackList;
-    SuccessFailureCallbackList mCallbacks;
+    Callback::CallbackDeque mConnectionSuccess;
+    Callback::CallbackDeque mConnectionFailure;
+    Callback::CallbackDeque mSetupFailure;
 
     OperationalSessionReleaseDelegate * mReleaseDelegate;
 
@@ -321,12 +305,6 @@ private:
     State mState = State::Uninitialized;
 
     bool mPerformingAddressUpdate = false;
-
-#if CHIP_DEVICE_CONFIG_ENABLE_AUTOMATIC_CASE_RETRIES || CHIP_CONFIG_ENABLE_BUSY_HANDLING_FOR_OPERATIONAL_SESSION_SETUP
-    System::Clock::Milliseconds16 mRequestedBusyDelay = System::Clock::kZero;
-#endif // CHIP_DEVICE_CONFIG_ENABLE_AUTOMATIC_CASE_RETRIES || CHIP_CONFIG_ENABLE_BUSY_HANDLING_FOR_OPERATIONAL_SESSION_SETUP
-
-    TransportPayloadCapability mTransportPayloadCapability = TransportPayloadCapability::kMRPPayload;
 
 #if CHIP_DEVICE_CONFIG_ENABLE_AUTOMATIC_CASE_RETRIES
     // When we TryNextResult on the resolver, it will synchronously call back
@@ -342,12 +320,14 @@ private:
 
     uint8_t mResolveAttemptsAllowed = 0;
 
+    System::Clock::Milliseconds16 mRequestedBusyDelay = System::Clock::kZero;
+
     Callback::CallbackDeque mConnectionRetry;
 #endif // CHIP_DEVICE_CONFIG_ENABLE_AUTOMATIC_CASE_RETRIES
 
     void MoveToState(State aTargetState);
 
-    CHIP_ERROR EstablishConnection(const AddressResolve::ResolveResult & result);
+    CHIP_ERROR EstablishConnection(const ReliableMessageProtocolConfig & config);
 
     /*
      * This checks to see if an existing CASE session exists to the peer within the SessionManager
@@ -361,8 +341,7 @@ private:
     void CleanupCASEClient();
 
     void Connect(Callback::Callback<OnDeviceConnected> * onConnection, Callback::Callback<OnDeviceConnectionFailure> * onFailure,
-                 Callback::Callback<OnSetupFailure> * onSetupFailure,
-                 TransportPayloadCapability transportPayloadCapability = TransportPayloadCapability::kMRPPayload);
+                 Callback::Callback<OnSetupFailure> * onSetupFailure);
 
     void EnqueueConnectionCallbacks(Callback::Callback<OnDeviceConnected> * onConnection,
                                     Callback::Callback<OnDeviceConnectionFailure> * onFailure,
@@ -402,14 +381,11 @@ private:
      * notifications. This happens after the object has been released, if it's
      * being released.
      */
-    static void NotifyConnectionCallbacks(SuccessFailureCallbackList & ready, CHIP_ERROR error, SessionEstablishmentStage stage,
-                                          const ScopedNodeId & peerId, Messaging::ExchangeManager * exchangeMgr,
-                                          const Optional<SessionHandle> & optionalSessionHandle,
-                                          // requestedBusyDelay will be 0 if not
-                                          // CHIP_CONFIG_ENABLE_BUSY_HANDLING_FOR_OPERATIONAL_SESSION_SETUP,
-                                          // and only has a meaningful value
-                                          // when the error is CHIP_ERROR_BUSY.
-                                          System::Clock::Milliseconds16 requestedBusyDelay);
+    static void NotifyConnectionCallbacks(Callback::Cancelable & failureReady, Callback::Cancelable & setupFailureReady,
+                                          Callback::Cancelable & successReady, CHIP_ERROR error, SessionEstablishmentStage stage,
+                                          const ScopedNodeId & peerId, bool performingAddressUpdate,
+                                          Messaging::ExchangeManager * exchangeMgr,
+                                          const Optional<SessionHandle> & optionalSessionHandle);
 
     /**
      * Triggers a DNSSD lookup to find a usable peer address.
@@ -419,7 +395,7 @@ private:
     /**
      * This function will set new IP address, port and MRP retransmission intervals of the device.
      */
-    void UpdateDeviceData(const AddressResolve::ResolveResult & result);
+    void UpdateDeviceData(const Transport::PeerAddress & addr, const ReliableMessageProtocolConfig & config);
 
 #if CHIP_DEVICE_CONFIG_ENABLE_AUTOMATIC_CASE_RETRIES
     /**

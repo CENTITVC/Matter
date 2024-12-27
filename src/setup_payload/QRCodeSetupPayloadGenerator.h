@@ -31,8 +31,6 @@
 
 #include <lib/support/Span.h>
 
-#include <string>
-
 #pragma once
 
 namespace chip {

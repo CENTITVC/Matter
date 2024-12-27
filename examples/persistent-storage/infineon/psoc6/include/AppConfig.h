@@ -19,14 +19,14 @@
 
 #pragma once
 
-// PSOC6 Logging
+// P6 Logging
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 void appError(int err);
-void PSOC6Log(const char * aFormat, ...);
-#define PSOC6_LOG(...) PSOC6Log(__VA_ARGS__)
+void P6Log(const char * aFormat, ...);
+#define P6_LOG(...) P6Log(__VA_ARGS__)
 
 #ifdef __cplusplus
 }

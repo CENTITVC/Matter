@@ -16,7 +16,6 @@
  */
 #include <cstdio>
 #include <memory>
-#include <optional>
 
 #include <arpa/inet.h>
 #include <strings.h>
@@ -46,18 +45,18 @@ struct Options
     AdvertisingMode advertisingMode = AdvertisingMode::kCommissionableNode;
 
     // commissionable node / commissioner params
-    std::optional<uint16_t> vendorId;
-    std::optional<uint16_t> productId;
-    std::optional<uint32_t> deviceType;
-    std::optional<const char *> deviceName;
+    Optional<uint16_t> vendorId;
+    Optional<uint16_t> productId;
+    Optional<uint32_t> deviceType;
+    Optional<const char *> deviceName;
 
     // commissionable node params
     uint8_t shortDiscriminator                 = 52;
     uint16_t longDiscriminator                 = 840;
     Dnssd::CommissioningMode commissioningMode = Dnssd::CommissioningMode::kDisabled;
-    std::optional<const char *> rotatingId;
-    std::optional<const char *> pairingInstr;
-    std::optional<uint16_t> pairingHint;
+    Optional<const char *> rotatingId;
+    Optional<const char *> pairingInstr;
+    Optional<uint16_t> pairingHint;
 
     // operational params
     uint64_t fabricId = 12345;
@@ -131,10 +130,10 @@ bool HandleOptions(const char * aProgram, OptionSet * aOptions, int aIdentifier,
         gOptions.longDiscriminator = static_cast<uint16_t>(atoi(aValue));
         return true;
     case kOptionCommissioningVendorId:
-        gOptions.vendorId = std::make_optional<uint16_t>(static_cast<uint16_t>(atoi(aValue)));
+        gOptions.vendorId = Optional<uint16_t>::Value(static_cast<uint16_t>(atoi(aValue)));
         return true;
     case kOptionCommissioningProductId:
-        gOptions.productId = std::make_optional<uint16_t>(static_cast<uint16_t>(atoi(aValue)));
+        gOptions.productId = Optional<uint16_t>::Value(static_cast<uint16_t>(atoi(aValue)));
         return true;
     case kOptionCommissioningMode:
         cm = static_cast<uint8_t>(atoi(aValue));
@@ -148,19 +147,19 @@ bool HandleOptions(const char * aProgram, OptionSet * aOptions, int aIdentifier,
         }
         return true;
     case kOptionCommissioningDeviceType:
-        gOptions.deviceType = std::make_optional<uint32_t>(static_cast<uint32_t>(atoi(aValue)));
+        gOptions.deviceType = Optional<uint32_t>::Value(static_cast<uint32_t>(atoi(aValue)));
         return true;
     case kOptionCommissioningDeviceName:
-        gOptions.deviceName = std::make_optional<const char *>(static_cast<const char *>(aValue));
+        gOptions.deviceName = Optional<const char *>::Value(static_cast<const char *>(aValue));
         return true;
     case kOptionCommissioningRotatingId:
-        gOptions.rotatingId = std::make_optional<const char *>(static_cast<const char *>(aValue));
+        gOptions.rotatingId = Optional<const char *>::Value(static_cast<const char *>(aValue));
         return true;
     case kOptionCommissioningPairingInstr:
-        gOptions.pairingInstr = std::make_optional<const char *>(static_cast<const char *>(aValue));
+        gOptions.pairingInstr = Optional<const char *>::Value(static_cast<const char *>(aValue));
         return true;
     case kOptionCommissioningPairingHint:
-        gOptions.pairingHint = std::make_optional<uint16_t>(static_cast<uint16_t>(atoi(aValue)));
+        gOptions.pairingHint = Optional<uint16_t>::Value(static_cast<uint16_t>(atoi(aValue)));
         return true;
     case kOptionOperationalFabricId:
         if (sscanf(aValue, "%" SCNx64, &gOptions.fabricId) != 1)

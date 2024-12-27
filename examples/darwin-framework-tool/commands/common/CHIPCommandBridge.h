@@ -17,7 +17,6 @@
  */
 
 #pragma once
-
 #import <Matter/Matter.h>
 #include <commands/common/Command.h>
 #include <commands/common/CredentialIssuerCommands.h>
@@ -26,6 +25,8 @@
 #include <string>
 
 #include "../provider/OTAProviderDelegate.h"
+
+#pragma once
 
 inline constexpr char kIdentityAlpha[] = "alpha";
 inline constexpr char kIdentityBeta[] = "beta";
@@ -38,7 +39,7 @@ public:
     {
         AddArgument("commissioner-name", &mCommissionerName);
         AddArgument("commissioner-nodeId", 0, UINT64_MAX, &mCommissionerNodeId,
-            "Sets the commissioner node ID of the given "
+            "Sets the commisser node ID of the given "
             "commissioner-name. Interactive mode will only set a single commissioner on the inital command. "
             "The commissioner node ID will be persisted until a different one is specified.");
         AddArgument("paa-trust-store-path", &mPaaTrustStorePath,
@@ -89,10 +90,6 @@ protected:
     MTRDeviceController * CurrentCommissioner();
 
     MTRDeviceController * GetCommissioner(const char * identity);
-
-    // Returns the MTRBaseDevice for the specified node ID.
-    // Will utilize an existing PASE connection if the device is being commissioned.
-    MTRBaseDevice * BaseDeviceWithNodeId(chip::NodeId nodeId);
 
     // Will log the given string and given error (as progress if success, error
     // if failure).

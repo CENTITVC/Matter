@@ -58,43 +58,38 @@ public class ResourceUtils {
           SupportedCluster cluster = new SupportedCluster();
           while (reader.hasNext()) {
             String name = reader.nextName();
-            try {
-              if (name.equals(KEY_CLUSTER_ID)) {
-                cluster.clusterIdentifier = reader.nextInt();
-              } else if (name.equals(KEY_FEATURE_FLAGS)) {
-                cluster.features = reader.nextInt();
-              } else if (name.equals(KEY_OPTIONAL_COMMANDS)) {
-                List<Integer> commands = new ArrayList<>();
-                reader.beginArray();
-                while (reader.hasNext()) {
-                  commands.add(reader.nextInt());
-                }
-                reader.endArray();
-                int[] commandIds = new int[commands.size()];
-                int i = 0;
-                for (Integer command : commands) {
-                  commandIds[i++] = command;
-                }
-                cluster.optionalCommandIdentifiers = commandIds;
-              } else if (name.equals(KEY_OPTIONAL_ATTRIBUTES)) {
-                List<Integer> attributes = new ArrayList<>();
-                reader.beginArray();
-                while (reader.hasNext()) {
-                  attributes.add(reader.nextInt());
-                }
-                reader.endArray();
-                int[] attributeIds = new int[attributes.size()];
-                int i = 0;
-                for (Integer command : attributes) {
-                  attributeIds[i++] = command;
-                }
-                cluster.optionalAttributesIdentifiers = attributeIds;
-              } else {
-                reader.skipValue();
+            if (name.equals(KEY_CLUSTER_ID)) {
+              cluster.clusterIdentifier = reader.nextInt();
+            } else if (name.equals(KEY_FEATURE_FLAGS)) {
+              cluster.features = reader.nextInt();
+            } else if (name.equals(KEY_OPTIONAL_COMMANDS)) {
+              List<Integer> commands = new ArrayList<>();
+              reader.beginArray();
+              while (reader.hasNext()) {
+                commands.add(reader.nextInt());
               }
-            } catch (NumberFormatException | IllegalStateException e) {
-              Log.e(TAG, "Invalid number format in JSON for key: " + name, e);
-              reader.skipValue(); // Skip the invalid entry
+              reader.endArray();
+              int[] commandIds = new int[commands.size()];
+              int i = 0;
+              for (Integer command : commands) {
+                commandIds[i++] = command;
+              }
+              cluster.optionalCommandIdentifiers = commandIds;
+            } else if (name.equals(KEY_OPTIONAL_ATTRIBUTES)) {
+              List<Integer> attributes = new ArrayList<>();
+              reader.beginArray();
+              while (reader.hasNext()) {
+                attributes.add(reader.nextInt());
+              }
+              reader.endArray();
+              int[] attributeIds = new int[attributes.size()];
+              int i = 0;
+              for (Integer command : attributes) {
+                attributeIds[i++] = command;
+              }
+              cluster.optionalAttributesIdentifiers = attributeIds;
+            } else {
+              reader.skipValue();
             }
           }
           supportedClusters.add(cluster);

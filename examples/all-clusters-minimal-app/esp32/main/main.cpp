@@ -36,14 +36,13 @@
 #include <common/CHIPDeviceManager.h>
 
 #include <app/server/OnboardingCodesUtil.h>
-#include <app/util/endpoint-config-api.h>
+#include <app/util/af.h>
 #include <binding-handler.h>
 #include <common/Esp32AppServer.h>
 #include <common/Esp32ThreadInit.h>
 #include <credentials/DeviceAttestationCredsProvider.h>
 #include <credentials/examples/DeviceAttestationCredsExample.h>
 #include <platform/ESP32/ESP32Utils.h>
-#include <static-supported-modes-manager.h>
 
 #if CONFIG_HAVE_DISPLAY
 #include "DeviceWithDisplay.h"
@@ -75,7 +74,6 @@ extern const char TAG[] = "all-clusters-minimal-app";
 
 static AppDeviceCallbacks EchoCallbacks;
 static AppDeviceCallbacksDelegate sAppDeviceCallbacksDelegate;
-app::Clusters::ModeSelect::StaticSupportedModesManager sStaticSupportedModesManager;
 namespace {
 
 class AppCallbacks : public AppDelegate
@@ -118,7 +116,6 @@ static void InitServer(intptr_t context)
 #if CONFIG_DEVICE_TYPE_M5STACK
     SetupPretendDevices();
 #endif
-    app::Clusters::ModeSelect::setSupportedModesManager(&sStaticSupportedModesManager);
 }
 
 extern "C" void app_main()

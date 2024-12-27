@@ -31,6 +31,9 @@ void emberAfClusterInitCallback(EndpointId endpoint, ClusterId clusterId)
     case app::Clusters::AudioOutput::Id:
         emberAfAudioOutputClusterInitCallback(endpoint);
         break;
+    case app::Clusters::BarrierControl::Id:
+        emberAfBarrierControlClusterInitCallback(endpoint);
+        break;
     case app::Clusters::BasicInformation::Id:
         emberAfBasicInformationClusterInitCallback(endpoint);
         break;
@@ -60,6 +63,9 @@ void emberAfClusterInitCallback(EndpointId endpoint, ClusterId clusterId)
         break;
     case app::Clusters::DoorLock::Id:
         emberAfDoorLockClusterInitCallback(endpoint);
+        break;
+    case app::Clusters::ElectricalMeasurement::Id:
+        emberAfElectricalMeasurementClusterInitCallback(endpoint);
         break;
     case app::Clusters::EthernetNetworkDiagnostics::Id:
         emberAfEthernetNetworkDiagnosticsClusterInitCallback(endpoint);
@@ -126,6 +132,9 @@ void emberAfClusterInitCallback(EndpointId endpoint, ClusterId clusterId)
         break;
     case app::Clusters::OnOff::Id:
         emberAfOnOffClusterInitCallback(endpoint);
+        break;
+    case app::Clusters::OnOffSwitchConfiguration::Id:
+        emberAfOnOffSwitchConfigurationClusterInitCallback(endpoint);
         break;
     case app::Clusters::OperationalCredentials::Id:
         emberAfOperationalCredentialsClusterInitCallback(endpoint);

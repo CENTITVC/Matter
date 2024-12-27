@@ -23,6 +23,7 @@
 #include <app/ConcreteCommandPath.h>
 #include <app/reporting/reporting.h>
 #include <app/util/af-types.h>
+#include <app/util/af.h>
 #include <app/util/attribute-storage.h>
 #include <app/util/config.h>
 #include <lib/support/TypeTraits.h>

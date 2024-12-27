@@ -118,8 +118,7 @@ UInt8 gpAppFramework_Reset_GetResetCount(void)
 
 void gpAppFramework_Reset_Init(void)
 {
-    if ((gpReset_GetResetReason() == gpReset_ResetReason_HW_Por) ||
-        (gpReset_GetResetReason() == gpReset_ResetReason_UnSpecified)) // Use this reset reason for JLink resets
+    if (gpReset_GetResetReason() == gpReset_ResetReason_HW_Por)
     {
         gpAppFramework_HardwareResetTriggered();
     }

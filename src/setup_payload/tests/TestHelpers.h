@@ -25,8 +25,6 @@
 #include <setup_payload/QRCodeSetupPayloadParser.h>
 #include <setup_payload/SetupPayload.h>
 
-#include <string>
-
 namespace chip {
 
 const uint16_t kSmallBufferSizeInBytes   = 1;

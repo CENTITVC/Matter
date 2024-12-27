@@ -18,8 +18,6 @@
 #pragma once
 
 #include <limits>
-#include <type_traits>
-
 #include <stdint.h>
 
 #include <lib/core/CHIPConfig.h>
@@ -60,6 +58,10 @@ const char * StatusName(Status status);
  * are the components of a StatusIB, used in many IM actions, in a
  * way which allows both of them to carry together.
  *
+ * This can be used everywhere a `Status` is used, but it is lossy
+ * to the cluster-specific code if used in place of `Status` when
+ * the cluster-specific code is set.
+ *
  * This class can only be directly constructed from a `Status`. To
  * attach a cluster-specific-code, please use the `ClusterSpecificFailure()`
  * and `ClusterSpecificSuccess()` factory methods.
@@ -68,19 +70,18 @@ class ClusterStatusCode
 {
 public:
     explicit ClusterStatusCode(Status status) : mStatus(status) {}
-    explicit ClusterStatusCode(CHIP_ERROR err);
 
     // We only have simple copyable members, so we should be trivially copyable.
     ClusterStatusCode(const ClusterStatusCode & other)             = default;
     ClusterStatusCode & operator=(const ClusterStatusCode & other) = default;
 
-    bool operator==(const ClusterStatusCode & other) const
+    bool operator==(const ClusterStatusCode & other)
     {
         return (this->mStatus == other.mStatus) && (this->HasClusterSpecificCode() == other.HasClusterSpecificCode()) &&
             (this->GetClusterSpecificCode() == other.GetClusterSpecificCode());
     }
 
-    bool operator!=(const ClusterStatusCode & other) const { return !(*this == other); }
+    bool operator!=(const ClusterStatusCode & other) { return !(*this == other); }
 
     ClusterStatusCode & operator=(const Status & status)
     {
@@ -98,17 +99,12 @@ public:
      *             (e.g. chip::app::Clusters::AdministratorCommissioning::CommissioningWindowStatusEnum::kWindowNotOpen)
      * @return a ClusterStatusCode instance properly configured.
      */
-    template <typename T, typename std::enable_if_t<std::is_enum<T>::value, bool> = true>
+    template <typename T>
     static ClusterStatusCode ClusterSpecificFailure(T cluster_specific_code)
     {
         static_assert(std::numeric_limits<std::underlying_type_t<T>>::max() <= std::numeric_limits<ClusterStatus>::max(),
                       "Type used must fit in uint8_t");
         return ClusterStatusCode(Status::Failure, chip::to_underlying(cluster_specific_code));
-    }
-
-    static ClusterStatusCode ClusterSpecificFailure(ClusterStatus cluster_specific_code)
-    {
-        return ClusterStatusCode(Status::Failure, cluster_specific_code);
     }
 
     /**
@@ -120,17 +116,12 @@ public:
      *             (e.g. chip::app::Clusters::AdministratorCommissioning::CommissioningWindowStatusEnum::kBasicWindowOpen)
      * @return a ClusterStatusCode instance properly configured.
      */
-    template <typename T, typename std::enable_if_t<std::is_enum<T>::value, bool> = true>
+    template <typename T>
     static ClusterStatusCode ClusterSpecificSuccess(T cluster_specific_code)
     {
         static_assert(std::numeric_limits<std::underlying_type_t<T>>::max() <= std::numeric_limits<ClusterStatus>::max(),
                       "Type used must fit in uint8_t");
         return ClusterStatusCode(Status::Success, chip::to_underlying(cluster_specific_code));
-    }
-
-    static ClusterStatusCode ClusterSpecificSuccess(ClusterStatus cluster_specific_code)
-    {
-        return ClusterStatusCode(Status::Success, cluster_specific_code);
     }
 
     /// @return true if the core Status associated with this ClusterStatusCode is the one for success.
@@ -151,6 +142,9 @@ public:
         }
         return mClusterSpecificCode;
     }
+
+    // Automatic conversions to common types, using the status code alone.
+    operator Status() const { return mStatus; }
 
 private:
     ClusterStatusCode() = delete;

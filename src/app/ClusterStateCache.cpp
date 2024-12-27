@@ -27,14 +27,14 @@ namespace app {
 namespace {
 
 // Determine how much space a StatusIB takes up on the wire.
-uint32_t SizeOfStatusIB(const StatusIB & aStatus)
+size_t SizeOfStatusIB(const StatusIB & aStatus)
 {
     // 1 byte: anonymous tag control byte for struct.
     // 1 byte: control byte for uint8 value.
     // 1 byte: context-specific tag for uint8 value.
     // 1 byte: the uint8 value.
     // 1 byte: end of container.
-    uint32_t size = 5;
+    size_t size = 5;
 
     if (aStatus.mClusterStatus.HasValue())
     {
@@ -49,8 +49,7 @@ uint32_t SizeOfStatusIB(const StatusIB & aStatus)
 
 } // anonymous namespace
 
-template <bool CanEnableDataCaching>
-CHIP_ERROR ClusterStateCacheT<CanEnableDataCaching>::GetElementTLVSize(TLV::TLVReader * apData, uint32_t & aSize)
+CHIP_ERROR ClusterStateCache::GetElementTLVSize(TLV::TLVReader * apData, size_t & aSize)
 {
     Platform::ScopedMemoryBufferWithSize<uint8_t> backingBuffer;
     TLV::TLVReader reader;
@@ -65,9 +64,8 @@ CHIP_ERROR ClusterStateCacheT<CanEnableDataCaching>::GetElementTLVSize(TLV::TLVR
     return CHIP_NO_ERROR;
 }
 
-template <bool CanEnableDataCaching>
-CHIP_ERROR ClusterStateCacheT<CanEnableDataCaching>::UpdateCache(const ConcreteDataAttributePath & aPath, TLV::TLVReader * apData,
-                                                                 const StatusIB & aStatus)
+CHIP_ERROR ClusterStateCache::UpdateCache(const ConcreteDataAttributePath & aPath, TLV::TLVReader * apData,
+                                          const StatusIB & aStatus)
 {
     AttributeState state;
     bool endpointIsNew = false;
@@ -84,32 +82,24 @@ CHIP_ERROR ClusterStateCacheT<CanEnableDataCaching>::UpdateCache(const ConcreteD
 
     if (apData)
     {
-        uint32_t elementSize = 0;
+        size_t elementSize = 0;
         ReturnErrorOnFailure(GetElementTLVSize(apData, elementSize));
 
-        if constexpr (CanEnableDataCaching)
+        if (mCacheData)
         {
-            if (mCacheData)
-            {
-                Platform::ScopedMemoryBufferWithSize<uint8_t> backingBuffer;
-                backingBuffer.Calloc(elementSize);
-                VerifyOrReturnError(backingBuffer.Get() != nullptr, CHIP_ERROR_NO_MEMORY);
-                TLV::ScopedBufferTLVWriter writer(std::move(backingBuffer), elementSize);
-                ReturnErrorOnFailure(writer.CopyElement(TLV::AnonymousTag(), *apData));
-                ReturnErrorOnFailure(writer.Finalize(backingBuffer));
+            Platform::ScopedMemoryBufferWithSize<uint8_t> backingBuffer;
+            backingBuffer.Calloc(elementSize);
+            VerifyOrReturnError(backingBuffer.Get() != nullptr, CHIP_ERROR_NO_MEMORY);
+            TLV::ScopedBufferTLVWriter writer(std::move(backingBuffer), elementSize);
+            ReturnErrorOnFailure(writer.CopyElement(TLV::AnonymousTag(), *apData));
+            ReturnErrorOnFailure(writer.Finalize(backingBuffer));
 
-                state.template Set<AttributeData>(std::move(backingBuffer));
-            }
-            else
-            {
-                state.template Set<uint32_t>(elementSize);
-            }
+            state.Set<AttributeData>(std::move(backingBuffer));
         }
         else
         {
-            state = elementSize;
+            state.Set<size_t>(elementSize);
         }
-
         //
         // Clear out the committed data version and only set it again once we have received all data for this cluster.
         // Otherwise, we may have incomplete data that looks like it's complete since it has a valid data version.
@@ -142,20 +132,13 @@ CHIP_ERROR ClusterStateCacheT<CanEnableDataCaching>::UpdateCache(const ConcreteD
     }
     else
     {
-        if constexpr (CanEnableDataCaching)
+        if (mCacheData)
         {
-            if (mCacheData)
-            {
-                state.template Set<StatusIB>(aStatus);
-            }
-            else
-            {
-                state.template Set<uint32_t>(SizeOfStatusIB(aStatus));
-            }
+            state.Set<StatusIB>(aStatus);
         }
         else
         {
-            state = SizeOfStatusIB(aStatus);
+            state.Set<size_t>(SizeOfStatusIB(aStatus));
         }
     }
 
@@ -178,9 +161,7 @@ CHIP_ERROR ClusterStateCacheT<CanEnableDataCaching>::UpdateCache(const ConcreteD
     return CHIP_NO_ERROR;
 }
 
-template <bool CanEnableDataCaching>
-CHIP_ERROR ClusterStateCacheT<CanEnableDataCaching>::UpdateEventCache(const EventHeader & aEventHeader, TLV::TLVReader * apData,
-                                                                      const StatusIB * apStatus)
+CHIP_ERROR ClusterStateCache::UpdateEventCache(const EventHeader & aEventHeader, TLV::TLVReader * apData, const StatusIB * apStatus)
 {
     if (apData)
     {
@@ -227,8 +208,7 @@ CHIP_ERROR ClusterStateCacheT<CanEnableDataCaching>::UpdateEventCache(const Even
     return CHIP_NO_ERROR;
 }
 
-template <bool CanEnableDataCaching>
-void ClusterStateCacheT<CanEnableDataCaching>::OnReportBegin()
+void ClusterStateCache::OnReportBegin()
 {
     mLastReportDataPath = ConcreteClusterPath(kInvalidEndpointId, kInvalidClusterId);
     mChangedAttributeSet.clear();
@@ -236,8 +216,7 @@ void ClusterStateCacheT<CanEnableDataCaching>::OnReportBegin()
     mCallback.OnReportBegin();
 }
 
-template <bool CanEnableDataCaching>
-void ClusterStateCacheT<CanEnableDataCaching>::CommitPendingDataVersion()
+void ClusterStateCache::CommitPendingDataVersion()
 {
     if (!mLastReportDataPath.IsValidConcreteClusterPath())
     {
@@ -252,8 +231,7 @@ void ClusterStateCacheT<CanEnableDataCaching>::CommitPendingDataVersion()
     }
 }
 
-template <bool CanEnableDataCaching>
-void ClusterStateCacheT<CanEnableDataCaching>::OnReportEnd()
+void ClusterStateCache::OnReportEnd()
 {
     CommitPendingDataVersion();
     mLastReportDataPath = ConcreteClusterPath(kInvalidEndpointId, kInvalidClusterId);
@@ -282,35 +260,26 @@ void ClusterStateCacheT<CanEnableDataCaching>::OnReportEnd()
     mCallback.OnReportEnd();
 }
 
-template <>
-CHIP_ERROR ClusterStateCacheT<true>::Get(const ConcreteAttributePath & path, TLV::TLVReader & reader) const
+CHIP_ERROR ClusterStateCache::Get(const ConcreteAttributePath & path, TLV::TLVReader & reader) const
 {
     CHIP_ERROR err;
     auto attributeState = GetAttributeState(path.mEndpointId, path.mClusterId, path.mAttributeId, err);
     ReturnErrorOnFailure(err);
-
-    if (attributeState->template Is<StatusIB>())
+    if (attributeState->Is<StatusIB>())
     {
         return CHIP_ERROR_IM_STATUS_CODE_RECEIVED;
     }
 
-    if (!attributeState->template Is<AttributeData>())
+    if (!attributeState->Is<AttributeData>())
     {
         return CHIP_ERROR_KEY_NOT_FOUND;
     }
 
-    reader.Init(attributeState->template Get<AttributeData>().Get(), attributeState->template Get<AttributeData>().AllocatedSize());
+    reader.Init(attributeState->Get<AttributeData>().Get(), attributeState->Get<AttributeData>().AllocatedSize());
     return reader.Next();
 }
 
-template <>
-CHIP_ERROR ClusterStateCacheT<false>::Get(const ConcreteAttributePath & path, TLV::TLVReader & reader) const
-{
-    return CHIP_ERROR_KEY_NOT_FOUND;
-}
-
-template <bool CanEnableDataCaching>
-CHIP_ERROR ClusterStateCacheT<CanEnableDataCaching>::Get(EventNumber eventNumber, TLV::TLVReader & reader) const
+CHIP_ERROR ClusterStateCache::Get(EventNumber eventNumber, TLV::TLVReader & reader) const
 {
     CHIP_ERROR err;
 
@@ -326,9 +295,7 @@ CHIP_ERROR ClusterStateCacheT<CanEnableDataCaching>::Get(EventNumber eventNumber
     return CHIP_NO_ERROR;
 }
 
-template <bool CanEnableDataCaching>
-const typename ClusterStateCacheT<CanEnableDataCaching>::EndpointState *
-ClusterStateCacheT<CanEnableDataCaching>::GetEndpointState(EndpointId endpointId, CHIP_ERROR & err) const
+const ClusterStateCache::EndpointState * ClusterStateCache::GetEndpointState(EndpointId endpointId, CHIP_ERROR & err) const
 {
     auto endpointIter = mCache.find(endpointId);
     if (endpointIter == mCache.end())
@@ -341,9 +308,8 @@ ClusterStateCacheT<CanEnableDataCaching>::GetEndpointState(EndpointId endpointId
     return &endpointIter->second;
 }
 
-template <bool CanEnableDataCaching>
-const typename ClusterStateCacheT<CanEnableDataCaching>::ClusterState *
-ClusterStateCacheT<CanEnableDataCaching>::GetClusterState(EndpointId endpointId, ClusterId clusterId, CHIP_ERROR & err) const
+const ClusterStateCache::ClusterState * ClusterStateCache::GetClusterState(EndpointId endpointId, ClusterId clusterId,
+                                                                           CHIP_ERROR & err) const
 {
     auto endpointState = GetEndpointState(endpointId, err);
     if (err != CHIP_NO_ERROR)
@@ -362,10 +328,8 @@ ClusterStateCacheT<CanEnableDataCaching>::GetClusterState(EndpointId endpointId,
     return &clusterState->second;
 }
 
-template <bool CanEnableDataCaching>
-const typename ClusterStateCacheT<CanEnableDataCaching>::AttributeState *
-ClusterStateCacheT<CanEnableDataCaching>::GetAttributeState(EndpointId endpointId, ClusterId clusterId, AttributeId attributeId,
-                                                            CHIP_ERROR & err) const
+const ClusterStateCache::AttributeState * ClusterStateCache::GetAttributeState(EndpointId endpointId, ClusterId clusterId,
+                                                                               AttributeId attributeId, CHIP_ERROR & err) const
 {
     auto clusterState = GetClusterState(endpointId, clusterId, err);
     if (err != CHIP_NO_ERROR)
@@ -384,9 +348,7 @@ ClusterStateCacheT<CanEnableDataCaching>::GetAttributeState(EndpointId endpointI
     return &attributeState->second;
 }
 
-template <bool CanEnableDataCaching>
-const typename ClusterStateCacheT<CanEnableDataCaching>::EventData *
-ClusterStateCacheT<CanEnableDataCaching>::GetEventData(EventNumber eventNumber, CHIP_ERROR & err) const
+const ClusterStateCache::EventData * ClusterStateCache::GetEventData(EventNumber eventNumber, CHIP_ERROR & err) const
 {
     EventData compareKey;
 
@@ -402,9 +364,7 @@ ClusterStateCacheT<CanEnableDataCaching>::GetEventData(EventNumber eventNumber, 
     return &(*eventData);
 }
 
-template <bool CanEnableDataCaching>
-void ClusterStateCacheT<CanEnableDataCaching>::OnAttributeData(const ConcreteDataAttributePath & aPath, TLV::TLVReader * apData,
-                                                               const StatusIB & aStatus)
+void ClusterStateCache::OnAttributeData(const ConcreteDataAttributePath & aPath, TLV::TLVReader * apData, const StatusIB & aStatus)
 {
     //
     // Since the cache itself is a ReadClient::Callback, it may be incorrectly passed in directly when registering with the
@@ -434,9 +394,7 @@ void ClusterStateCacheT<CanEnableDataCaching>::OnAttributeData(const ConcreteDat
     mCallback.OnAttributeData(aPath, apData ? &dataSnapshot : nullptr, aStatus);
 }
 
-template <bool CanEnableDataCaching>
-CHIP_ERROR ClusterStateCacheT<CanEnableDataCaching>::GetVersion(const ConcreteClusterPath & aPath,
-                                                                Optional<DataVersion> & aVersion) const
+CHIP_ERROR ClusterStateCache::GetVersion(const ConcreteClusterPath & aPath, Optional<DataVersion> & aVersion) const
 {
     VerifyOrReturnError(aPath.IsValidConcreteClusterPath(), CHIP_ERROR_INVALID_ARGUMENT);
     CHIP_ERROR err;
@@ -446,9 +404,7 @@ CHIP_ERROR ClusterStateCacheT<CanEnableDataCaching>::GetVersion(const ConcreteCl
     return CHIP_NO_ERROR;
 }
 
-template <bool CanEnableDataCaching>
-void ClusterStateCacheT<CanEnableDataCaching>::OnEventData(const EventHeader & aEventHeader, TLV::TLVReader * apData,
-                                                           const StatusIB * apStatus)
+void ClusterStateCache::OnEventData(const EventHeader & aEventHeader, TLV::TLVReader * apData, const StatusIB * apStatus)
 {
     VerifyOrDie(apData != nullptr || apStatus != nullptr);
 
@@ -462,31 +418,23 @@ void ClusterStateCacheT<CanEnableDataCaching>::OnEventData(const EventHeader & a
     mCallback.OnEventData(aEventHeader, apData ? &dataSnapshot : nullptr, apStatus);
 }
 
-template <>
-CHIP_ERROR ClusterStateCacheT<true>::GetStatus(const ConcreteAttributePath & path, StatusIB & status) const
+CHIP_ERROR ClusterStateCache::GetStatus(const ConcreteAttributePath & path, StatusIB & status) const
 {
     CHIP_ERROR err;
 
     auto attributeState = GetAttributeState(path.mEndpointId, path.mClusterId, path.mAttributeId, err);
     ReturnErrorOnFailure(err);
 
-    if (!attributeState->template Is<StatusIB>())
+    if (!attributeState->Is<StatusIB>())
     {
         return CHIP_ERROR_INVALID_ARGUMENT;
     }
 
-    status = attributeState->template Get<StatusIB>();
+    status = attributeState->Get<StatusIB>();
     return CHIP_NO_ERROR;
 }
 
-template <>
-CHIP_ERROR ClusterStateCacheT<false>::GetStatus(const ConcreteAttributePath & path, StatusIB & status) const
-{
-    return CHIP_ERROR_INVALID_ARGUMENT;
-}
-
-template <bool CanEnableDataCaching>
-CHIP_ERROR ClusterStateCacheT<CanEnableDataCaching>::GetStatus(const ConcreteEventPath & path, StatusIB & status) const
+CHIP_ERROR ClusterStateCache::GetStatus(const ConcreteEventPath & path, StatusIB & status) const
 {
     auto statusIter = mEventStatusCache.find(path);
     if (statusIter == mEventStatusCache.end())
@@ -498,8 +446,7 @@ CHIP_ERROR ClusterStateCacheT<CanEnableDataCaching>::GetStatus(const ConcreteEve
     return CHIP_NO_ERROR;
 }
 
-template <bool CanEnableDataCaching>
-void ClusterStateCacheT<CanEnableDataCaching>::GetSortedFilters(std::vector<std::pair<DataVersionFilter, size_t>> & aVector) const
+void ClusterStateCache::GetSortedFilters(std::vector<std::pair<DataVersionFilter, size_t>> & aVector) const
 {
     for (auto const & endpointIter : mCache)
     {
@@ -516,33 +463,26 @@ void ClusterStateCacheT<CanEnableDataCaching>::GetSortedFilters(std::vector<std:
 
             for (auto const & attributeIter : clusterIter.second.mAttributes)
             {
-                if constexpr (CanEnableDataCaching)
+                if (attributeIter.second.Is<StatusIB>())
                 {
-                    if (attributeIter.second.template Is<StatusIB>())
-                    {
-                        clusterSize += SizeOfStatusIB(attributeIter.second.template Get<StatusIB>());
-                    }
-                    else if (attributeIter.second.template Is<uint32_t>())
-                    {
-                        clusterSize += attributeIter.second.template Get<uint32_t>();
-                    }
-                    else
-                    {
-                        VerifyOrDie(attributeIter.second.template Is<AttributeData>());
-                        TLV::TLVReader bufReader;
-                        bufReader.Init(attributeIter.second.template Get<AttributeData>().Get(),
-                                       attributeIter.second.template Get<AttributeData>().AllocatedSize());
-                        ReturnOnFailure(bufReader.Next());
-                        // Skip to the end of the element.
-                        ReturnOnFailure(bufReader.Skip());
-
-                        // Compute the amount of value data
-                        clusterSize += bufReader.GetLengthRead();
-                    }
+                    clusterSize += SizeOfStatusIB(attributeIter.second.Get<StatusIB>());
+                }
+                else if (attributeIter.second.Is<size_t>())
+                {
+                    clusterSize += attributeIter.second.Get<size_t>();
                 }
                 else
                 {
-                    clusterSize += attributeIter.second;
+                    VerifyOrDie(attributeIter.second.Is<AttributeData>());
+                    TLV::TLVReader bufReader;
+                    bufReader.Init(attributeIter.second.Get<AttributeData>().Get(),
+                                   attributeIter.second.Get<AttributeData>().AllocatedSize());
+                    ReturnOnFailure(bufReader.Next());
+                    // Skip to the end of the element.
+                    ReturnOnFailure(bufReader.Skip());
+
+                    // Compute the amount of value data
+                    clusterSize += bufReader.GetLengthRead();
                 }
             }
 
@@ -565,10 +505,9 @@ void ClusterStateCacheT<CanEnableDataCaching>::GetSortedFilters(std::vector<std:
               });
 }
 
-template <bool CanEnableDataCaching>
-CHIP_ERROR ClusterStateCacheT<CanEnableDataCaching>::OnUpdateDataVersionFilterList(
-    DataVersionFilterIBs::Builder & aDataVersionFilterIBsBuilder, const Span<AttributePathParams> & aAttributePaths,
-    bool & aEncodedDataVersionList)
+CHIP_ERROR ClusterStateCache::OnUpdateDataVersionFilterList(DataVersionFilterIBs::Builder & aDataVersionFilterIBsBuilder,
+                                                            const Span<AttributePathParams> & aAttributePaths,
+                                                            bool & aEncodedDataVersionList)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
     TLV::TLVWriter backup;
@@ -626,7 +565,15 @@ CHIP_ERROR ClusterStateCacheT<CanEnableDataCaching>::OnUpdateDataVersionFilterLi
             continue;
         }
 
-        SuccessOrExit(err = aDataVersionFilterIBsBuilder.EncodeDataVersionFilterIB(filter.first));
+        DataVersionFilterIB::Builder & filterIB = aDataVersionFilterIBsBuilder.CreateDataVersionFilter();
+        SuccessOrExit(err = aDataVersionFilterIBsBuilder.GetError());
+        ClusterPathIB::Builder & filterPath = filterIB.CreatePath();
+        SuccessOrExit(err = filterIB.GetError());
+        SuccessOrExit(err = filterPath.Endpoint(filter.first.mEndpointId).Cluster(filter.first.mClusterId).EndOfClusterPathIB());
+        SuccessOrExit(err = filterIB.DataVersion(filter.first.mDataVersion.Value()).EndOfDataVersionFilterIB());
+        ChipLogProgress(DataManagement, "Update DataVersionFilter: Endpoint=%u Cluster=" ChipLogFormatMEI " Version=%" PRIu32,
+                        filter.first.mEndpointId, ChipLogValueMEI(filter.first.mClusterId), filter.first.mDataVersion.Value());
+
         aEncodedDataVersionList = true;
     }
 
@@ -640,49 +587,7 @@ exit:
     return err;
 }
 
-template <bool CanEnableDataCaching>
-void ClusterStateCacheT<CanEnableDataCaching>::ClearAttributes(EndpointId endpointId)
-{
-    mCache.erase(endpointId);
-}
-
-template <bool CanEnableDataCaching>
-void ClusterStateCacheT<CanEnableDataCaching>::ClearAttributes(const ConcreteClusterPath & cluster)
-{
-    // Can't use GetEndpointState here, since that only handles const things.
-    auto endpointIter = mCache.find(cluster.mEndpointId);
-    if (endpointIter == mCache.end())
-    {
-        return;
-    }
-
-    auto & endpointState = endpointIter->second;
-    endpointState.erase(cluster.mClusterId);
-}
-
-template <bool CanEnableDataCaching>
-void ClusterStateCacheT<CanEnableDataCaching>::ClearAttribute(const ConcreteAttributePath & attribute)
-{
-    // Can't use GetClusterState here, since that only handles const things.
-    auto endpointIter = mCache.find(attribute.mEndpointId);
-    if (endpointIter == mCache.end())
-    {
-        return;
-    }
-
-    auto & endpointState = endpointIter->second;
-    auto clusterIter     = endpointState.find(attribute.mClusterId);
-    if (clusterIter == endpointState.end())
-    {
-        return;
-    }
-
-    auto & clusterState = clusterIter->second;
-    clusterState.mAttributes.erase(attribute.mAttributeId);
-}
-
-template <bool CanEnableDataCaching>
-CHIP_ERROR ClusterStateCacheT<CanEnableDataCaching>::GetLastReportDataPath(ConcreteClusterPath & aPath)
+CHIP_ERROR ClusterStateCache::GetLastReportDataPath(ConcreteClusterPath & aPath)
 {
     if (mLastReportDataPath.IsValidConcreteClusterPath())
     {
@@ -691,10 +596,5 @@ CHIP_ERROR ClusterStateCacheT<CanEnableDataCaching>::GetLastReportDataPath(Concr
     }
     return CHIP_ERROR_INCORRECT_STATE;
 }
-
-// Ensure that our out-of-line template methods actually get compiled.
-template class ClusterStateCacheT<true>;
-template class ClusterStateCacheT<false>;
-
 } // namespace app
 } // namespace chip

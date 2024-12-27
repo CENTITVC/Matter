@@ -28,6 +28,7 @@
 #include <platform/ThreadStackManager.h>
 
 #include "NetworkCommissioningDriver.h"
+#include "ThreadStackManagerImpl.h"
 
 namespace chip {
 namespace DeviceLayer {
@@ -37,8 +38,8 @@ namespace NetworkCommissioning {
 
 CHIP_ERROR TizenThreadDriver::Init(BaseDriver::NetworkStatusChangeCallback * networkStatusChangeCallback)
 {
-    VerifyOrReturnError(ConnectivityMgr().IsThreadAttached(), CHIP_NO_ERROR);
-    VerifyOrReturnError(ThreadStackMgr().GetThreadProvision(mStagingNetwork) == CHIP_NO_ERROR, CHIP_NO_ERROR);
+    VerifyOrReturnError(ConnectivityMgrImpl().IsThreadAttached(), CHIP_NO_ERROR);
+    VerifyOrReturnError(ThreadStackMgrImpl().GetThreadProvision(mStagingNetwork) == CHIP_NO_ERROR, CHIP_NO_ERROR);
 
     mSavedNetwork.Init(mStagingNetwork.AsByteSpan());
 
@@ -132,7 +133,7 @@ void TizenThreadDriver::ConnectNetwork(ByteSpan networkId, ConnectCallback * cal
         (networkId.size() == Thread::kSizeExtendedPanId && memcmp(networkId.data(), extpanid, Thread::kSizeExtendedPanId) == 0),
         status = Status::kNetworkNotFound);
 
-    VerifyOrExit(DeviceLayer::ThreadStackMgr().AttachToThreadNetwork(mStagingNetwork, callback) == CHIP_NO_ERROR,
+    VerifyOrExit(DeviceLayer::ThreadStackMgrImpl().AttachToThreadNetwork(mStagingNetwork, callback) == CHIP_NO_ERROR,
                  status = Status::kUnknownError);
 
 exit:
@@ -144,7 +145,7 @@ exit:
 
 void TizenThreadDriver::ScanNetworks(ThreadDriver::ScanCallback * callback)
 {
-    CHIP_ERROR err = DeviceLayer::ThreadStackMgr().StartThreadScan(callback);
+    CHIP_ERROR err = DeviceLayer::ThreadStackMgrImpl().StartThreadScan(callback);
     if (err != CHIP_NO_ERROR)
     {
         callback->OnFinished(Status::kUnknownError, CharSpan(), nullptr);
@@ -178,9 +179,8 @@ ThreadCapabilities TizenThreadDriver::GetSupportedThreadFeatures()
 
 uint16_t TizenThreadDriver::GetThreadVersion()
 {
-    uint16_t version = 0;
-    DeviceLayer::ThreadStackMgr().GetThreadVersion(version);
-    return version;
+    // TODO Needs to be implemented with Tizen Thread stack api
+    return 0;
 }
 
 #endif // CHIP_DEVICE_CONFIG_ENABLE_THREAD

@@ -19,6 +19,7 @@
 #pragma once
 
 #include <app/clusters/mode-select-server/supported-modes-manager.h>
+#include <app/util/af.h>
 #include <app/util/config.h>
 #include <cstring>
 
@@ -31,7 +32,7 @@ namespace ModeSelect {
  * This implementation statically defines the options.
  */
 
-class StaticSupportedModesManager : public SupportedModesManager
+class StaticSupportedModesManager : public chip::app::Clusters::ModeSelect::SupportedModesManager
 {
     using ModeOptionStructType = Structs::ModeOptionStruct::Type;
     using storage_value_type   = const ModeOptionStructType;
@@ -52,6 +53,8 @@ class StaticSupportedModesManager : public SupportedModesManager
     static const EndpointSpanPair supportedOptionsByEndpoints[MATTER_DM_MODE_SELECT_CLUSTER_SERVER_ENDPOINT_COUNT];
 
 public:
+    static const StaticSupportedModesManager instance;
+
     SupportedModesManager::ModeOptionsProvider getModeOptionsProvider(EndpointId endpointId) const override;
 
     Protocols::InteractionModel::Status getModeOptionByMode(EndpointId endpointId, uint8_t mode,
@@ -60,7 +63,11 @@ public:
     ~StaticSupportedModesManager(){};
 
     StaticSupportedModesManager() {}
+
+    static inline const StaticSupportedModesManager & getStaticSupportedModesManagerInstance() { return instance; }
 };
+
+const SupportedModesManager * getSupportedModesManager();
 
 } // namespace ModeSelect
 } // namespace Clusters

@@ -35,7 +35,7 @@ const char * ToCertificate(const chip::ByteSpan & source, chip::MutableCharSpan 
 {
     // Reset the buffer
     memset(destination.data(), '\0', destination.size());
-    int snprintf_len = 0;
+
     if (source.size() == 0)
     {
         return destination.data();
@@ -70,8 +70,7 @@ const char * ToCertificate(const chip::ByteSpan & source, chip::MutableCharSpan 
             ChipLogError(DataManagement, "Certificate size is greater than 400 bytes");
         }
 
-        snprintf_len = snprintf(destination.data(), destination.size(), "%s", str.Get());
-        VerifyOrExit(snprintf_len >= 0, ChipLogError(DataManagement, "Failed to write certificate"););
+        snprintf(destination.data(), destination.size(), "%s", str.Get());
     }
     else
     {
@@ -84,23 +83,15 @@ const char * ToCertificate(const chip::ByteSpan & source, chip::MutableCharSpan 
         size_t inIndex  = 0;
         size_t outIndex = strlen(header) + 1;
 
-        snprintf_len = snprintf(destination.data(), destination.size(), "%s\n", header);
-        VerifyOrExit(snprintf_len >= 0, ChipLogError(DataManagement, "Failed to write header"););
+        snprintf(destination.data(), destination.size(), "%s\n", header);
         for (; inIndex < base64DataLen; inIndex += 64)
         {
-            snprintf_len = snprintf(&destination.data()[outIndex], destination.size() - outIndex, "%.64s\n", &str[inIndex]);
-            VerifyOrExit(snprintf_len >= 0, ChipLogError(DataManagement, "Failed to write certificate"););
-
-            outIndex += static_cast<size_t>(snprintf_len);
+            auto charsPrinted = snprintf(&destination.data()[outIndex], destination.size() - outIndex, "%.64s\n", &str[inIndex]);
+            outIndex += static_cast<size_t>(charsPrinted);
         }
-        snprintf_len = snprintf(&destination.data()[outIndex], destination.size() - outIndex, "%s", footer);
-        VerifyOrExit(snprintf_len >= 0, ChipLogError(DataManagement, "Failed to write footer"););
+        snprintf(&destination.data()[outIndex], destination.size() - outIndex, "%s", footer);
     }
-exit:
-    if (snprintf_len < 0)
-    {
-        memset(destination.data(), '\0', destination.size());
-    }
+
     return destination.data();
 }
 

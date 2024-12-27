@@ -2,15 +2,16 @@ ARG VERSION=1
 FROM ghcr.io/project-chip/chip-build:${VERSION}
 LABEL org.opencontainers.image.source https://github.com/project-chip/connectedhomeip
 
-RUN apt update
-
-RUN apt install picocom curl -y
-RUN apt install netcat-traditional -y
+RUN apt update -y \
+    && apt install vim -fy \
+    && apt clean \
+    && pip3 install bflb-iot-tool==1.8.6 \
+    && : # last line
 
 COPY setup.sh /tmp
 
 RUN cd /tmp \
-    && bash setup.sh /opt/bouffalolab_sdk \
+    && bash setup.sh \
     && rm setup.sh \
     && : # last line
 

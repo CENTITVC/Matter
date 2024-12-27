@@ -32,7 +32,8 @@ struct TvCastingApp: App {
                     if ProcessInfo.processInfo.environment["CHIP_CASTING_SIMPLIFIED"] == "1"
                     {
                         self.Log.info("CHIP_CASTING_SIMPLIFIED = 1")
-                        let err: Error? = MCInitializationExample.shared.initialize()
+                        
+                        let err: Error? = MCInitializationExample().initialize()
                         if err != nil
                         {
                             self.Log.error("MCCastingApp initialization failed \(err)")
@@ -60,7 +61,7 @@ struct TvCastingApp: App {
                             
                             appParameters.onboardingPayload = onboardingParameters
                             
-                            let err = castingServerBridge.initializeApp(appParameters, clientQueue: DispatchQueue.main, initAppStatusHandler: { (result: MatterError) -> () in
+                            let err = castingServerBridge.initializeApp(appParameters, clientQueue: DispatchQueue.main, initAppStatusHandler: { (result: Bool) -> () in
                                 self.Log.info("initializeApp result \(result)")
                             })
                             self.Log.info("initializeApp return value \(err)")

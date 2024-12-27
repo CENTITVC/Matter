@@ -25,81 +25,62 @@
 #include "TestHelpers.h"
 
 #include <nlbyteorder.h>
+#include <nlunit-test.h>
 
-#include <pw_unit_test/framework.h>
-
-#include <lib/core/StringBuilderAdapters.h>
 #include <lib/support/Span.h>
+#include <lib/support/UnitTestContext.h>
+#include <lib/support/UnitTestRegistration.h>
 
 using namespace chip;
+using namespace std;
 
 namespace {
 
-TEST(TestQRCode, TestRendezvousFlags)
+void TestRendezvousFlags(nlTestSuite * inSuite, void * inContext)
 {
     SetupPayload inPayload = GetDefaultPayload();
 
     // Not having a value in rendezvousInformation is not allowed for a QR code.
     inPayload.rendezvousInformation.SetValue(RendezvousInformationFlag::kNone);
-    EXPECT_TRUE(CheckWriteRead(inPayload));
+    NL_TEST_ASSERT(inSuite, CheckWriteRead(inPayload));
 
     inPayload.rendezvousInformation.SetValue(RendezvousInformationFlag::kSoftAP);
-    EXPECT_TRUE(CheckWriteRead(inPayload));
+    NL_TEST_ASSERT(inSuite, CheckWriteRead(inPayload));
 
     inPayload.rendezvousInformation.SetValue(RendezvousInformationFlag::kBLE);
-    EXPECT_TRUE(CheckWriteRead(inPayload));
+    NL_TEST_ASSERT(inSuite, CheckWriteRead(inPayload));
 
     inPayload.rendezvousInformation.SetValue(RendezvousInformationFlag::kOnNetwork);
-    EXPECT_TRUE(CheckWriteRead(inPayload));
-
-    inPayload.rendezvousInformation.SetValue(RendezvousInformationFlag::kWiFiPAF);
-    EXPECT_TRUE(CheckWriteRead(inPayload));
+    NL_TEST_ASSERT(inSuite, CheckWriteRead(inPayload));
 
     inPayload.rendezvousInformation.SetValue(
         RendezvousInformationFlags(RendezvousInformationFlag::kSoftAP, RendezvousInformationFlag::kOnNetwork));
-    EXPECT_TRUE(CheckWriteRead(inPayload));
+    NL_TEST_ASSERT(inSuite, CheckWriteRead(inPayload));
 
     inPayload.rendezvousInformation.SetValue(
         RendezvousInformationFlags(RendezvousInformationFlag::kBLE, RendezvousInformationFlag::kOnNetwork));
-    EXPECT_TRUE(CheckWriteRead(inPayload));
-
-    inPayload.rendezvousInformation.SetValue(
-        RendezvousInformationFlags(RendezvousInformationFlag::kWiFiPAF, RendezvousInformationFlag::kOnNetwork));
-    EXPECT_TRUE(CheckWriteRead(inPayload));
+    NL_TEST_ASSERT(inSuite, CheckWriteRead(inPayload));
 
     inPayload.rendezvousInformation.SetValue(RendezvousInformationFlags(
         RendezvousInformationFlag::kBLE, RendezvousInformationFlag::kSoftAP, RendezvousInformationFlag::kOnNetwork));
-    EXPECT_TRUE(CheckWriteRead(inPayload));
-
-    inPayload.rendezvousInformation.SetValue(RendezvousInformationFlags(
-        RendezvousInformationFlag::kWiFiPAF, RendezvousInformationFlag::kSoftAP, RendezvousInformationFlag::kOnNetwork));
-    EXPECT_TRUE(CheckWriteRead(inPayload));
-
-    inPayload.rendezvousInformation.SetValue(RendezvousInformationFlags(
-        RendezvousInformationFlag::kWiFiPAF, RendezvousInformationFlag::kBLE, RendezvousInformationFlag::kOnNetwork));
-    EXPECT_TRUE(CheckWriteRead(inPayload));
-
-    inPayload.rendezvousInformation.SetValue(
-        RendezvousInformationFlags(RendezvousInformationFlag::kWiFiPAF, RendezvousInformationFlag::kBLE,
-                                   RendezvousInformationFlag::kSoftAP, RendezvousInformationFlag::kOnNetwork));
-    EXPECT_TRUE(CheckWriteRead(inPayload));
+    NL_TEST_ASSERT(inSuite, CheckWriteRead(inPayload));
 }
 
-TEST(TestQRCode, TestCommissioningFlow)
+void TestCommissioningFlow(nlTestSuite * inSuite, void * inContext)
 {
     SetupPayload inPayload = GetDefaultPayload();
 
     inPayload.commissioningFlow = CommissioningFlow::kStandard;
-    EXPECT_TRUE(CheckWriteRead(inPayload));
+    NL_TEST_ASSERT(inSuite, CheckWriteRead(inPayload));
 
     inPayload.commissioningFlow = CommissioningFlow::kUserActionRequired;
-    EXPECT_TRUE(CheckWriteRead(inPayload));
+    NL_TEST_ASSERT(inSuite, CheckWriteRead(inPayload));
 
     inPayload.commissioningFlow = CommissioningFlow::kCustom;
-    EXPECT_TRUE(CheckWriteRead(inPayload));
+    NL_TEST_ASSERT(inSuite, CheckWriteRead(inPayload));
 }
 
-TEST(TestQRCode, TestMaximumValues)
+void TestMaximumValues(nlTestSuite * inSuite, void * inContext)
 {
     SetupPayload inPayload = GetDefaultPayload();
 
@@ -107,37 +88,36 @@ TEST(TestQRCode, TestMaximumValues)
     inPayload.vendorID          = 0xFFFF;
     inPayload.productID         = 0xFFFF;
     inPayload.commissioningFlow = CommissioningFlow::kCustom;
-    inPayload.rendezvousInformation.SetValue(
-        RendezvousInformationFlags(RendezvousInformationFlag::kWiFiPAF, RendezvousInformationFlag::kBLE,
-                                   RendezvousInformationFlag::kSoftAP, RendezvousInformationFlag::kOnNetwork));
+    inPayload.rendezvousInformation.SetValue(RendezvousInformationFlags(
+        RendezvousInformationFlag::kBLE, RendezvousInformationFlag::kSoftAP, RendezvousInformationFlag::kOnNetwork));
     inPayload.discriminator.SetLongValue(static_cast<uint16_t>((1 << kPayloadDiscriminatorFieldLengthInBits) - 1));
     inPayload.setUpPINCode = static_cast<uint32_t>((1 << kSetupPINCodeFieldLengthInBits) - 1);
 
-    EXPECT_TRUE(CheckWriteRead(inPayload, /* allowInvalidPayload */ true));
+    NL_TEST_ASSERT(inSuite, CheckWriteRead(inPayload, /* allowInvalidPayload */ true));
 }
 
-TEST(TestQRCode, TestPayloadByteArrayRep)
+void TestPayloadByteArrayRep(nlTestSuite * inSuite, void * inContext)
 {
     SetupPayload payload = GetDefaultPayload();
 
-    std::string expected = " 0000 000000000000000100000000000 000010000000 00000001 00 0000000000000001 0000000000001100 000";
-    EXPECT_TRUE(CompareBinary(payload, expected));
+    string expected = " 0000 000000000000000100000000000 000010000000 00000001 00 0000000000000001 0000000000001100 000";
+    NL_TEST_ASSERT(inSuite, CompareBinary(payload, expected));
 }
 
-TEST(TestQRCode, TestPayloadBase38Rep)
+void TestPayloadBase38Rep(nlTestSuite * inSuite, void * inContext)
 {
     SetupPayload payload = GetDefaultPayload();
 
     QRCodeSetupPayloadGenerator generator(payload);
-    std::string result;
+    string result;
     CHIP_ERROR err  = generator.payloadBase38Representation(result);
     bool didSucceed = err == CHIP_NO_ERROR;
-    EXPECT_EQ(didSucceed, true);
+    NL_TEST_ASSERT(inSuite, didSucceed == true);
 
-    EXPECT_EQ(result, kDefaultPayloadQRCode);
+    NL_TEST_ASSERT(inSuite, result == kDefaultPayloadQRCode);
 }
 
-TEST(TestQRCode, TestBase38)
+void TestBase38(nlTestSuite * inSuite, void * inContext)
 {
     uint8_t input[3] = { 10, 10, 10 };
     char encodedBuf[64];
@@ -146,239 +126,231 @@ TEST(TestQRCode, TestBase38)
 
     // basic stuff
     base38Encode(inputSpan.SubSpan(0, 0), encodedSpan);
-    EXPECT_EQ(strlen(encodedBuf), 0u);
+    NL_TEST_ASSERT(inSuite, strlen(encodedBuf) == 0);
     encodedSpan = MutableCharSpan(encodedBuf);
     base38Encode(inputSpan.SubSpan(0, 1), encodedSpan);
-    EXPECT_STREQ(encodedBuf, "A0");
+    NL_TEST_ASSERT(inSuite, strcmp(encodedBuf, "A0") == 0);
     encodedSpan = MutableCharSpan(encodedBuf);
     base38Encode(inputSpan.SubSpan(0, 2), encodedSpan);
-    EXPECT_STREQ(encodedBuf, "OT10");
+    NL_TEST_ASSERT(inSuite, strcmp(encodedBuf, "OT10") == 0);
     encodedSpan = MutableCharSpan(encodedBuf);
     base38Encode(inputSpan, encodedSpan);
-    EXPECT_STREQ(encodedBuf, "-N.B0");
+    NL_TEST_ASSERT(inSuite, strcmp(encodedBuf, "-N.B0") == 0);
 
     // test null termination of output buffer
     encodedSpan             = MutableCharSpan(encodedBuf);
     MutableCharSpan subSpan = encodedSpan.SubSpan(0, 2);
-    EXPECT_EQ(base38Encode(inputSpan.SubSpan(0, 1), subSpan), CHIP_ERROR_BUFFER_TOO_SMALL);
+    NL_TEST_ASSERT(inSuite, base38Encode(inputSpan.SubSpan(0, 1), subSpan) == CHIP_ERROR_BUFFER_TOO_SMALL);
     // Force no nulls in output buffer
     memset(encodedSpan.data(), '?', encodedSpan.size());
     subSpan = encodedSpan.SubSpan(0, 3);
     base38Encode(inputSpan.SubSpan(0, 1), subSpan);
     size_t encodedLen = strnlen(encodedSpan.data(), ArraySize(encodedBuf));
-    EXPECT_EQ(encodedLen, strlen("A0"));
-    EXPECT_STREQ(encodedBuf, "A0");
+    NL_TEST_ASSERT(inSuite, encodedLen == strlen("A0"));
+    NL_TEST_ASSERT(inSuite, strcmp(encodedBuf, "A0") == 0);
 
     // passing empty parameters
     MutableCharSpan emptySpan;
     encodedSpan = MutableCharSpan(encodedBuf);
-    EXPECT_EQ(base38Encode(inputSpan, emptySpan), CHIP_ERROR_BUFFER_TOO_SMALL);
+    NL_TEST_ASSERT(inSuite, base38Encode(inputSpan, emptySpan) == CHIP_ERROR_BUFFER_TOO_SMALL);
     base38Encode(MutableByteSpan(), encodedSpan);
-    EXPECT_STREQ(encodedBuf, "");
-    EXPECT_EQ(base38Encode(MutableByteSpan(), emptySpan), CHIP_ERROR_BUFFER_TOO_SMALL);
+    NL_TEST_ASSERT(inSuite, strcmp(encodedBuf, "") == 0);
+    NL_TEST_ASSERT(inSuite, base38Encode(MutableByteSpan(), emptySpan) == CHIP_ERROR_BUFFER_TOO_SMALL);
 
     // test single odd byte corner conditions
     encodedSpan = MutableCharSpan(encodedBuf);
     input[2]    = 0;
     base38Encode(inputSpan, encodedSpan);
-    EXPECT_STREQ(encodedBuf, "OT100");
+    NL_TEST_ASSERT(inSuite, strcmp(encodedBuf, "OT100") == 0);
     input[2]    = 40;
     encodedSpan = MutableCharSpan(encodedBuf);
     base38Encode(inputSpan, encodedSpan);
-    EXPECT_STREQ(encodedBuf, "Y6V91");
+    NL_TEST_ASSERT(inSuite, strcmp(encodedBuf, "Y6V91") == 0);
     input[2]    = 41;
     encodedSpan = MutableCharSpan(encodedBuf);
     base38Encode(inputSpan, encodedSpan);
-    EXPECT_STREQ(encodedBuf, "KL0B1");
+    NL_TEST_ASSERT(inSuite, strcmp(encodedBuf, "KL0B1") == 0);
     input[2]    = 255;
     encodedSpan = MutableCharSpan(encodedBuf);
     base38Encode(inputSpan, encodedSpan);
-    EXPECT_STREQ(encodedBuf, "Q-M08");
+    NL_TEST_ASSERT(inSuite, strcmp(encodedBuf, "Q-M08") == 0);
 
     // verify chunks of 1,2 and 3 bytes result in fixed-length strings padded with '0'
     // for 1 byte we need always 2 characters
     input[0]    = 35;
     encodedSpan = MutableCharSpan(encodedBuf);
     base38Encode(inputSpan.SubSpan(0, 1), encodedSpan);
-    EXPECT_STREQ(encodedBuf, "Z0");
+    NL_TEST_ASSERT(inSuite, strcmp(encodedBuf, "Z0") == 0);
     // for 2 bytes we need always 4 characters
     input[0]    = 255;
     input[1]    = 0;
     encodedSpan = MutableCharSpan(encodedBuf);
     base38Encode(inputSpan.SubSpan(0, 2), encodedSpan);
-    EXPECT_STREQ(encodedBuf, "R600");
+    NL_TEST_ASSERT(inSuite, strcmp(encodedBuf, "R600") == 0);
     // for 3 bytes we need always 5 characters
     input[0]    = 46;
     input[1]    = 0;
     input[2]    = 0;
     encodedSpan = MutableCharSpan(encodedBuf);
     base38Encode(inputSpan, encodedSpan);
-    EXPECT_STREQ(encodedBuf, "81000");
+    NL_TEST_ASSERT(inSuite, strcmp(encodedBuf, "81000") == 0);
 
     // verify maximum available values for each chunk size to check selecting proper characters number
     // for 1 byte we need 2 characters
     input[0]    = 255;
     encodedSpan = MutableCharSpan(encodedBuf);
     base38Encode(inputSpan.SubSpan(0, 1), encodedSpan);
-    EXPECT_STREQ(encodedBuf, "R6");
+    NL_TEST_ASSERT(inSuite, strcmp(encodedBuf, "R6") == 0);
     // for 2 bytes we need 4 characters
     input[0]    = 255;
     input[1]    = 255;
     encodedSpan = MutableCharSpan(encodedBuf);
     base38Encode(inputSpan.SubSpan(0, 2), encodedSpan);
-    EXPECT_STREQ(encodedBuf, "NE71");
+    NL_TEST_ASSERT(inSuite, strcmp(encodedBuf, "NE71") == 0);
     // for 3 bytes we need 5 characters
     input[0]    = 255;
     input[1]    = 255;
     input[2]    = 255;
     encodedSpan = MutableCharSpan(encodedBuf);
     base38Encode(inputSpan, encodedSpan);
-    EXPECT_STREQ(encodedBuf, "PLS18");
+    NL_TEST_ASSERT(inSuite, strcmp(encodedBuf, "PLS18") == 0);
 
     // fun with strings
     encodedSpan = MutableCharSpan(encodedBuf);
     base38Encode(ByteSpan((uint8_t *) "Hello World!", sizeof("Hello World!") - 1), encodedSpan);
-    EXPECT_STREQ(encodedBuf, "KKHF3W2S013OPM3EJX11");
+    NL_TEST_ASSERT(inSuite, strcmp(encodedBuf, "KKHF3W2S013OPM3EJX11") == 0);
 
-    std::vector<uint8_t> decoded = std::vector<uint8_t>();
-    EXPECT_EQ(base38Decode("KKHF3W2S013OPM3EJX11", decoded), CHIP_NO_ERROR);
+    vector<uint8_t> decoded = vector<uint8_t>();
+    NL_TEST_ASSERT(inSuite, base38Decode("KKHF3W2S013OPM3EJX11", decoded) == CHIP_NO_ERROR);
 
-    std::string hello_world;
+    string hello_world;
     for (uint8_t b : decoded)
     {
         hello_world += static_cast<char>(b);
     }
-    EXPECT_EQ(hello_world, "Hello World!");
+    NL_TEST_ASSERT(inSuite, hello_world == "Hello World!");
 
     // short input
-    EXPECT_EQ(base38Decode("A0", decoded), CHIP_NO_ERROR);
-    EXPECT_TRUE(decoded.size());
-    EXPECT_EQ(decoded[0], 10u);
+    NL_TEST_ASSERT(inSuite, base38Decode("A0", decoded) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, decoded.size() == 1);
+    NL_TEST_ASSERT(inSuite, decoded[0] == 10);
 
     // empty == empty
-    EXPECT_EQ(base38Decode("", decoded), CHIP_NO_ERROR);
-    EXPECT_TRUE(decoded.empty());
+    NL_TEST_ASSERT(inSuite, base38Decode("", decoded) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, decoded.empty());
 
     // test invalid characters
-    EXPECT_EQ(base38Decode("0\001", decoded), CHIP_ERROR_INVALID_INTEGER_VALUE);
-    EXPECT_EQ(base38Decode("\0010", decoded), CHIP_ERROR_INVALID_INTEGER_VALUE);
-    EXPECT_EQ(base38Decode("[0", decoded), CHIP_ERROR_INVALID_INTEGER_VALUE);
-    EXPECT_EQ(base38Decode("0[", decoded), CHIP_ERROR_INVALID_INTEGER_VALUE);
-    EXPECT_EQ(base38Decode(" 0", decoded), CHIP_ERROR_INVALID_INTEGER_VALUE);
-    EXPECT_EQ(base38Decode("!0", decoded), CHIP_ERROR_INVALID_INTEGER_VALUE);
-    EXPECT_EQ(base38Decode("\"0", decoded), CHIP_ERROR_INVALID_INTEGER_VALUE);
-    EXPECT_EQ(base38Decode("#0", decoded), CHIP_ERROR_INVALID_INTEGER_VALUE);
-    EXPECT_EQ(base38Decode("$0", decoded), CHIP_ERROR_INVALID_INTEGER_VALUE);
-    EXPECT_EQ(base38Decode("%0", decoded), CHIP_ERROR_INVALID_INTEGER_VALUE);
-    EXPECT_EQ(base38Decode("&0", decoded), CHIP_ERROR_INVALID_INTEGER_VALUE);
-    EXPECT_EQ(base38Decode("'0", decoded), CHIP_ERROR_INVALID_INTEGER_VALUE);
-    EXPECT_EQ(base38Decode("(0", decoded), CHIP_ERROR_INVALID_INTEGER_VALUE);
-    EXPECT_EQ(base38Decode(")0", decoded), CHIP_ERROR_INVALID_INTEGER_VALUE);
-    EXPECT_EQ(base38Decode("*0", decoded), CHIP_ERROR_INVALID_INTEGER_VALUE);
-    EXPECT_EQ(base38Decode("+0", decoded), CHIP_ERROR_INVALID_INTEGER_VALUE);
-    EXPECT_EQ(base38Decode(",0", decoded), CHIP_ERROR_INVALID_INTEGER_VALUE);
-    EXPECT_EQ(base38Decode(";0", decoded), CHIP_ERROR_INVALID_INTEGER_VALUE);
-    EXPECT_EQ(base38Decode("<0", decoded), CHIP_ERROR_INVALID_INTEGER_VALUE);
-    EXPECT_EQ(base38Decode("=0", decoded), CHIP_ERROR_INVALID_INTEGER_VALUE);
-    EXPECT_EQ(base38Decode(">0", decoded), CHIP_ERROR_INVALID_INTEGER_VALUE);
-    EXPECT_EQ(base38Decode("@0", decoded), CHIP_ERROR_INVALID_INTEGER_VALUE);
+    NL_TEST_ASSERT(inSuite, base38Decode("0\001", decoded) == CHIP_ERROR_INVALID_INTEGER_VALUE);
+    NL_TEST_ASSERT(inSuite, base38Decode("\0010", decoded) == CHIP_ERROR_INVALID_INTEGER_VALUE);
+    NL_TEST_ASSERT(inSuite, base38Decode("[0", decoded) == CHIP_ERROR_INVALID_INTEGER_VALUE);
+    NL_TEST_ASSERT(inSuite, base38Decode("0[", decoded) == CHIP_ERROR_INVALID_INTEGER_VALUE);
+    NL_TEST_ASSERT(inSuite, base38Decode(" 0", decoded) == CHIP_ERROR_INVALID_INTEGER_VALUE);
+    NL_TEST_ASSERT(inSuite, base38Decode("!0", decoded) == CHIP_ERROR_INVALID_INTEGER_VALUE);
+    NL_TEST_ASSERT(inSuite, base38Decode("\"0", decoded) == CHIP_ERROR_INVALID_INTEGER_VALUE);
+    NL_TEST_ASSERT(inSuite, base38Decode("#0", decoded) == CHIP_ERROR_INVALID_INTEGER_VALUE);
+    NL_TEST_ASSERT(inSuite, base38Decode("$0", decoded) == CHIP_ERROR_INVALID_INTEGER_VALUE);
+    NL_TEST_ASSERT(inSuite, base38Decode("%0", decoded) == CHIP_ERROR_INVALID_INTEGER_VALUE);
+    NL_TEST_ASSERT(inSuite, base38Decode("&0", decoded) == CHIP_ERROR_INVALID_INTEGER_VALUE);
+    NL_TEST_ASSERT(inSuite, base38Decode("'0", decoded) == CHIP_ERROR_INVALID_INTEGER_VALUE);
+    NL_TEST_ASSERT(inSuite, base38Decode("(0", decoded) == CHIP_ERROR_INVALID_INTEGER_VALUE);
+    NL_TEST_ASSERT(inSuite, base38Decode(")0", decoded) == CHIP_ERROR_INVALID_INTEGER_VALUE);
+    NL_TEST_ASSERT(inSuite, base38Decode("*0", decoded) == CHIP_ERROR_INVALID_INTEGER_VALUE);
+    NL_TEST_ASSERT(inSuite, base38Decode("+0", decoded) == CHIP_ERROR_INVALID_INTEGER_VALUE);
+    NL_TEST_ASSERT(inSuite, base38Decode(",0", decoded) == CHIP_ERROR_INVALID_INTEGER_VALUE);
+    NL_TEST_ASSERT(inSuite, base38Decode(";0", decoded) == CHIP_ERROR_INVALID_INTEGER_VALUE);
+    NL_TEST_ASSERT(inSuite, base38Decode("<0", decoded) == CHIP_ERROR_INVALID_INTEGER_VALUE);
+    NL_TEST_ASSERT(inSuite, base38Decode("=0", decoded) == CHIP_ERROR_INVALID_INTEGER_VALUE);
+    NL_TEST_ASSERT(inSuite, base38Decode(">0", decoded) == CHIP_ERROR_INVALID_INTEGER_VALUE);
+    NL_TEST_ASSERT(inSuite, base38Decode("@0", decoded) == CHIP_ERROR_INVALID_INTEGER_VALUE);
 
     // test strings that encode maximum values
-    EXPECT_EQ(base38Decode("R6", decoded), CHIP_NO_ERROR); // this is 0xFF
-    EXPECT_EQ(decoded, std::vector<uint8_t>({ 255 }));
-    EXPECT_EQ(base38Decode("S6", decoded), CHIP_ERROR_INVALID_ARGUMENT); // trying to encode 0xFF + 1 in 2 chars
-    EXPECT_EQ(base38Decode("S600", decoded), CHIP_NO_ERROR);             // this is 0xFF + 1, needs 4 chars
-    EXPECT_EQ(decoded, std::vector<uint8_t>({ 0, 1 }));
-    EXPECT_EQ(base38Decode("NE71", decoded), CHIP_NO_ERROR); // this is 0xFFFF
-    EXPECT_EQ(decoded, std::vector<uint8_t>({ 255, 255 }));
-    EXPECT_EQ(base38Decode("OE71", decoded), CHIP_ERROR_INVALID_ARGUMENT); // trying to encode 0xFFFF + 1 in 4 chars
-    EXPECT_EQ(base38Decode("OE710", decoded), CHIP_NO_ERROR);              // this is 0xFFFF + 1, needs 5 chars
-    EXPECT_EQ(decoded, std::vector<uint8_t>({ 0, 0, 1 }));
-    EXPECT_EQ(base38Decode("PLS18", decoded), CHIP_NO_ERROR); // this is 0xFFFFFF
-    EXPECT_EQ(decoded, std::vector<uint8_t>({ 255, 255, 255 }));
-    EXPECT_EQ(base38Decode("QLS18", decoded), CHIP_ERROR_INVALID_ARGUMENT); // trying to encode 0xFFFFFF + 1
+    NL_TEST_ASSERT(inSuite, base38Decode("R6", decoded) == CHIP_NO_ERROR); // this is 0xFF
+    NL_TEST_ASSERT(inSuite, decoded == std::vector<uint8_t>({ 255 }));
+    NL_TEST_ASSERT(inSuite, base38Decode("S6", decoded) == CHIP_ERROR_INVALID_ARGUMENT); // trying to encode 0xFF + 1 in 2 chars
+    NL_TEST_ASSERT(inSuite, base38Decode("S600", decoded) == CHIP_NO_ERROR);             // this is 0xFF + 1, needs 4 chars
+    NL_TEST_ASSERT(inSuite, decoded == std::vector<uint8_t>({ 0, 1 }));
+    NL_TEST_ASSERT(inSuite, base38Decode("NE71", decoded) == CHIP_NO_ERROR); // this is 0xFFFF
+    NL_TEST_ASSERT(inSuite, decoded == std::vector<uint8_t>({ 255, 255 }));
+    NL_TEST_ASSERT(inSuite, base38Decode("OE71", decoded) == CHIP_ERROR_INVALID_ARGUMENT); // trying to encode 0xFFFF + 1 in 4 chars
+    NL_TEST_ASSERT(inSuite, base38Decode("OE710", decoded) == CHIP_NO_ERROR);              // this is 0xFFFF + 1, needs 5 chars
+    NL_TEST_ASSERT(inSuite, decoded == std::vector<uint8_t>({ 0, 0, 1 }));
+    NL_TEST_ASSERT(inSuite, base38Decode("PLS18", decoded) == CHIP_NO_ERROR); // this is 0xFFFFFF
+    NL_TEST_ASSERT(inSuite, decoded == std::vector<uint8_t>({ 255, 255, 255 }));
+    NL_TEST_ASSERT(inSuite, base38Decode("QLS18", decoded) == CHIP_ERROR_INVALID_ARGUMENT); // trying to encode 0xFFFFFF + 1
 }
 
-TEST(TestQRCode, TestBitsetLen)
+void TestBitsetLen(nlTestSuite * inSuite, void * inContext)
 {
-    EXPECT_FALSE(kTotalPayloadDataSizeInBits % 8);
+    NL_TEST_ASSERT(inSuite, kTotalPayloadDataSizeInBits % 8 == 0);
 }
 
-TEST(TestQRCode, TestSetupPayloadVerify)
+void TestSetupPayloadVerify(nlTestSuite * inSuite, void * inContext)
 {
     SetupPayload payload = GetDefaultPayload();
-    EXPECT_EQ(payload.isValidQRCodePayload(), true);
+    NL_TEST_ASSERT(inSuite, payload.isValidQRCodePayload() == true);
 
     // test invalid commissioning flow
     SetupPayload test_payload      = payload;
     test_payload.commissioningFlow = CommissioningFlow::kCustom;
-    EXPECT_TRUE(test_payload.isValidQRCodePayload());
+    NL_TEST_ASSERT(inSuite, test_payload.isValidQRCodePayload());
 
     test_payload.commissioningFlow = static_cast<CommissioningFlow>(1 << kCommissioningFlowFieldLengthInBits);
-    EXPECT_EQ(test_payload.isValidQRCodePayload(), false);
+    NL_TEST_ASSERT(inSuite, test_payload.isValidQRCodePayload() == false);
 
     // test invalid version
     test_payload         = payload;
     test_payload.version = 1 << kVersionFieldLengthInBits;
-    EXPECT_EQ(test_payload.isValidQRCodePayload(), false);
+    NL_TEST_ASSERT(inSuite, test_payload.isValidQRCodePayload() == false);
 
     // test invalid rendezvousInformation
-    test_payload = payload;
-    RendezvousInformationFlags invalid =
-        RendezvousInformationFlags(RendezvousInformationFlag::kBLE, RendezvousInformationFlag::kSoftAP,
-                                   RendezvousInformationFlag::kOnNetwork, RendezvousInformationFlag::kWiFiPAF);
+    test_payload                       = payload;
+    RendezvousInformationFlags invalid = RendezvousInformationFlags(
+        RendezvousInformationFlag::kBLE, RendezvousInformationFlag::kSoftAP, RendezvousInformationFlag::kOnNetwork);
     invalid.SetRaw(static_cast<uint8_t>(invalid.Raw() + 1));
     test_payload.rendezvousInformation.SetValue(invalid);
-    EXPECT_EQ(test_payload.isValidQRCodePayload(), false);
-    // When validating in Consume mode, unknown rendezvous flags are OK.
-    EXPECT_TRUE(test_payload.isValidQRCodePayload(PayloadContents::ValidationMode::kConsume));
-    test_payload.rendezvousInformation.SetValue(RendezvousInformationFlags(0xff));
-    EXPECT_TRUE(test_payload.isValidQRCodePayload(PayloadContents::ValidationMode::kConsume));
-    // Rendezvous information is still required even in Consume mode.
-    test_payload.rendezvousInformation.ClearValue();
-    EXPECT_FALSE(test_payload.isValidQRCodePayload(PayloadContents::ValidationMode::kConsume));
+    NL_TEST_ASSERT(inSuite, test_payload.isValidQRCodePayload() == false);
 
     // test invalid setup PIN
     test_payload              = payload;
     test_payload.setUpPINCode = 1 << kSetupPINCodeFieldLengthInBits;
-    EXPECT_EQ(test_payload.isValidQRCodePayload(), false);
+    NL_TEST_ASSERT(inSuite, test_payload.isValidQRCodePayload() == false);
 }
 
-TEST(TestQRCode, TestInvalidQRCodePayload_WrongCharacterSet)
+void TestInvalidQRCodePayload_WrongCharacterSet(nlTestSuite * inSuite, void * inContext)
 {
-    std::string invalidString = kDefaultPayloadQRCode;
-    invalidString.back()      = ' '; // space is not contained in the base38 alphabet
+    string invalidString = kDefaultPayloadQRCode;
+    invalidString.back() = ' '; // space is not contained in the base38 alphabet
 
     QRCodeSetupPayloadParser parser = QRCodeSetupPayloadParser(invalidString);
     SetupPayload payload;
     CHIP_ERROR err = parser.populatePayload(payload);
     bool didFail   = err != CHIP_NO_ERROR;
-    EXPECT_EQ(didFail, true);
-    EXPECT_EQ(payload.isValidQRCodePayload(), false);
+    NL_TEST_ASSERT(inSuite, didFail == true);
+    NL_TEST_ASSERT(inSuite, payload.isValidQRCodePayload() == false);
 }
 
-TEST(TestQRCode, TestInvalidQRCodePayload_WrongLength)
+void TestInvalidQRCodePayload_WrongLength(nlTestSuite * inSuite, void * inContext)
 {
-    std::string invalidString = kDefaultPayloadQRCode;
+    string invalidString = kDefaultPayloadQRCode;
     invalidString.pop_back();
 
     QRCodeSetupPayloadParser parser = QRCodeSetupPayloadParser(invalidString);
     SetupPayload payload;
     CHIP_ERROR err = parser.populatePayload(payload);
     bool didFail   = err != CHIP_NO_ERROR;
-    EXPECT_EQ(didFail, true);
-    EXPECT_EQ(payload.isValidQRCodePayload(), false);
+    NL_TEST_ASSERT(inSuite, didFail == true);
+    NL_TEST_ASSERT(inSuite, payload.isValidQRCodePayload() == false);
 }
 
-TEST(TestQRCode, TestPayloadEquality)
+void TestPayloadEquality(nlTestSuite * inSuite, void * inContext)
 {
     SetupPayload payload      = GetDefaultPayload();
     SetupPayload equalPayload = GetDefaultPayload();
 
-    EXPECT_TRUE(payload == equalPayload);
+    NL_TEST_ASSERT(inSuite, payload == equalPayload);
 }
 
-TEST(TestQRCode, TestPayloadInEquality)
+void TestPayloadInEquality(nlTestSuite * inSuite, void * inContext)
 {
     SetupPayload payload = GetDefaultPayload();
 
@@ -386,88 +358,100 @@ TEST(TestQRCode, TestPayloadInEquality)
     unequalPayload.discriminator.SetLongValue(28);
     unequalPayload.setUpPINCode = 121233;
 
-    EXPECT_FALSE(payload == unequalPayload);
+    NL_TEST_ASSERT(inSuite, !(payload == unequalPayload));
 }
 
-TEST(TestQRCode, TestQRCodeToPayloadGeneration)
+void TestQRCodeToPayloadGeneration(nlTestSuite * inSuite, void * inContext)
 {
     SetupPayload payload = GetDefaultPayload();
 
     QRCodeSetupPayloadGenerator generator(payload);
-    std::string base38Rep;
+    string base38Rep;
     CHIP_ERROR err  = generator.payloadBase38Representation(base38Rep);
     bool didSucceed = err == CHIP_NO_ERROR;
-    EXPECT_EQ(didSucceed, true);
+    NL_TEST_ASSERT(inSuite, didSucceed == true);
 
     SetupPayload resultingPayload;
     QRCodeSetupPayloadParser parser(base38Rep);
 
     err        = parser.populatePayload(resultingPayload);
     didSucceed = err == CHIP_NO_ERROR;
-    EXPECT_EQ(didSucceed, true);
-    EXPECT_EQ(resultingPayload.isValidQRCodePayload(), true);
+    NL_TEST_ASSERT(inSuite, didSucceed == true);
+    NL_TEST_ASSERT(inSuite, resultingPayload.isValidQRCodePayload() == true);
 
     bool result = payload == resultingPayload;
-    EXPECT_EQ(result, true);
+    NL_TEST_ASSERT(inSuite, result == true);
 }
 
-TEST(TestQRCode, TestGenerateWithShortDiscriminatorInvalid)
+void TestExtractPayload(nlTestSuite * inSuite, void * inContext)
 {
-    SetupPayload payload = GetDefaultPayload();
-    EXPECT_TRUE(payload.isValidQRCodePayload());
-
-    // A short discriminator isn't valid for a QR Code
-    payload.discriminator.SetShortValue(1);
-    EXPECT_FALSE(payload.isValidQRCodePayload());
-
-    // QRCodeSetupPayloadGenerator should therefore return an error
-    std::string base38Rep;
-    QRCodeSetupPayloadGenerator generator(payload);
-    EXPECT_EQ(generator.payloadBase38Representation(base38Rep), CHIP_ERROR_INVALID_ARGUMENT);
-
-    // If we allow invalid payloads we should be able to encode
-    generator.SetAllowInvalidPayload(true);
-    EXPECT_EQ(generator.payloadBase38Representation(base38Rep), CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, QRCodeSetupPayloadParser::ExtractPayload(string("MT:ABC")) == string("ABC"));
+    NL_TEST_ASSERT(inSuite, QRCodeSetupPayloadParser::ExtractPayload(string("MT:")) == string(""));
+    NL_TEST_ASSERT(inSuite, QRCodeSetupPayloadParser::ExtractPayload(string("H:")) == string(""));
+    NL_TEST_ASSERT(inSuite, QRCodeSetupPayloadParser::ExtractPayload(string("ASMT:")) == string(""));
+    NL_TEST_ASSERT(inSuite, QRCodeSetupPayloadParser::ExtractPayload(string("Z%MT:ABC%")) == string("ABC"));
+    NL_TEST_ASSERT(inSuite, QRCodeSetupPayloadParser::ExtractPayload(string("Z%MT:ABC")) == string("ABC"));
+    NL_TEST_ASSERT(inSuite, QRCodeSetupPayloadParser::ExtractPayload(string("%Z%MT:ABC")) == string("ABC"));
+    NL_TEST_ASSERT(inSuite, QRCodeSetupPayloadParser::ExtractPayload(string("%Z%MT:ABC%")) == string("ABC"));
+    NL_TEST_ASSERT(inSuite, QRCodeSetupPayloadParser::ExtractPayload(string("%Z%MT:ABC%DDD")) == string("ABC"));
+    NL_TEST_ASSERT(inSuite, QRCodeSetupPayloadParser::ExtractPayload(string("MT:ABC%DDD")) == string("ABC"));
+    NL_TEST_ASSERT(inSuite, QRCodeSetupPayloadParser::ExtractPayload(string("MT:ABC%")) == string("ABC"));
+    NL_TEST_ASSERT(inSuite, QRCodeSetupPayloadParser::ExtractPayload(string("%MT:")) == string(""));
+    NL_TEST_ASSERT(inSuite, QRCodeSetupPayloadParser::ExtractPayload(string("%MT:%")) == string(""));
+    NL_TEST_ASSERT(inSuite, QRCodeSetupPayloadParser::ExtractPayload(string("A%")) == string(""));
+    NL_TEST_ASSERT(inSuite, QRCodeSetupPayloadParser::ExtractPayload(string("MT:%")) == string(""));
+    NL_TEST_ASSERT(inSuite, QRCodeSetupPayloadParser::ExtractPayload(string("%MT:ABC")) == string("ABC"));
+    NL_TEST_ASSERT(inSuite, QRCodeSetupPayloadParser::ExtractPayload(string("ABC")) == string(""));
 }
 
-TEST(TestQRCode, TestGenerateWithoutRendezvousInformation)
+// Test Suite
+
+/**
+ *  Test Suite that lists all the test functions.
+ */
+// clang-format off
+const nlTest sTests[] =
 {
-    SetupPayload payload = GetDefaultPayload();
-    EXPECT_TRUE(payload.isValidQRCodePayload());
+    NL_TEST_DEF("Test Rendezvous Flags",                                            TestRendezvousFlags),
+    NL_TEST_DEF("Test Commissioning Flow",                                          TestCommissioningFlow),
+    NL_TEST_DEF("Test Maximum Values",                                              TestMaximumValues),
+    NL_TEST_DEF("Test Base 38",                                                     TestBase38),
+    NL_TEST_DEF("Test Bitset Length",                                               TestBitsetLen),
+    NL_TEST_DEF("Test Payload Byte Array Representation",                           TestPayloadByteArrayRep),
+    NL_TEST_DEF("Test Payload Base 38 Representation",                              TestPayloadBase38Rep),
+    NL_TEST_DEF("Test Setup Payload Verify",                                        TestSetupPayloadVerify),
+    NL_TEST_DEF("Test Payload Equality",                                            TestPayloadEquality),
+    NL_TEST_DEF("Test Payload Inequality",                                          TestPayloadInEquality),
+    NL_TEST_DEF("Test QRCode to Payload Generation",                                TestQRCodeToPayloadGeneration),
+    NL_TEST_DEF("Test Invalid QR Code Payload - Wrong Character Set",               TestInvalidQRCodePayload_WrongCharacterSet),
+    NL_TEST_DEF("Test Invalid QR Code Payload - Wrong  Length",                     TestInvalidQRCodePayload_WrongLength),
+    NL_TEST_DEF("Test Extract Payload",                                             TestExtractPayload),
 
-    // Rendezvouz Information is required for a QR code
-    payload.rendezvousInformation.ClearValue();
-    EXPECT_FALSE(payload.isValidQRCodePayload());
-
-    // QRCodeSetupPayloadGenerator should therefore return an error
-    std::string base38Rep;
-    QRCodeSetupPayloadGenerator generator(payload);
-    EXPECT_EQ(generator.payloadBase38Representation(base38Rep), CHIP_ERROR_INVALID_ARGUMENT);
-
-    // If we allow invalid payloads we should be able to encode
-    generator.SetAllowInvalidPayload(true);
-    EXPECT_EQ(generator.payloadBase38Representation(base38Rep), CHIP_NO_ERROR);
-}
-
-TEST(TestQRCode, TestExtractPayload)
-{
-    EXPECT_EQ(QRCodeSetupPayloadParser::ExtractPayload(std::string("MT:ABC")), std::string("ABC"));
-    EXPECT_EQ(QRCodeSetupPayloadParser::ExtractPayload(std::string("MT:")), std::string(""));
-    EXPECT_EQ(QRCodeSetupPayloadParser::ExtractPayload(std::string("H:")), std::string(""));
-    EXPECT_EQ(QRCodeSetupPayloadParser::ExtractPayload(std::string("ASMT:")), std::string(""));
-    EXPECT_EQ(QRCodeSetupPayloadParser::ExtractPayload(std::string("Z%MT:ABC%")), std::string("ABC"));
-    EXPECT_EQ(QRCodeSetupPayloadParser::ExtractPayload(std::string("Z%MT:ABC")), std::string("ABC"));
-    EXPECT_EQ(QRCodeSetupPayloadParser::ExtractPayload(std::string("%Z%MT:ABC")), std::string("ABC"));
-    EXPECT_EQ(QRCodeSetupPayloadParser::ExtractPayload(std::string("%Z%MT:ABC%")), std::string("ABC"));
-    EXPECT_EQ(QRCodeSetupPayloadParser::ExtractPayload(std::string("%Z%MT:ABC%DDD")), std::string("ABC"));
-    EXPECT_EQ(QRCodeSetupPayloadParser::ExtractPayload(std::string("MT:ABC%DDD")), std::string("ABC"));
-    EXPECT_EQ(QRCodeSetupPayloadParser::ExtractPayload(std::string("MT:ABC%")), std::string("ABC"));
-    EXPECT_EQ(QRCodeSetupPayloadParser::ExtractPayload(std::string("%MT:")), std::string(""));
-    EXPECT_EQ(QRCodeSetupPayloadParser::ExtractPayload(std::string("%MT:%")), std::string(""));
-    EXPECT_EQ(QRCodeSetupPayloadParser::ExtractPayload(std::string("A%")), std::string(""));
-    EXPECT_EQ(QRCodeSetupPayloadParser::ExtractPayload(std::string("MT:%")), std::string(""));
-    EXPECT_EQ(QRCodeSetupPayloadParser::ExtractPayload(std::string("%MT:ABC")), std::string("ABC"));
-    EXPECT_EQ(QRCodeSetupPayloadParser::ExtractPayload(std::string("ABC")), std::string(""));
-}
+    NL_TEST_SENTINEL()
+};
+// clang-format on
 
 } // namespace
+
+/**
+ *  Main
+ */
+int TestQuickResponseCode()
+{
+    // clang-format off
+    nlTestSuite theSuite =
+    {
+        "chip-qrcode-general-tests",
+        &sTests[0],
+        nullptr,
+        nullptr
+    };
+    // clang-format on
+
+    // Generate machine-readable, comma-separated value (CSV) output.
+    nl_test_set_output_style(OUTPUT_CSV);
+
+    return chip::ExecuteTestsWithoutContext(&theSuite);
+}
+
+CHIP_REGISTER_TEST_SUITE(TestQuickResponseCode);

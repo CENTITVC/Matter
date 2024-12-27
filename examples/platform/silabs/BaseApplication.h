@@ -30,9 +30,8 @@
 #include <app/clusters/identify-server/identify-server.h>
 #include <app/server/AppDelegate.h>
 #include <app/util/config.h>
-#include <ble/Ble.h>
+#include <ble/BLEEndPoint.h>
 #include <cmsis_os2.h>
-#include <credentials/FabricTable.h>
 #include <lib/core/CHIPError.h>
 #include <platform/CHIPDeviceEvent.h>
 #include <platform/CHIPDeviceLayer.h>
@@ -63,22 +62,16 @@
 #define APP_ERROR_START_TIMER_FAILED CHIP_APPLICATION_ERROR(0x05)
 #define APP_ERROR_STOP_TIMER_FAILED CHIP_APPLICATION_ERROR(0x06)
 
-class BaseApplicationDelegate : public AppDelegate, public chip::FabricTable::Delegate
+#if CHIP_CONFIG_ENABLE_ICD_SERVER && SLI_SI917
+class BaseApplicationDelegate : public AppDelegate
 {
-public:
-    bool isCommissioningInProgress() { return isComissioningStarted; }
-
 private:
-    // AppDelegate
-    bool isComissioningStarted = false;
+    bool isComissioningStarted;
     void OnCommissioningSessionStarted() override;
     void OnCommissioningSessionStopped() override;
     void OnCommissioningWindowClosed() override;
-
-    // FabricTable::Delegate
-    void OnFabricCommitted(const chip::FabricTable & fabricTable, chip::FabricIndex fabricIndex) override;
-    void OnFabricRemoved(const chip::FabricTable & fabricTable, chip::FabricIndex fabricIndex) override;
 };
+#endif // CHIP_CONFIG_ENABLE_ICD_SERVER && SLI_SI917
 
 /**********************************************************
  * BaseApplication Declaration
@@ -93,7 +86,9 @@ public:
     static bool sIsProvisioned;
     static bool sIsFactoryResetTriggered;
     static LEDWidget * sAppActionLed;
+#if CHIP_CONFIG_ENABLE_ICD_SERVER && SLI_SI917
     static BaseApplicationDelegate sAppDelegate;
+#endif // CHIP_CONFIG_ENABLE_ICD_SERVER && SLI_SI917
 
     /**
      * @brief Create AppTask task and Event Queue
@@ -135,7 +130,7 @@ public:
      */
     static SilabsLCD & GetLCD(void);
 
-    static void UpdateLCDStatusScreen(bool withChipStackLock = true);
+    static void UpdateLCDStatusScreen(void);
 #endif
 
     /**
@@ -160,18 +155,6 @@ public:
     static void OnTriggerIdentifyEffectCompleted(chip::System::Layer * systemLayer, void * appState);
     static void OnTriggerIdentifyEffect(Identify * identify);
 #endif
-
-    /**
-     * @brief Updates the static boolean isCommissioned to the desired state
-     *
-     */
-    static void UpdateCommissioningStatus(bool newState);
-
-    /**
-     * @brief Called when the last Fabric is removed, clears all Fabric related data, including Thread and Wifi provision.
-     * @note This function preserves some NVM3 data that is not Fabric scoped, like Attribute Value or Boot Count.
-     */
-    static void DoProvisioningReset();
 
 protected:
     CHIP_ERROR Init();
@@ -266,7 +249,4 @@ protected:
      * Protected Attributes declaration
      *********************************************************/
     bool mSyncClusterToButtonAction;
-
-private:
-    static void InitOTARequestorHandler(chip::System::Layer * systemLayer, void * appState);
 };

@@ -24,9 +24,12 @@
 
 #pragma once
 
+#include <ble/BleConfig.h>
+
 #include <utility>
 
-#include <ble/Ble.h>
+#include <ble/BleError.h>
+#include <ble/BleLayer.h>
 #include <lib/core/CHIPCore.h>
 #include <lib/support/DLLUtil.h>
 #include <system/SystemPacketBuffer.h>

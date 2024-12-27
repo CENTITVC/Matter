@@ -254,7 +254,17 @@ bool ConnectivityManagerImpl::IsWiFiManagementStarted()
 
 CHIP_ERROR ConnectivityManagerImpl::GetWiFiBssId(MutableByteSpan & value)
 {
-    return Internal::WiFiMgr().GetBssId(value);
+    constexpr size_t bssIdSize = 6;
+    VerifyOrReturnError(value.size() >= bssIdSize, CHIP_ERROR_BUFFER_TOO_SMALL);
+
+    uint8_t * bssId = nullptr;
+    CHIP_ERROR err  = Internal::WiFiMgr().GetBssId(bssId);
+    ReturnErrorOnFailure(err);
+
+    memcpy(value.data(), bssId, bssIdSize);
+    value.reduce_size(bssIdSize);
+
+    return CHIP_NO_ERROR;
 }
 
 CHIP_ERROR ConnectivityManagerImpl::GetWiFiSecurityType(SecurityTypeEnum & securityType)

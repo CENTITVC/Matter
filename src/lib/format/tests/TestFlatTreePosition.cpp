@@ -14,18 +14,18 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
+#include <lib/format/FlatTree.h>
+#include <lib/format/FlatTreePosition.h>
+
+#include <lib/core/TLVTags.h>
+#include <lib/support/UnitTestRegistration.h>
 
 #include <array>
 #include <vector>
 
 #include <string.h>
 
-#include <pw_unit_test/framework.h>
-
-#include <lib/core/StringBuilderAdapters.h>
-#include <lib/core/TLVTags.h>
-#include <lib/format/FlatTree.h>
-#include <lib/format/FlatTreePosition.h>
+#include <nlunit-test.h>
 
 namespace {
 
@@ -94,16 +94,16 @@ private:
 };
 
 #define ASSERT_HAS_NAME(p, n)                                                                                                      \
-    EXPECT_NE(p.Get(), nullptr);                                                                                                   \
-    EXPECT_STREQ(p.Get()->name, n);
+    NL_TEST_ASSERT(inSuite, p.Get() != nullptr);                                                                                   \
+    NL_TEST_ASSERT(inSuite, strcmp(p.Get()->name, n) == 0)
 
 #define ASSERT_HAS_CONTEXT_TAG(p, t)                                                                                               \
-    EXPECT_NE(p.Get(), nullptr);                                                                                                   \
-    EXPECT_EQ(p.Get()->tag, ContextTag(t))
+    NL_TEST_ASSERT(inSuite, p.Get() != nullptr);                                                                                   \
+    NL_TEST_ASSERT(inSuite, p.Get()->tag == ContextTag(t))
 
 #define ASSERT_HAS_PROFILE_TAG(p, a, b)                                                                                            \
-    EXPECT_NE(p.Get(), nullptr);                                                                                                   \
-    EXPECT_EQ(p.Get()->tag, ProfileTag(a, b))
+    NL_TEST_ASSERT(inSuite, p.Get() != nullptr);                                                                                   \
+    NL_TEST_ASSERT(inSuite, p.Get()->tag == ProfileTag(a, b))
 
 template <size_t N>
 std::vector<Tag> GetPath(Position<NamedTag, N> & position)
@@ -133,54 +133,54 @@ bool HasPath(const std::vector<Tag> & v, Tag a, Tag b, Tag c)
     return (v.size() == 3) && (v[0] == a) && (v[1] == b) && (v[2] == c);
 }
 
-TEST(TestFlatTreePosition, TestSimpleEnterExit)
+void TestSimpleEnterExit(nlTestSuite * inSuite, void * inContext)
 {
     Position<NamedTag, 10> position(tree.data(), tree.size());
 
     // at start, top of tree has no value
-    EXPECT_EQ(position.Get(), nullptr);
-    EXPECT_TRUE(GetPath(position).empty());
+    NL_TEST_ASSERT(inSuite, position.Get() == nullptr);
+    NL_TEST_ASSERT(inSuite, GetPath(position).empty());
 
     // Go to hello, try going to invalid 2x, then go back
     position.Enter(ByTag(ContextTag(1)));
     ASSERT_HAS_NAME(position, "hello");
-    EXPECT_TRUE(HasPath(GetPath(position), ContextTag(1)));
+    NL_TEST_ASSERT(inSuite, HasPath(GetPath(position), ContextTag(1)));
 
     position.Enter(ByTag(ContextTag(1)));
-    EXPECT_EQ(position.Get(), nullptr);
-    EXPECT_TRUE(GetPath(position).empty());
+    NL_TEST_ASSERT(inSuite, position.Get() == nullptr);
+    NL_TEST_ASSERT(inSuite, GetPath(position).empty());
     position.Enter(ByTag(ContextTag(1)));
-    EXPECT_EQ(position.Get(), nullptr);
+    NL_TEST_ASSERT(inSuite, position.Get() == nullptr);
     position.Exit();
-    EXPECT_EQ(position.Get(), nullptr);
+    NL_TEST_ASSERT(inSuite, position.Get() == nullptr);
     position.Exit();
-    ASSERT_NE(position.Get(), nullptr);
+    NL_TEST_ASSERT(inSuite, position.Get() != nullptr);
     ASSERT_HAS_NAME(position, "hello");
-    EXPECT_TRUE(HasPath(GetPath(position), ContextTag(1)));
+    NL_TEST_ASSERT(inSuite, HasPath(GetPath(position), ContextTag(1)));
     position.Exit();
-    EXPECT_EQ(position.Get(), nullptr);
+    NL_TEST_ASSERT(inSuite, position.Get() == nullptr);
 }
 
-TEST(TestFlatTreePosition, TestDeeperEnter)
+void TestDeeperEnter(nlTestSuite * inSuite, void * inContext)
 {
     Position<NamedTag, 10> position(tree.data(), tree.size());
 
-    EXPECT_EQ(position.Get(), nullptr);
+    NL_TEST_ASSERT(inSuite, position.Get() == nullptr);
 
     position.Enter(ByName("world"));
     ASSERT_HAS_CONTEXT_TAG(position, 2);
-    EXPECT_TRUE(HasPath(GetPath(position), ContextTag(2)));
+    NL_TEST_ASSERT(inSuite, HasPath(GetPath(position), ContextTag(2)));
 
     position.Enter(ByTag(ProfileTag(123, 1)));
     ASSERT_HAS_NAME(position, "a");
-    EXPECT_TRUE(HasPath(GetPath(position), ContextTag(2), ProfileTag(123, 1)));
+    NL_TEST_ASSERT(inSuite, HasPath(GetPath(position), ContextTag(2), ProfileTag(123, 1)));
 
     position.Enter(ByTag(AnonymousTag()));
-    EXPECT_EQ(position.Get(), nullptr);
-    EXPECT_TRUE(GetPath(position).empty());
+    NL_TEST_ASSERT(inSuite, position.Get() == nullptr);
+    NL_TEST_ASSERT(inSuite, GetPath(position).empty());
     position.Exit();
     ASSERT_HAS_NAME(position, "a");
-    EXPECT_TRUE(HasPath(GetPath(position), ContextTag(2), ProfileTag(123, 1)));
+    NL_TEST_ASSERT(inSuite, HasPath(GetPath(position), ContextTag(2), ProfileTag(123, 1)));
 
     position.Exit();
     ASSERT_HAS_NAME(position, "world");
@@ -190,30 +190,30 @@ TEST(TestFlatTreePosition, TestDeeperEnter)
 
     position.Enter(ByTag(AnonymousTag()));
     ASSERT_HAS_NAME(position, "foo");
-    EXPECT_TRUE(HasPath(GetPath(position), ContextTag(2), ProfileTag(234, 2), AnonymousTag()));
+    NL_TEST_ASSERT(inSuite, HasPath(GetPath(position), ContextTag(2), ProfileTag(234, 2), AnonymousTag()));
 
     // test some unknown
     for (int i = 0; i < 100; i++)
     {
         position.Enter(ByTag(AnonymousTag()));
-        EXPECT_EQ(position.Get(), nullptr);
-        EXPECT_TRUE(GetPath(position).empty());
+        NL_TEST_ASSERT(inSuite, position.Get() == nullptr);
+        NL_TEST_ASSERT(inSuite, GetPath(position).empty());
     }
     for (int i = 0; i < 100; i++)
     {
-        EXPECT_EQ(position.Get(), nullptr);
-        EXPECT_TRUE(GetPath(position).empty());
+        NL_TEST_ASSERT(inSuite, position.Get() == nullptr);
+        NL_TEST_ASSERT(inSuite, GetPath(position).empty());
         position.Exit();
     }
-    EXPECT_TRUE(HasPath(GetPath(position), ContextTag(2), ProfileTag(234, 2), AnonymousTag()));
+    NL_TEST_ASSERT(inSuite, HasPath(GetPath(position), ContextTag(2), ProfileTag(234, 2), AnonymousTag()));
     ASSERT_HAS_NAME(position, "foo");
     position.Exit();
 
-    EXPECT_TRUE(HasPath(GetPath(position), ContextTag(2), ProfileTag(234, 2)));
+    NL_TEST_ASSERT(inSuite, HasPath(GetPath(position), ContextTag(2), ProfileTag(234, 2)));
     ASSERT_HAS_NAME(position, "b");
     position.Exit();
 
-    EXPECT_TRUE(HasPath(GetPath(position), ContextTag(2)));
+    NL_TEST_ASSERT(inSuite, HasPath(GetPath(position), ContextTag(2)));
     ASSERT_HAS_NAME(position, "world");
 
     // root and stay there
@@ -221,15 +221,15 @@ TEST(TestFlatTreePosition, TestDeeperEnter)
     position.Exit();
     position.Exit();
     position.Exit();
-    EXPECT_TRUE(GetPath(position).empty());
+    NL_TEST_ASSERT(inSuite, GetPath(position).empty());
 
     // can still navigate from the root
     position.Enter(ByName("world"));
-    EXPECT_TRUE(HasPath(GetPath(position), ContextTag(2)));
+    NL_TEST_ASSERT(inSuite, HasPath(GetPath(position), ContextTag(2)));
     ASSERT_HAS_CONTEXT_TAG(position, 2);
 }
 
-TEST(TestFlatTreePosition, TestDescendLimit)
+void TestDescendLimit(nlTestSuite * inSuite, void * inContext)
 {
     Position<NamedTag, 2> position(tree.data(), tree.size());
 
@@ -241,17 +241,34 @@ TEST(TestFlatTreePosition, TestDescendLimit)
 
     // only 2 positions can be remembered. Running out of space
     position.Enter(ByName("foo"));
-    EXPECT_EQ(position.Get(), nullptr);
-    EXPECT_TRUE(GetPath(position).empty());
+    NL_TEST_ASSERT(inSuite, position.Get() == nullptr);
+    NL_TEST_ASSERT(inSuite, GetPath(position).empty());
 
     position.Exit();
-    EXPECT_TRUE(HasPath(GetPath(position), ContextTag(2), ProfileTag(234, 2)));
+    NL_TEST_ASSERT(inSuite, HasPath(GetPath(position), ContextTag(2), ProfileTag(234, 2)));
     ASSERT_HAS_NAME(position, "b");
     ASSERT_HAS_PROFILE_TAG(position, 234, 2);
 
     position.Exit();
-    EXPECT_TRUE(HasPath(GetPath(position), ContextTag(2)));
+    NL_TEST_ASSERT(inSuite, HasPath(GetPath(position), ContextTag(2)));
     ASSERT_HAS_NAME(position, "world");
     ASSERT_HAS_CONTEXT_TAG(position, 2);
 }
+
+const nlTest sTests[] = {
+    NL_TEST_DEF("TestSimpleEnterExit", TestSimpleEnterExit), //
+    NL_TEST_DEF("TestDeeperEnter", TestDeeperEnter),         //
+    NL_TEST_DEF("TestDescendLimit", TestDescendLimit),       //
+    NL_TEST_SENTINEL()                                       //
+};
+
 } // namespace
+
+int TestFlatTreePosition()
+{
+    nlTestSuite theSuite = { "FlatTree", sTests, nullptr, nullptr };
+    nlTestRunner(&theSuite, nullptr);
+    return nlTestRunnerStats(&theSuite);
+}
+
+CHIP_REGISTER_TEST_SUITE(TestFlatTreePosition)

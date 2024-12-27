@@ -20,7 +20,8 @@
 
 #include "PigweedLogger.h"
 #include "pigweed/RpcService.h"
-#include <cmsis_os2.h>
+#include "semphr.h"
+#include <FreeRTOS.h>
 
 namespace chip {
 namespace rpc {
@@ -31,18 +32,18 @@ public:
     PigweedLoggerMutex() {}
     void Lock() override
     {
-        osMutexId_t * sem = PigweedLogger::GetMutex();
+        SemaphoreHandle_t * sem = PigweedLogger::GetSemaphore();
         if (sem)
         {
-            osMutexAcquire(*sem, osWaitForever);
+            xSemaphoreTake(*sem, portMAX_DELAY);
         }
     }
     void Unlock() override
     {
-        osMutexId_t * sem = PigweedLogger::GetMutex();
+        SemaphoreHandle_t * sem = PigweedLogger::GetSemaphore();
         if (sem)
         {
-            osMutexRelease(*sem);
+            xSemaphoreGive(*sem);
         }
     }
 };

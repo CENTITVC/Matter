@@ -22,8 +22,6 @@
 #include <setup_payload/QRCodeSetupPayloadParser.h>
 #include <setup_payload/SetupPayload.h>
 
-#include <string>
-
 using namespace ::chip;
 
 namespace {
@@ -107,14 +105,6 @@ CHIP_ERROR SetupPayloadParseCommand::Print(chip::SetupPayload payload)
                         humanFlags.Add(", ");
                     }
                     humanFlags.Add("On IP network");
-                }
-                if (payload.rendezvousInformation.Value().Has(RendezvousInformationFlag::kWiFiPAF))
-                {
-                    if (!humanFlags.Empty())
-                    {
-                        humanFlags.Add(", ");
-                    }
-                    humanFlags.Add("Wi-Fi PAF");
                 }
             }
             else

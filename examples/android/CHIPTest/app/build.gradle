@@ -25,7 +25,9 @@ android {
 
         externalNativeBuild {
             cmake {
-                targets "default"
+                arguments "-DMATTER_SDK_SOURCE_BUILD="+matterSdkSourceBuild \
+                    , "-DMATTER_SDK_BUILD_ROOT="+matterBuildSrcDir \
+                    , "-DMATTER_SDK_UTEST_LIB="+matterUTestLib
             }
         }
     }
@@ -50,22 +52,23 @@ android {
         jvmTarget = '1.8'
     }
 
+    externalNativeBuild {
+        cmake {
+            path file('src/main/cpp/CMakeLists.txt')
+            version '3.10.2'
+        }
+    }
+
     buildFeatures {
         viewBinding true
-    }
-    sourceSets {
-        main {
-            jniLibs.srcDirs = ['libs/jniLibs']
-            java.srcDirs = [
-                    'src/main/java',
-                    'src/main/jni',
-            ]
-        }
     }
 }
 
 dependencies {
-    implementation fileTree(dir: "libs", include: ["*.jar", "*.so"])
+    if(!matterSdkSourceBuild.toBoolean()) {
+        implementation fileTree(dir: "libs", include: ["*.jar"])
+    }
+
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
     implementation 'androidx.core:core-ktx:1.6.0'
     implementation 'androidx.appcompat:appcompat:1.3.1'

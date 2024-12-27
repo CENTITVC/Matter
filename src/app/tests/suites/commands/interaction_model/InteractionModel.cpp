@@ -19,20 +19,7 @@
 #include "InteractionModel.h"
 
 using namespace chip;
-
-using chip::app::AttributePathParams;
-using chip::app::CommandSender;
-using chip::app::ConcreteAttributePath;
-using chip::app::ConcreteCommandPath;
-using chip::app::ConcreteDataAttributePath;
-using chip::app::DataVersionFilter;
-using chip::app::EventHeader;
-using chip::app::EventPathParams;
-using chip::app::InteractionModelEngine;
-using chip::app::ReadClient;
-using chip::app::ReadPrepareParams;
-using chip::app::StatusIB;
-using chip::app::WriteClient;
+using namespace chip::app;
 
 namespace chip {
 namespace test_utils {

@@ -15,14 +15,14 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
+#include <lib/support/static_support_smart_ptr.h>
+
+#include <lib/support/Scoped.h>
+#include <lib/support/UnitTestRegistration.h>
 
 #include <cstring>
 
-#include <pw_unit_test/framework.h>
-
-#include <lib/core/StringBuilderAdapters.h>
-#include <lib/support/Scoped.h>
-#include <lib/support/static_support_smart_ptr.h>
+#include <nlunit-test.h>
 
 using namespace chip;
 namespace {
@@ -50,48 +50,42 @@ TestClass * GlobalInstanceProvider<TestClass>::InstancePointer()
 
 namespace {
 
-TEST(TestStaticSupportSmartPtr, TestCheckedGlobalInstanceReference)
+void TestCheckedGlobalInstanceReference(nlTestSuite * inSuite, void * inContext)
 {
     CheckedGlobalInstanceReference<TestClass> ref(&gTestClass);
 
     // We expect that sizes of global references is minimal
-    EXPECT_EQ(sizeof(ref), 1u);
+    NL_TEST_ASSERT(inSuite, sizeof(ref) == 1);
 
-    ASSERT_TRUE(ref);
-    EXPECT_EQ(ref->num, 123);
-    EXPECT_STREQ(ref->str, "abc");
+    NL_TEST_ASSERT(inSuite, ref->num == 123);
+    NL_TEST_ASSERT(inSuite, strcmp(ref->str, "abc") == 0);
 
     {
         ScopedChange<int> change1(gTestClass.num, 100);
         ScopedChange<const char *> change2(ref->str, "xyz");
 
-        EXPECT_EQ(ref->num, 100);
-        EXPECT_STREQ(gTestClass.str, "xyz");
+        NL_TEST_ASSERT(inSuite, ref->num == 100);
+        NL_TEST_ASSERT(inSuite, strcmp(gTestClass.str, "xyz") == 0);
     }
 
     CheckedGlobalInstanceReference<TestClass> ref2(&gTestClass);
 
-    ASSERT_TRUE(ref2);
-    EXPECT_EQ(ref->num, ref2->num);
-    EXPECT_STREQ(ref->str, ref2->str);
+    NL_TEST_ASSERT(inSuite, ref->num == ref2->num);
+    NL_TEST_ASSERT(inSuite, strcmp(ref->str, ref2->str) == 0);
 
     {
         ScopedChange<int> change1(gTestClass.num, 321);
         ScopedChange<const char *> change2(ref->str, "test");
 
-        EXPECT_EQ(ref->num, ref2->num);
-        EXPECT_STREQ(ref->str, ref2->str);
+        NL_TEST_ASSERT(inSuite, ref->num == ref2->num);
+        NL_TEST_ASSERT(inSuite, strcmp(ref->str, ref2->str) == 0);
 
-        EXPECT_EQ(ref2->num, 321);
-        EXPECT_STREQ(ref2->str, "test");
+        NL_TEST_ASSERT(inSuite, ref2->num == 321);
+        NL_TEST_ASSERT(inSuite, strcmp(ref2->str, "test") == 0);
     }
-
-    // Check default constructed CheckedGlobalInstanceReference
-    CheckedGlobalInstanceReference<TestClass> ref_default;
-    ASSERT_TRUE(ref_default);
 }
 
-TEST(TestStaticSupportSmartPtr, TestSimpleInstanceReference)
+void TestSimpleInstanceReference(nlTestSuite * inSuite, void * inContext)
 {
     TestClass a("abc", 123);
     TestClass b("xyz", 100);
@@ -100,23 +94,34 @@ TEST(TestStaticSupportSmartPtr, TestSimpleInstanceReference)
     SimpleInstanceReference ref_b(&b);
 
     // overhead of simple references should be a simple pointer
-    EXPECT_LE(sizeof(ref_a), sizeof(void *));
+    NL_TEST_ASSERT(inSuite, sizeof(ref_a) <= sizeof(void *));
 
-    ASSERT_TRUE(ref_a);
-    ASSERT_TRUE(ref_b);
-
-    EXPECT_EQ(ref_a->num, 123);
-    EXPECT_EQ(ref_b->num, 100);
+    NL_TEST_ASSERT(inSuite, ref_a->num == 123);
+    NL_TEST_ASSERT(inSuite, ref_b->num == 100);
 
     ref_a->num = 99;
     b.num      = 30;
 
-    EXPECT_EQ(a.num, 99);
-    EXPECT_EQ(ref_b->num, 30);
-
-    // Check default constructed SimpleInstanceReference
-    SimpleInstanceReference<TestClass> ref_default;
-    ASSERT_FALSE(ref_default);
+    NL_TEST_ASSERT(inSuite, a.num == 99);
+    NL_TEST_ASSERT(inSuite, ref_b->num == 30);
 }
 
+#define NL_TEST_DEF_FN(fn) NL_TEST_DEF("Test " #fn, fn)
+const nlTest sTests[] = {
+    NL_TEST_DEF_FN(TestCheckedGlobalInstanceReference),
+    NL_TEST_DEF_FN(TestSimpleInstanceReference),
+    NL_TEST_SENTINEL(),
+};
+
 } // namespace
+
+int TestStaticSupportSmartPtr()
+{
+    nlTestSuite theSuite = { "CHIP Static support smart pointers", &sTests[0], nullptr, nullptr };
+
+    // Run test suite against one context.
+    nlTestRunner(&theSuite, nullptr);
+    return nlTestRunnerStats(&theSuite);
+}
+
+CHIP_REGISTER_TEST_SUITE(TestStaticSupportSmartPtr)

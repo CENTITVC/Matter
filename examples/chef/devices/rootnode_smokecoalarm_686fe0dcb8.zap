@@ -1,6 +1,6 @@
 {
   "fileFormat": 2,
-  "featureLevel": 103,
+  "featureLevel": 100,
   "creator": "zap",
   "keyValuePairs": [
     {
@@ -29,7 +29,6 @@
       "pathRelativity": "relativeToZap",
       "path": "../../../src/app/zap-templates/app-templates.json",
       "type": "gen-templates-json",
-      "category": "matter",
       "version": "chip-v1"
     }
   ],
@@ -2501,7 +2500,7 @@
               "side": "server",
               "type": "int8u",
               "included": 1,
-              "storageOption": "NVM",
+              "storageOption": "RAM",
               "singleton": 0,
               "bounded": 0,
               "defaultValue": "2",

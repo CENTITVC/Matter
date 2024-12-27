@@ -26,7 +26,6 @@
 #include <app-common/zap-generated/ids/Attributes.h>
 #include <app-common/zap-generated/ids/Clusters.h>
 #include <app/AttributeAccessInterface.h>
-#include <app/AttributeAccessInterfaceRegistry.h>
 #include <app/util/attribute-storage.h>
 #include <lib/support/CodeUtils.h>
 #include <lib/support/logging/CHIPLogging.h>
@@ -78,12 +77,6 @@ private:
 };
 
 TimeFormatLocalizationAttrAccess gAttrAccess;
-
-bool HasFeature(EndpointId endpoint, Feature feature)
-{
-    uint32_t featureMap;
-    return FeatureMap::Get(endpoint, &featureMap) == Status::Success ? (featureMap & to_underlying(feature)) : false;
-}
 
 CHIP_ERROR TimeFormatLocalizationAttrAccess::ReadSupportedCalendarTypes(AttributeValueEncoder & aEncoder)
 {
@@ -209,10 +202,6 @@ Protocols::InteractionModel::Status MatterTimeFormatLocalizationClusterServerPre
 
 void emberAfTimeFormatLocalizationClusterServerInitCallback(EndpointId endpoint)
 {
-    if (!HasFeature(endpoint, Feature::kCalendarFormat))
-    {
-        return;
-    }
     CalendarTypeEnum calendarType;
     CalendarTypeEnum validType;
     Status status = ActiveCalendarType::Get(endpoint, &calendarType);
@@ -232,5 +221,5 @@ void emberAfTimeFormatLocalizationClusterServerInitCallback(EndpointId endpoint)
 
 void MatterTimeFormatLocalizationPluginServerInitCallback()
 {
-    AttributeAccessInterfaceRegistry::Instance().Register(&gAttrAccess);
+    registerAttributeAccessOverride(&gAttrAccess);
 }

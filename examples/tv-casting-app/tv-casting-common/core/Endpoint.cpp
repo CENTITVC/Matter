@@ -28,7 +28,6 @@ void Endpoint::RegisterClusters(std::vector<chip::ClusterId> clusters)
 {
     for (chip::ClusterId clusterId : clusters)
     {
-        ChipLogProgress(AppServer, "Endpoint::RegisterClusters() Registering clusterId %d for endpointId %d", clusterId, GetId());
         switch (clusterId)
         {
         case chip::app::Clusters::ApplicationBasic::Id:
@@ -68,8 +67,7 @@ void Endpoint::RegisterClusters(std::vector<chip::ClusterId> clusters)
             break;
 
         default:
-            ChipLogProgress(AppServer, "Endpoint::RegisterClusters() Skipping registration of clusterId %d for endpointId %d",
-                            clusterId, GetId());
+            ChipLogProgress(AppServer, "Skipping registration of clusterId %d for endpointId %d", clusterId, GetId());
             break;
         }
     }

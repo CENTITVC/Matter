@@ -33,12 +33,12 @@ void TestTask(void * pvParameter)
     err            = chip::DeviceLayer::PersistedStorage::KeyValueStoreMgrImpl().Init();
     if (err != CHIP_NO_ERROR)
     {
-        PSOC6_LOG("PersistedStorage::KeyValueStoreMgrImpl().Init() failed");
+        P6_LOG("PersistedStorage::KeyValueStoreMgrImpl().Init() failed");
         return;
     }
     while (true)
     {
-        PSOC6_LOG("Running Tests:");
+        P6_LOG("Running Tests:");
         chip::RunKvsTest();
         vTaskDelay(60000); // Run every minute
     }
@@ -55,17 +55,17 @@ extern "C" void vApplicationDaemonTaskStartupHook()
 
 int main(int argc, char * argv[])
 {
-    init_psoc6Platform();
+    init_p6Platform();
 
-    PSOC6_LOG("=============================================\n");
-    PSOC6_LOG("chip-psoc6-persistent-storage-example starting\n");
-    PSOC6_LOG("=============================================\n");
+    P6_LOG("=============================================\n");
+    P6_LOG("chip-p6-persistent-storage-example starting\n");
+    P6_LOG("=============================================\n");
 
-    PSOC6_LOG("Starting FreeRTOS scheduler");
+    P6_LOG("Starting FreeRTOS scheduler");
 
     vTaskStartScheduler();
 
     // Should never get here.
-    PSOC6_LOG("vTaskStartScheduler() failed");
+    P6_LOG("vTaskStartScheduler() failed");
     return -1;
 }

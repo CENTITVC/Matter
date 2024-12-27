@@ -26,7 +26,7 @@
 #include <cstdint>
 #include <string>
 
-#include <ble/Ble.h>
+#include <ble/BleLayer.h>
 #include <platform/internal/BLEManager.h>
 
 #include "bluez/BluezAdvertisement.h"
@@ -38,6 +38,8 @@
 namespace chip {
 namespace DeviceLayer {
 namespace Internal {
+
+void HandleIncomingBleConnection(Ble::BLEEndPoint * bleEP);
 
 enum class BleScanState : uint8_t
 {
@@ -87,12 +89,10 @@ public:
     static void HandleSubscribeOpComplete(BLE_CONNECTION_OBJECT conId, bool subscribed);
     static void HandleTXCharChanged(BLE_CONNECTION_OBJECT conId, const uint8_t * value, size_t len);
     static void HandleRXCharWrite(BLE_CONNECTION_OBJECT user_data, const uint8_t * value, size_t len);
-    static void HandleConnectionClosed(BLE_CONNECTION_OBJECT user_data);
+    static void CHIPoBluez_ConnectionClosed(BLE_CONNECTION_OBJECT user_data);
     static void HandleTXCharCCCDWrite(BLE_CONNECTION_OBJECT user_data);
     static void HandleTXComplete(BLE_CONNECTION_OBJECT user_data);
 
-    static void NotifyBLEAdapterAdded(unsigned int aAdapterId, const char * aAdapterAddress);
-    static void NotifyBLEAdapterRemoved(unsigned int aAdapterId, const char * aAdapterAddress);
     static void NotifyBLEPeripheralRegisterAppComplete(CHIP_ERROR error);
     static void NotifyBLEPeripheralAdvStartComplete(CHIP_ERROR error);
     static void NotifyBLEPeripheralAdvStopComplete(CHIP_ERROR error);
@@ -117,16 +117,20 @@ private:
 
     // ===== Members that implement virtual methods on BlePlatformDelegate.
 
-    CHIP_ERROR SubscribeCharacteristic(BLE_CONNECTION_OBJECT conId, const Ble::ChipBleUUID * svcId,
-                                       const Ble::ChipBleUUID * charId) override;
-    CHIP_ERROR UnsubscribeCharacteristic(BLE_CONNECTION_OBJECT conId, const Ble::ChipBleUUID * svcId,
-                                         const Ble::ChipBleUUID * charId) override;
-    CHIP_ERROR CloseConnection(BLE_CONNECTION_OBJECT conId) override;
+    bool SubscribeCharacteristic(BLE_CONNECTION_OBJECT conId, const Ble::ChipBleUUID * svcId,
+                                 const Ble::ChipBleUUID * charId) override;
+    bool UnsubscribeCharacteristic(BLE_CONNECTION_OBJECT conId, const Ble::ChipBleUUID * svcId,
+                                   const Ble::ChipBleUUID * charId) override;
+    bool CloseConnection(BLE_CONNECTION_OBJECT conId) override;
     uint16_t GetMTU(BLE_CONNECTION_OBJECT conId) const override;
-    CHIP_ERROR SendIndication(BLE_CONNECTION_OBJECT conId, const Ble::ChipBleUUID * svcId, const Ble::ChipBleUUID * charId,
-                              System::PacketBufferHandle pBuf) override;
-    CHIP_ERROR SendWriteRequest(BLE_CONNECTION_OBJECT conId, const Ble::ChipBleUUID * svcId, const Ble::ChipBleUUID * charId,
-                                System::PacketBufferHandle pBuf) override;
+    bool SendIndication(BLE_CONNECTION_OBJECT conId, const Ble::ChipBleUUID * svcId, const Ble::ChipBleUUID * charId,
+                        System::PacketBufferHandle pBuf) override;
+    bool SendWriteRequest(BLE_CONNECTION_OBJECT conId, const Ble::ChipBleUUID * svcId, const Ble::ChipBleUUID * charId,
+                          System::PacketBufferHandle pBuf) override;
+    bool SendReadRequest(BLE_CONNECTION_OBJECT conId, const Ble::ChipBleUUID * svcId, const Ble::ChipBleUUID * charId,
+                         System::PacketBufferHandle pBuf) override;
+    bool SendReadResponse(BLE_CONNECTION_OBJECT conId, BLE_READ_REQUEST_CONTEXT requestContext, const Ble::ChipBleUUID * svcId,
+                          const Ble::ChipBleUUID * charId) override;
 
     // ===== Members that implement virtual methods on BleApplicationDelegate.
 
@@ -178,14 +182,10 @@ private:
     };
 
     void DriveBLEState();
-    void DisableBLEService(CHIP_ERROR err);
     BluezAdvertisement::AdvertisingIntervals GetAdvertisingIntervals() const;
+    static void HandleAdvertisingTimer(chip::System::Layer *, void * appState);
     void InitiateScan(BleScanState scanType);
     void CleanScanConfig();
-
-    static void HandleAdvertisingTimer(chip::System::Layer *, void * appState);
-    static void HandleScanTimer(chip::System::Layer *, void * appState);
-    static void HandleConnectTimer(chip::System::Layer *, void * appState);
 
     CHIPoBLEServiceMode mServiceMode;
     BitFlags<Flags> mFlags;

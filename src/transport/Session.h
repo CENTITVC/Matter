@@ -28,9 +28,6 @@
 #include <messaging/SessionParameters.h>
 #include <platform/LockTracker.h>
 #include <transport/SessionDelegate.h>
-#if INET_CONFIG_ENABLE_TCP_ENDPOINT
-#include <transport/raw/TCP.h>
-#endif // INET_CONFIG_ENABLE_TCP_ENDPOINT
 
 namespace chip {
 namespace Transport {
@@ -45,48 +42,6 @@ class Session;
  *    as pending removal but not actually removed yet. During this period, the handle is functional, but the underlying session
  *    won't be able to be grabbed by any SessionHolder. SessionHandle->IsActiveSession can be used to check if the session is
  *    active.
- *
- *    A `SessionHandle` exists to guarantee that the object it points to will not be released while allowing passing
- *    the handle as a reference, to not incur extra reference-counted Retain/Release calls.
- *
- *    Example code that breaks assumptions (hard to reason about/maintain):
- *
- *       void Process(ReferenceCountedHandle<Session> &handle);
- *       class Foo {
- *          ReferenceCountedHandle<Session> mSession;
- *          void ResetSession() { mSession = createNewSession(); }
- *          void DoProcessing() {
- *             Process(mSession);
- *          }
- *
- *          static Foo& GetInstance();
- *       };
- *
- *       void Process(ReferenceCountedHandle<Session> &handle) {
- *          Foo::GetInstance()->ResetSession(); // this changes the passed in handle
- *          // trying to use "&handle" here may point to something else altogether.
- *       }
- *
- *   Above would be fixed if we would pass in the handles by value, however that adds extra code
- *   to call Retain/Release every time. We could also by design say that passed in references will
- *   not change, however historically the codebase is complex enough that this could not be ensured.
- *
- *   The end result is the existence of SessionHandle which is NOT allowed to be held and it serves
- *   as a marker of "Retain has been called and stays valid". The code above becomes:
- *
- *      void Process(SessionHandle &handle);
- *
- *      ....
- *      void Foo::DoProcessing() {
- *         SessionHandle handle(mSession);  // retains the session and mSession can be independently changed
- *         Process(&handle);  // reference is now safe to use.
- *      }
- *
- *   To meet the requirements of "you should not store this", the Handle has additional restrictions
- *   preventing modification (no assignment or copy constructor) and allows only move.
- *   NOTE: `move` should likely also not be allowed, however we need to have the ability to
- *         return such objects from method calls, so it is currently allowed.
- *
  */
 class SessionHandle
 {
@@ -156,8 +111,8 @@ public:
 
     Transport::Session * operator->() const { return &mSession.Value().Get(); }
 
-    // There is no delegate, nothing to do here
-    virtual void OnSessionHang() {}
+    // There is not delegate, nothing to do here
+    virtual void DispatchSessionEvent(SessionDelegate::Event event) {}
 
 protected:
     // Helper for use by the Grab methods.
@@ -189,7 +144,7 @@ public:
             SessionHolder::ShiftToSession(session);
     }
 
-    void OnSessionHang() override { mDelegate.OnSessionHang(); }
+    void DispatchSessionEvent(SessionDelegate::Event event) override { (mDelegate.*event)(); }
 
 private:
     SessionDelegate & mDelegate;
@@ -244,28 +199,7 @@ public:
     virtual bool AllowsLargePayload() const                              = 0;
     virtual const SessionParameters & GetRemoteSessionParameters() const = 0;
     virtual System::Clock::Timestamp GetMRPBaseTimeout() const           = 0;
-
-    // Returns true if `subjectDescriptor.IsCommissioning` (based on Core Specification
-    // pseudocode in ACL Architecture chapter) should be true when computing a
-    // subject descriptor for that session. This is only valid to call during
-    // synchronous processing of a message received on the session.
-    virtual bool IsCommissioningSession() const { return false; }
-
-    // GetAckTimeout is the estimate for how long it could take for the other
-    // side to receive our message (accounting for our MRP retransmits if it
-    // gets lost) and send a response.
-    virtual System::Clock::Milliseconds32 GetAckTimeout() const = 0;
-
-    // GetReceiptTimeout is the estimate for how long it could take for us to
-    // receive a message after the other side sends it, accounting for the MRP
-    // retransmits the other side might do if the message gets lost.
-    //
-    // The caller is expected to provide an estimate for when the peer would
-    // last have heard from us.  The most likely values to pass are
-    // System::SystemClock().GetMonotonicTimestamp() (to indicate "peer is
-    // responding to a message it just received") and System::Clock::kZero (to
-    // indicate "peer is reaching out to us, not in response to anything").
-    virtual System::Clock::Milliseconds32 GetMessageReceiptTimeout(System::Clock::Timestamp ourLastActivity) const = 0;
+    virtual System::Clock::Milliseconds32 GetAckTimeout() const          = 0;
 
     const ReliableMessageProtocolConfig & GetRemoteMRPConfig() const { return GetRemoteSessionParameters().GetMRPConfig(); }
 
@@ -291,16 +225,7 @@ public:
 
     bool IsUnauthenticatedSession() const { return GetSessionType() == SessionType::kUnauthenticated; }
 
-#if INET_CONFIG_ENABLE_TCP_ENDPOINT
-    // This API is used to associate the connection with the session when the
-    // latter is about to be marked active. It is also used to reset the
-    // connection to a nullptr when the connection is lost and the session
-    // is marked as Defunct.
-    ActiveTCPConnectionState * GetTCPConnection() const { return mTCPConnection; }
-    void SetTCPConnection(ActiveTCPConnectionState * conn) { mTCPConnection = conn; }
-#endif // INET_CONFIG_ENABLE_TCP_ENDPOINT
-
-    void NotifySessionHang()
+    void DispatchSessionEvent(SessionDelegate::Event event)
     {
         // Holders might remove themselves when notified.
         auto holder = mHolders.begin();
@@ -308,7 +233,7 @@ public:
         {
             auto cur = holder;
             ++holder;
-            cur->OnSessionHang();
+            cur->DispatchSessionEvent(event);
         }
     }
 
@@ -339,15 +264,6 @@ protected:
 
 private:
     FabricIndex mFabricIndex = kUndefinedFabricIndex;
-#if INET_CONFIG_ENABLE_TCP_ENDPOINT
-    // The underlying TCP connection object over which the session is
-    // established.
-    // The lifetime of this member connection pointer is, essentially, the same
-    // as that of the underlying connection with the peer.
-    // It would remain as a nullptr for all sessions that are not set up over
-    // a TCP connection.
-    ActiveTCPConnectionState * mTCPConnection = nullptr;
-#endif // INET_CONFIG_ENABLE_TCP_ENDPOINT
 };
 
 //

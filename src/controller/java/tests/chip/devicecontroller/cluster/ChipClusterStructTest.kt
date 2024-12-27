@@ -35,29 +35,9 @@ class ChipClusterStructTest {
   @Test
   fun doubleNestedStructTlvTest() {
     val simpleStruct =
-      UnitTestingClusterSimpleStruct(
-        1U,
-        true,
-        2U,
-        byteArrayOf(0x00, 0x01),
-        "test",
-        3U,
-        4.5f,
-        6.7,
-        Optional.empty()
-      )
+      UnitTestingClusterSimpleStruct(1U, true, 2U, byteArrayOf(0x00, 0x01), "test", 3U, 4.5f, 6.7)
     val simpleStruct2 =
-      UnitTestingClusterSimpleStruct(
-        8U,
-        false,
-        9U,
-        byteArrayOf(0x02, 0x03),
-        "test2",
-        4U,
-        5.6f,
-        7.8,
-        Optional.empty()
-      )
+      UnitTestingClusterSimpleStruct(8U, false, 9U, byteArrayOf(0x02, 0x03), "test2", 4U, 5.6f, 7.8)
     val nestedStructList =
       UnitTestingClusterNestedStructList(
         1U,
@@ -102,17 +82,7 @@ class ChipClusterStructTest {
   @Test
   fun nullablesAndOptionalsStructTlvTest1() {
     val simpleStruct =
-      UnitTestingClusterSimpleStruct(
-        1U,
-        true,
-        2U,
-        byteArrayOf(0x00, 0x01),
-        "test",
-        3U,
-        4.5f,
-        6.7,
-        Optional.empty()
-      )
+      UnitTestingClusterSimpleStruct(1U, true, 2U, byteArrayOf(0x00, 0x01), "test", 3U, 4.5f, 6.7)
     val struct =
       UnitTestingClusterNullablesAndOptionalsStruct(
         1U,
@@ -151,17 +121,7 @@ class ChipClusterStructTest {
   // Optional Check - 1
   fun nullablesAndOptionalsStructTlvTest2() {
     val simpleStruct =
-      UnitTestingClusterSimpleStruct(
-        1U,
-        true,
-        2U,
-        byteArrayOf(0x00, 0x01),
-        "test",
-        3U,
-        4.5f,
-        6.7,
-        Optional.empty()
-      )
+      UnitTestingClusterSimpleStruct(1U, true, 2U, byteArrayOf(0x00, 0x01), "test", 3U, 4.5f, 6.7)
     val struct =
       UnitTestingClusterNullablesAndOptionalsStruct(
         1U,
@@ -200,17 +160,7 @@ class ChipClusterStructTest {
   // Optional Check - 2
   fun nullablesAndOptionalsStructTlvTest3() {
     val simpleStruct =
-      UnitTestingClusterSimpleStruct(
-        1U,
-        true,
-        2U,
-        byteArrayOf(0x00, 0x01),
-        "test",
-        3U,
-        4.5f,
-        6.7,
-        Optional.empty()
-      )
+      UnitTestingClusterSimpleStruct(1U, true, 2U, byteArrayOf(0x00, 0x01), "test", 3U, 4.5f, 6.7)
     val struct =
       UnitTestingClusterNullablesAndOptionalsStruct(
         1U,
@@ -249,17 +199,7 @@ class ChipClusterStructTest {
   // Nullable check - 1
   fun nullablesAndOptionalsStructTlvTest4() {
     val simpleStruct =
-      UnitTestingClusterSimpleStruct(
-        1U,
-        true,
-        2U,
-        byteArrayOf(0x00, 0x01),
-        "test",
-        3U,
-        4.5f,
-        6.7,
-        Optional.empty()
-      )
+      UnitTestingClusterSimpleStruct(1U, true, 2U, byteArrayOf(0x00, 0x01), "test", 3U, 4.5f, 6.7)
     val struct =
       UnitTestingClusterNullablesAndOptionalsStruct(
         1U,
@@ -298,17 +238,7 @@ class ChipClusterStructTest {
   // Nullable check - 2
   fun nullablesAndOptionalsStructTlvTest5() {
     val simpleStruct =
-      UnitTestingClusterSimpleStruct(
-        1U,
-        true,
-        2U,
-        byteArrayOf(0x00, 0x01),
-        "test",
-        3U,
-        4.5f,
-        6.7,
-        Optional.empty()
-      )
+      UnitTestingClusterSimpleStruct(1U, true, 2U, byteArrayOf(0x00, 0x01), "test", 3U, 4.5f, 6.7)
     val struct =
       UnitTestingClusterNullablesAndOptionalsStruct(
         null,
@@ -346,17 +276,7 @@ class ChipClusterStructTest {
   @Test
   fun testFabricScopedTlvTest1() {
     val simpleStruct =
-      UnitTestingClusterSimpleStruct(
-        1U,
-        true,
-        2U,
-        byteArrayOf(0x00, 0x01),
-        "test",
-        3U,
-        4.5f,
-        6.7,
-        Optional.empty()
-      )
+      UnitTestingClusterSimpleStruct(1U, true, 2U, byteArrayOf(0x00, 0x01), "test", 3U, 4.5f, 6.7)
     val struct =
       UnitTestingClusterTestFabricScoped(
         1U,
@@ -389,17 +309,7 @@ class ChipClusterStructTest {
   @Test
   fun testFabricScopedTlvTest2() {
     val simpleStruct =
-      UnitTestingClusterSimpleStruct(
-        1U,
-        true,
-        2U,
-        byteArrayOf(0x00, 0x01),
-        "test",
-        3U,
-        4.5f,
-        6.7,
-        Optional.empty()
-      )
+      UnitTestingClusterSimpleStruct(1U, true, 2U, byteArrayOf(0x00, 0x01), "test", 3U, 4.5f, 6.7)
     val struct =
       UnitTestingClusterTestFabricScoped(
         1U,
@@ -432,17 +342,7 @@ class ChipClusterStructTest {
   @Test
   fun testFabricScopedTlvTest3() {
     val simpleStruct =
-      UnitTestingClusterSimpleStruct(
-        1U,
-        true,
-        2U,
-        byteArrayOf(0x00, 0x01),
-        "test",
-        3U,
-        4.5f,
-        6.7,
-        Optional.empty()
-      )
+      UnitTestingClusterSimpleStruct(1U, true, 2U, byteArrayOf(0x00, 0x01), "test", 3U, 4.5f, 6.7)
     val struct =
       UnitTestingClusterTestFabricScoped(
         1U,

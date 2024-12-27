@@ -144,7 +144,6 @@ silabs_executable("smoke_co_alarm_app") {
 
   deps = [
     ":sdk",
-    "${chip_root}/src/platform/logging:default",
     app_data_model,
   ]
 

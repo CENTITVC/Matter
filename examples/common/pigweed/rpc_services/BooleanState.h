@@ -28,7 +28,7 @@
 namespace chip {
 namespace rpc {
 
-class BooleanState : public pw_rpc::nanopb::BooleanState::Service<BooleanState>
+class BooleanState final : public pw_rpc::nanopb::BooleanState::Service<BooleanState>
 {
 public:
     virtual ~BooleanState() = default;
