@@ -100,7 +100,6 @@ def make_chip_root_safe_directory() -> None:
 def checkout_modules(modules: list, shallow: bool, force: bool, recursive: bool, jobs: int) -> None:
     names = ', '.join([module.name for module in modules])
     logging.info(f'Checking out: {names}')
-
     cmd = ['git', '-C', CHIP_ROOT, 'submodule', '--quiet', 'update', '--init']
     cmd += ['--depth', '1'] if shallow else []
     cmd += ['--force'] if force else []
