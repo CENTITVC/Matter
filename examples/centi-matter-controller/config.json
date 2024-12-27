@@ -1,0 +1,25 @@
+{
+    "mqtt": {
+        "broker": {
+            "hostname": "mqtts://mqtt.ilce-sensehome.ss-centi.com:1883",
+            "port": 1883,
+            "username": "userCenti",
+            "password": "Qweasd123zxc",
+            "tls": {
+                "enabled": true,
+                "ca_certificate": "/home/smart_systems/connectedhomeip/examples/centi-matter-controller/CeNTI_MQTT/centi_broker_CA.pem"
+            }
+        },
+        "client": {
+            "clean_session": true,
+            "tls": {
+                "certificate": "",
+                "key": "",
+                "password": "",
+                "version": 1,
+                "verify": false,
+                "enableServerCertAuth": false
+            }
+        }
+    }
+}
