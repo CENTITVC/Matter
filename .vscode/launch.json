@@ -5,32 +5,6 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "(gdb) Launch",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}/examples/MQTT/linux/out/mqtt-app",
-            "args": [],
-            "stopAtEntry": true,
-            "cwd": "${workspaceFolder}/examples/MQTT/linux/",
-            "environment": [],
-            "externalConsole": false,
-            "MIMode": "gdb",
-            "miDebuggerPath": "/usr/bin/gdb",
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                },
-                {
-                    "description": "Set Disassembly Flavor to Intel",
-                    "text": "-gdb-set disassembly-flavor intel",
-                    "ignoreFailures": true
-                }
-            ]
-        },
-
-        {
             "name": "Attach to running process",
             "type": "lldb",
             "request": "attach",
@@ -516,36 +490,6 @@
             "runToEntryPoint": "main",
             "preLaunchTask": "Debug Open IoT SDK unit-tests",
             "showDevDebugOutput": "parsed"
-        },
-        {
-            "name": "[CeNTI] Run CeNTI Matter Application",
-            "type": "cppdbg",
-            "request": "launch",
-            "cwd": "${workspaceFolder}",
-            "program": "${workspaceFolder}/examples/${input:outAppCenti}",
-            "miDebuggerPath": "${workspaceFolder}/scripts/sudo_gdb.sh",
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                }
-            ]
-        },
-        {
-            "name": "[CeNTI] Run Matter Application",
-            "type": "cppdbg",
-            "request": "launch",
-            "cwd": "${workspaceFolder}",
-            "program": "${workspaceFolder}/examples/${input:outAppMatter}",
-            "miDebuggerPath": "${workspaceFolder}/scripts/sudo_gdb.sh",
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                }
-            ]
         }
     ],
     "inputs": [
@@ -633,31 +577,6 @@
             "args": {
                 "command": "cat src/test_driver/openiotsdk/unit-tests/test_components.txt",
                 "description": "What Open IoT SDK unit test application do you want to use?"
-            }
-        },
-        {
-            "type": "command",
-            "id": "sudoGdb",
-            "command": "shellCommand.execute",
-            "args": {
-                "command": "sudo /usr/bin/gdb ${input:outCentiTarget}"
-            }
-        },
-        {
-            "type": "command",
-            "id": "outAppCenti",
-            "command": "shellCommand.execute",
-            "args": {
-                "command": "find ${workspaceFolder}/examples/ -type f -executable -name \"centi\" |sort |sed 's$${workspaceFolder}/out/$$'",
-                "description": "Select the app to run"
-            }
-        },
-        {
-            "type": "command",
-            "id": "outAppMatter",
-            "command": "shellComand.execute",
-            "args": {
-                "command": "find ${workspaceFolder}/examples/ -maxdepth 5 -type f -executable ! -name \"*.*\" ! -name \"gradlew\" -perm -og+rx  | sort | sed 's$${workspaceFolder}/examples/$$'"
             }
         }
     ]
