@@ -18,7 +18,7 @@ CHIP_ERROR MatterSubscriptionDevice::Run()
     switch(mDeviceTypeId)
     {
         case MATTER_DEVICE_ID_AIR_QUALITY_SENSOR:
-            //err = SubscribeToAirQualitySensor();
+            err = SubscribeToAirQualitySensor();
             break;
         case MATTER_DEVICE_ID_CONTACT_SENSOR:
             err = SubscribeToContactSensor();
