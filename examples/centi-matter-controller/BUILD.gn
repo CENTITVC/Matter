@@ -90,6 +90,7 @@ executable("centi-matter-controller") {
     "application/IllianceDevices/MatterDevicesCallbacks.h",
     "application/MatterCache.cpp",
     "application/MatterCache.h",
+    "application/MatterClient/ClusterClients/BaseClusterClient.h",
     "application/MatterClient/ClusterClients/BooleanStateClient.cpp",
     "application/MatterClient/ClusterClients/BooleanStateClient.h",
     "application/MatterClient/ClusterClients/CarbonDioxideClient.cpp",
@@ -115,6 +116,8 @@ executable("centi-matter-controller") {
     "application/MatterClient/ClusterClients/RelativeHumidityClient.h",
     "application/MatterClient/ClusterClients/TemperatureClient.cpp",
     "application/MatterClient/ClusterClients/TemperatureClient.h",
+    "application/MatterClient/ClusterClients/ThermostatClient.cpp",
+    "application/MatterClient/ClusterClients/ThermostatClient.h",
     "application/MatterClient/ClusterClients/WindowCoveringClient.cpp",
     "application/MatterClient/ClusterClients/WindowCoveringClient.h",
     "application/MatterClient/ClusterEventSubscriptionBase.h",
@@ -122,6 +125,7 @@ executable("centi-matter-controller") {
     "application/MatterClient/MatterClientClusterCommandBase.h",
     "application/MatterClient/MatterClientClusterReadBase.h",
     "application/MatterClient/MatterClientClusterSubscriptionBase.h",
+    "application/MatterClient/MatterClientClusterWriteBase.h",
     "application/MatterClient/MatterClientFactory.cpp",
     "application/MatterClient/MatterClientFactory.h",
     "application/MatterCommands/MatterCommandBase.h",
@@ -135,6 +139,8 @@ executable("centi-matter-controller") {
     "application/MatterCommands/MatterOpenCommissioningWindow.h",
     "application/MatterCommands/MatterPairing.cpp",
     "application/MatterCommands/MatterPairing.h",
+    "application/MatterCommands/MatterSetOccupiedHeatSetpoint.cpp",
+    "application/MatterCommands/MatterSetOccupiedHeatSetpoint.h",
     "application/MatterDevices/AirQualitySensor.h",
     "application/MatterDevices/ContactSensor.h",
     "application/MatterDevices/DoorLock.h",
@@ -147,6 +153,7 @@ executable("centi-matter-controller") {
     "application/MatterDevices/OccupancySensor.h",
     "application/MatterDevices/RelativeHumiditySensor.h",
     "application/MatterDevices/TemperatureSensor.h",
+    "application/MatterDevices/Thermostat.h",
     "application/MatterEndpoint.cpp",
     "application/MatterEndpoint.h",
     "application/MatterManager.cpp",
@@ -163,9 +170,9 @@ executable("centi-matter-controller") {
   ]
 
   deps = [
-    "${chip_root}/src/platform/logging:force_stdio",
+    "${chip_root}/src/platform/logging:stdio",
     "${chip_root}/third_party/jsoncpp",
-    "${chip_root}/third_party/paho.mqtt.cpp:paho_mqtt_cpp_async_ssl_static"
+    "${chip_root}/third_party/paho.mqtt.cpp:paho_mqtt_cpp_async_ssl_static",
   ]
 
   output_dir = root_out_dir

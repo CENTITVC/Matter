@@ -69,6 +69,7 @@ class MatterSubscriptionDevice : public MatterCommandBase
         CHIP_ERROR SubscribeToLightSensor(void);
         CHIP_ERROR SubscribeToOccupancySensor(void);
         CHIP_ERROR SubscribeToTemperatureSensor(void);
+        CHIP_ERROR SubscribeToThermostatDevice(void);
         CHIP_ERROR SubscribeToWindowCover(void);
 
         static void OnSubscriptionFailed(void* context, CHIP_ERROR error);

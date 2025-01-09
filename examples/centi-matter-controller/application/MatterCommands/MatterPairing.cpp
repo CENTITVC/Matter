@@ -189,12 +189,12 @@ void MatterPairing::OnCommissioningStatusUpdate(PeerId peerId, CommissioningStag
                     ErrorStr(error));
 }
 
-void MatterPairing::OnDiscoveredDevice(const chip::Dnssd::DiscoveredNodeData & nodeData)
+void MatterPairing::OnDiscoveredDevice(const chip::Dnssd::CommissionNodeData & nodeData)
 {
     // Ignore nodes with closed commissioning window
-    VerifyOrReturn(nodeData.commissionData.commissioningMode != 0);
+    VerifyOrReturn(nodeData.commissioningMode != 0);
 
-    auto & resolutionData = nodeData.resolutionData;
+    auto & resolutionData = nodeData;
 
     const uint16_t port = resolutionData.port;
     char buf[chip::Inet::IPAddress::kMaxStringLength];

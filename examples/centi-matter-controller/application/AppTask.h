@@ -18,6 +18,7 @@
 #include "MatterCommands/MatterCommandSetWindowPosition.h"
 #include "MatterCommands/MatterCommandDeviceSubscription.h"
 #include "MatterCommands/MatterLightSettings.h"
+#include "MatterCommands/MatterSetOccupiedHeatSetpoint.h"
 #include "MatterCommands/DummyCommand.h"
 
 #include "IllianceDevices/IllianceDevice.h"
@@ -61,6 +62,7 @@ public:
     void AddMatterCommandWindowPositionSet(chip::NodeId nodeId, uint8_t pos);
     void AddMatterDeviceSubscriptionCommand(SubscriptionParameters subParams);
     void AddMatterLightSettingCommand(chip::NodeId nodeId, LightSettings lightSettings);
+    void AddMatterSetOccupiedHeatSetpointCommand(chip::NodeId nodeId, int16_t occupiedHeatSetpoint);
     void AddMatterDummyCommand(uint8_t timeout);
 
 private:
@@ -96,6 +98,7 @@ private:
     static void HandleMatterPairingResult(MatterPairing* command, CHIP_ERROR error);
     static void HandleMatterDeviceSubscriptionResult(MatterSubscriptionDevice* command, CHIP_ERROR error);
     static void HandleMatterLightSettingsResult(MatterLightSettings* command, CHIP_ERROR error);
+    static void HandleMatterSetOccupiedHeatSetpointResult(MatterSetOccupiedHeatSetpoint* command, CHIP_ERROR error);
     static void HandleDummyResult (DummyCommand * command, CHIP_ERROR error);
 
     Illiance::AirQualitySensorHandler mAirQualitySensorHandler;
@@ -107,5 +110,6 @@ private:
     Illiance::LightSensorHandler mLightSensorHandler;
     Illiance::OccupancySensorHandler mOccupancySensorHandler;
     Illiance::TemperatureSensorHandler mTemperatureSensorHandler;
+    Illiance::ThermostatHandler mThermostatHandler;
     Illiance::WindowCoverHandler mWindowCoverHandler;
 };

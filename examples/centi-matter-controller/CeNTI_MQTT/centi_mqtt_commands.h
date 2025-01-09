@@ -9,6 +9,7 @@ enum class MqttCommandType : uint8_t
     Unknown = 0,
     LightSetting,
     SetWindowPosition,
+    SetThermostatOccupiedHeatSetpoint,
     MatterCommissionNode,
     MatterOpenCommissioning,
     MatterRemoveNode,
@@ -68,6 +69,15 @@ class MqttCommandMatterCommissionOpen : public MqttCommandBase
         MqttCommandMatterCommissionOpen(uint64_t nodeId) : mNodeId(nodeId) {}
         MqttCommandType GetType() override { return MqttCommandType::MatterOpenCommissioning; }
         uint64_t mNodeId;
+};
+
+class MqttCommandThermostatSetOccupiedHeatSetpoint : public MqttCommandBase
+{
+    public:
+        MqttCommandThermostatSetOccupiedHeatSetpoint(uint64_t nodeId, int16_t temperature) : mNodeId(nodeId), mTemperature(temperature) {}
+        MqttCommandType GetType() override { return MqttCommandType::SetThermostatOccupiedHeatSetpoint; }
+        uint64_t mNodeId;
+        int16_t mTemperature;
 };
 
 class MqttCommandUnknown : public MqttCommandBase

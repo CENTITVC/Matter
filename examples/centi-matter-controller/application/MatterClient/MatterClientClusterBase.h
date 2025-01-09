@@ -20,6 +20,8 @@ class MatterClientClusterBase
             mSecureSession.Grab(session);
         }
 
+        chip::ClusterId GetClusterId() { return mClusterId; }
+
     protected:
         chip::ClusterId mClusterId;
         chip::EndpointId mPeerEndpoint;

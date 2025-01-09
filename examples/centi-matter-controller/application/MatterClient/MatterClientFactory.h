@@ -15,6 +15,7 @@
 #include "ClusterClients/OnOffClient.h"
 #include "ClusterClients/LevelControlClient.h"
 #include "ClusterClients/ColorControlClient.h"
+#include "ClusterClients/ThermostatClient.h"
 #include <unordered_map>
 #include <memory>
 
@@ -69,6 +70,9 @@ public:
 
     TemperatureClient* GetTemperatureClient(MatterNode & matterNode);
     TemperatureClient* GetOrCreateTemperatureClient(MatterNode & matterNode);
+
+    ThermostatClient* GetThermostatClient(MatterNode & matterNode);
+    ThermostatClient* GetOrCreateThermostatClient(MatterNode & matterNode);
 
     WindowCoveringClient* GetWindowCoveringClient(MatterNode & matterNode);
     WindowCoveringClient* GetOrCreateWindowCoveringClient(MatterNode & matterNode);

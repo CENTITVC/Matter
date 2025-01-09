@@ -69,6 +69,11 @@ void AppTask::AddMatterLightSettingCommand(chip::NodeId nodeId, LightSettings li
     AddMatterCommandToQueue(std::make_unique<MatterLightSettings>(HandleMatterLightSettingsResult, nodeId, lightSettings));
 }
 
+void AppTask::AddMatterSetOccupiedHeatSetpointCommand(chip::NodeId nodeId, int16_t occupiedHeatSetpoint)
+{
+    AddMatterCommandToQueue(std::make_unique<MatterSetOccupiedHeatSetpoint>(HandleMatterSetOccupiedHeatSetpointResult, nodeId, occupiedHeatSetpoint));
+}
+
 void AppTask::AddMatterDummyCommand(uint8_t timeout)
 {
     AddMatterCommandToQueue(std::make_unique<DummyCommand>(HandleDummyResult, timeout));
@@ -137,6 +142,14 @@ void AppTask::HandleMatterLightSettingsResult(MatterLightSettings* command, CHIP
     (void) CentiMqttClient::ClientMgr().Publish_LightSettingsAck(command->GetNodeId(), error);
 }
 
+void AppTask::HandleMatterSetOccupiedHeatSetpointResult(MatterSetOccupiedHeatSetpoint* command, CHIP_ERROR error)
+{
+    ChipLogProgress(chipTool, "HandleMatterSetOccupiedHeatSetpointResult");
+
+    (void) CentiMqttClient::ClientMgr().Publish_MatterSetOccupiedHeatSetpointResult(command->GetNodeId(), 
+                                                                                    command->GetOccupiedHeatSetpoint(), 
+                                                                                    error);
+}
 
 void AppTask::HandleDummyResult (DummyCommand * command, CHIP_ERROR error)
 {
@@ -188,8 +201,8 @@ CHIP_ERROR AppTask::OnMatterNodeInit(MatterNode& p_node)
                 {
                     case MATTER_DEVICE_ID_AIR_QUALITY_SENSOR:
                     {
-                        subParams.minIntervalFloorSeconds = 5;
-                        subParams.maxIntervalCeilingSeconds = 30;
+                        subParams.minIntervalFloorSeconds = 60;
+                        subParams.maxIntervalCeilingSeconds = 360;
                         ChipLogProgress(chipTool, "MATTER_DEVICE_ID_AIR_QUALITY_SENSOR");
 
                         AirQualitySensor* pAirQualitySensor = nullptr;
@@ -202,8 +215,8 @@ CHIP_ERROR AppTask::OnMatterNodeInit(MatterNode& p_node)
 
                     case MATTER_DEVICE_ID_LIGHT_SENSOR:
                     {
-                        subParams.minIntervalFloorSeconds = 5;
-                        subParams.maxIntervalCeilingSeconds = 30;
+                        subParams.minIntervalFloorSeconds = 60;
+                        subParams.maxIntervalCeilingSeconds = 360;
 
                         ChipLogProgress(chipTool, "MATTER_DEVICE_ID_LIGHT_SENSOR");
 
@@ -217,8 +230,8 @@ CHIP_ERROR AppTask::OnMatterNodeInit(MatterNode& p_node)
 
                     case MATTER_DEVICE_ID_ELECTRICAL_SENSOR:
                     {
-                        subParams.minIntervalFloorSeconds = 5;
-                        subParams.maxIntervalCeilingSeconds = 30;
+                        subParams.minIntervalFloorSeconds = 60;
+                        subParams.maxIntervalCeilingSeconds = 360;
 
                         ChipLogProgress(chipTool, "MATTER_DEVICE_ID_ELECTRICAL_SENSOR");
                         ElectricalSensor* pElectricalSensor = nullptr;
@@ -228,7 +241,7 @@ CHIP_ERROR AppTask::OnMatterNodeInit(MatterNode& p_node)
                         AddMatterDeviceSubscriptionCommand(subParams);
                         break;
                     }
-                    
+
                     default:
                         ChipLogProgress(NotSpecified, "Unknown deviceType=" ChipLogFormatMEI, ChipLogValueMEI(device->GetType()));
                         break;
@@ -315,6 +328,20 @@ CHIP_ERROR AppTask::OnMatterNodeInit(MatterNode& p_node)
 
         mqtt_err = CentiMqttClient::ClientMgr().Publish_LightInit(p_node.GetNodeId());
     }
+    else if (Illiance::IsIllianceThermostat(p_node))
+    {
+        subParams.endpointId = p_node.GetEndpointWithDeviceType(MATTER_DEVICE_ID_THERMOSTAT)->GetEndpointId();
+        subParams.deviceTypeId = MATTER_DEVICE_ID_THERMOSTAT;
+        subParams.minIntervalFloorSeconds = 900; //15min
+        subParams.maxIntervalCeilingSeconds = 3600; //1h
+
+        ChipLogProgress(chipTool, "MATTER_DEVICE_ID_THERMOSTAT");
+        ThermostatDevice* pThermostat = nullptr;
+        pThermostat = static_cast<ThermostatDevice*>(p_node.GetEndpointWithDeviceType(MATTER_DEVICE_ID_THERMOSTAT)->GetMatterDevice(MATTER_DEVICE_ID_THERMOSTAT));
+        pThermostat->RegisterThermostatDelegate(&mThermostatHandler);
+        
+        AddMatterDeviceSubscriptionCommand(subParams);
+    }
     else
     {
         ChipLogProgress(NotSpecified, "Unknown Illiance Device");
@@ -371,7 +398,6 @@ void AppTask::LoadMqttConfig(const std::string &filename, CentiMqttClient::Broke
     std::cout << "Client Last Will Topic: " << clientConfig.last_will.topic << std::endl;
 }
 
-
 CHIP_ERROR AppTask::MQTT__Initialize(void)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
@@ -395,7 +421,7 @@ CHIP_ERROR AppTask::MQTT__Initialize(void)
         brokerConfig.username = "userCenti";
         brokerConfig.password = "Qweasd123zxc";
     #else
-        brokerConfig.hostname = "mqtts://devmqtt.bandora-om.com:8883";
+        brokerConfig.hostname = "mqtts://prd-mqttserver.bandora.ai:8883";
         brokerConfig.port = 8883;
         brokerConfig.username = "centi";
         brokerConfig.password = "41c23AFa5o0w";
@@ -417,7 +443,6 @@ CHIP_ERROR AppTask::MQTT__Initialize(void)
     #endif /* CONFIG_CROSS_COMPILATION */
     
     ChipLogProgress(chipTool, "CA Cert: %s", brokerConfig.tls.ca_certificate.c_str());
-
 
     clientConfig.tls.verify = false;
     clientConfig.tls.enableServerCertAuth = false;

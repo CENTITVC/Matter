@@ -6,7 +6,7 @@ using namespace chip::app::Clusters;
 
 CHIP_ERROR  ColorControlClient::CommandMoveToHueAndSaturation(
         uint8_t hue, uint8_t saturation,
-        uint16_t transitionTime, uint8_t optionsMask, uint8_t optionsOverride,               
+        uint16_t transitionTime, uint8_t optionsMask, uint8_t optionsOverride,
         EndpointId endpointId,
         void * context,
         CommandResponseSuccessCallback<typename ColorControl::Commands::MoveToHueAndSaturation::Type::ResponseType> successCb,
@@ -14,7 +14,7 @@ CHIP_ERROR  ColorControlClient::CommandMoveToHueAndSaturation(
 {
     mMoveToHueAndSaturationCommand.SetTargetEndPoint(endpointId);
 
-    auto onConnectionSuccessCb = [this, hue, saturation, transitionTime, optionsMask, optionsOverride, 
+    auto onConnectionSuccessCb = [this, hue, saturation, transitionTime, optionsMask, optionsOverride,
                                 context, successCb, failureCb]
                                 (Messaging::ExchangeManager & exchangeMgr,
                                 const SessionHandle & sessionHandle) 
@@ -25,8 +25,8 @@ CHIP_ERROR  ColorControlClient::CommandMoveToHueAndSaturation(
         request.hue = hue;
         request.saturation = saturation;
         request.transitionTime = transitionTime;
-        request.optionsMask = optionsMask;
-        request.optionsOverride = optionsOverride;
+        request.optionsMask = chip::BitMask<chip::app::Clusters::ColorControl::OptionsBitmap>(optionsMask);
+        request.optionsOverride = chip::BitMask<chip::app::Clusters::ColorControl::OptionsBitmap>(optionsOverride);
         
         mMoveToHueAndSaturationCommand.SetTargetNode(exchangeMgr, sessionHandle);
 
@@ -72,8 +72,8 @@ CHIP_ERROR  ColorControlClient::CommandMoveToColorTemperature(
 
         request.colorTemperatureMireds = colorTemperatureMireds;
         request.transitionTime = transitionTime;
-        request.optionsMask = optionsMask;
-        request.optionsOverride = optionsOverride;
+        request.optionsMask = chip::BitMask<chip::app::Clusters::ColorControl::OptionsBitmap>(optionsMask);
+        request.optionsOverride = chip::BitMask<chip::app::Clusters::ColorControl::OptionsBitmap>(optionsOverride);
         
         mMoveToColorTemperatureCommand.SetTargetNode(exchangeMgr, sessionHandle);
 
@@ -125,7 +125,7 @@ CHIP_ERROR ColorControlClient::SubscribeCurrentHue(
             failureCb(context, error);
         }
     };
-    
+
     auto onConnectionFailureCb = [context, failureCb] (CHIP_ERROR error)
     {
         if (failureCb != nullptr && error != CHIP_NO_ERROR)

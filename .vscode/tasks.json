@@ -414,7 +414,7 @@
         {
             "label": "[CeNTI] Build CeNTI Application",
             "type": "shell",
-            "command": "./scripts/gn_build_example.sh",
+            "command": "./scripts/examples/gn_build_example.sh",
             "args": ["${input:centiBuildApp}", "${input:centiBuildApp}/out"],
             "group": "build",
             "problemMatcher": {

@@ -15,6 +15,7 @@ namespace Illiance
         DoorLock,
         Contact,
         Light,
+        Thermostat,
     };
 
     bool IsIllianceSensors(MatterNode& node);
@@ -28,6 +29,8 @@ namespace Illiance
     bool IsIllianceContactSensor(MatterNode& node);
     
     bool IsIllianceLight(MatterNode& node);
+
+    bool IsIllianceThermostat(MatterNode& node);
 
     class IllianceDevice
     {
@@ -106,5 +109,19 @@ namespace Illiance
             DoorLock* mDoorLock;
     };
 
+    class IllianceThermostat : public IllianceDevice
+    {
+        public:
+            IllianceThermostat(ThermostatDevice* thermostat) : 
+                    IllianceDevice(IllianceDeviceType::Thermostat)
+            {
+                mThermostat = thermostat;
+            }
+            
+            ThermostatDevice* GetThermostat(void) { return mThermostat; }
+        
+        private:
+            ThermostatDevice* mThermostat;
+    };
 
 } //namespace Illiance

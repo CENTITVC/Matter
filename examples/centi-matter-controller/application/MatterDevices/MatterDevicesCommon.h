@@ -7,4 +7,5 @@
 #include "OccupancySensor.h"
 #include "RelativeHumiditySensor.h"
 #include "TemperatureSensor.h"
+#include "Thermostat.h"
 #include "WindowCover.h"

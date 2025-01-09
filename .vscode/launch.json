@@ -538,7 +538,7 @@
             "request": "launch",
             "cwd": "${workspaceFolder}",
             "program": "${workspaceFolder}/examples/${input:outAppMatter}",
-            "miDebuggerPath": "${workspaceFolder}/scripts/sudo_gdb.sh",
+            "miDebuggerPath": "${workspaceFolder}/scripts/centi/sudo_gdb.sh",
             "setupCommands": [
                 {
                     "description": "Enable pretty-printing for gdb",
@@ -648,14 +648,14 @@
             "id": "outAppCenti",
             "command": "shellCommand.execute",
             "args": {
-                "command": "find ${workspaceFolder}/examples/ -type f -executable -name \"centi\" |sort |sed 's$${workspaceFolder}/out/$$'",
+                "command": "find ${workspaceFolder}/examples/**/out/** -type f -executable -name \"centi\" |sort |sed 's$${workspaceFolder}/examples/out/$$'",
                 "description": "Select the app to run"
             }
         },
         {
             "type": "command",
             "id": "outAppMatter",
-            "command": "shellComand.execute",
+            "command": "shellCommand.execute",
             "args": {
                 "command": "find ${workspaceFolder}/examples/ -maxdepth 5 -type f -executable ! -name \"*.*\" ! -name \"gradlew\" -perm -og+rx  | sort | sed 's$${workspaceFolder}/examples/$$'"
             }

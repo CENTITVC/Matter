@@ -80,6 +80,9 @@ class CentiMqttClient : public virtual mqtt::callback,
 		int Publish_MatterWindowPositionControlResponseAck(uint64_t nodeId, 
 														   CHIP_ERROR error, 
 														   uint8_t pos_req = 0);
+		int Publish_MatterSetOccupiedHeatSetpointResult(uint64_t nodeId,
+												  		int16_t occupiedHeatSetpoint,
+														CHIP_ERROR error);
 		int Publish_MatterOccupancy(uint64_t nodeId, bool is_occupied);
 		int Publish_MatterDoorLock(uint64_t nodeId, bool is_open);
 		int Publish_MatterDeviceSubscription(
@@ -108,6 +111,10 @@ class CentiMqttClient : public virtual mqtt::callback,
 									uint8_t humidityPercent);
 		int Publish_Temperature(uint64_t nodeId,
 								int16_t temperatureCelsius);
+		int Publish_OccupiedHeatingSetpoint(uint64_t nodeId,
+											int16_t occupiedHeatSetpoint);
+		int Publish_LocalTemperature(uint64_t nodeId,
+									int16_t localTemperatureCelsius);								
 		/**
 		 * @brief Callback for when the connection is lost
 		 * 

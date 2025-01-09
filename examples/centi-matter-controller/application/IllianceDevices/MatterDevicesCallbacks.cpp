@@ -310,6 +310,46 @@ namespace Illiance
         }
     }
 
+    void ThermostatHandler::OnOccupiedHeatingSetpointChangedHandler(ThermostatDevice* pThermostat)
+    {
+        ChipLogProgress(chipTool, "Thermostat - OnOccupiedHeatingSetpointChangedHandler");
+        int16_t occupiedHeatSetpoint = INT16_MIN;
+
+        for(auto & node : MatterManager::MatterMgr().GetActiveMatterNodes())
+        {
+            for (auto & endpoint : node.GetEndpoints())
+            {
+                /* comparison by memory address.  review later */
+                if (endpoint.GetMatterDevice(pThermostat->GetType()) == pThermostat)
+                {
+                    ChipLogProgress(chipTool, "Found thermostat");
+                    occupiedHeatSetpoint = pThermostat->GetOccupiedHeatingSetpoint() / 100;
+                    (void) CentiMqttClient::ClientMgr().Publish_OccupiedHeatingSetpoint(node.GetNodeId(), occupiedHeatSetpoint);
+                }
+            }
+        }
+    }
+
+    void ThermostatHandler::OnLocalTemperatureChangedHandler(ThermostatDevice* pThermostat)
+    {
+        ChipLogProgress(chipTool, "Thermostat - OnLocalTemperatureChangedHandler");
+        int16_t temperatureCelsius = INT16_MIN;
+
+        for(auto & node : MatterManager::MatterMgr().GetActiveMatterNodes())
+        {
+            for (auto & endpoint : node.GetEndpoints())
+            {
+                /* comparison by memory address.  review later */
+                if (endpoint.GetMatterDevice(pThermostat->GetType()) == pThermostat)
+                {
+                    ChipLogProgress(chipTool, "Found thermostat");
+                    temperatureCelsius = pThermostat->GetLocalTemperature() / 100;
+                    (void) CentiMqttClient::ClientMgr().Publish_Temperature(node.GetNodeId(), temperatureCelsius);
+                }
+            }
+        }
+    }
+
     void WindowCoverHandler::OnCurrentLiftPositionPercent100thsChangedHandler(WindowCover* windowCover)
     {
         ChipLogProgress(chipTool, "OnCurrentLiftPositionPercent100thsChangedHandler");

@@ -73,6 +73,14 @@ namespace Illiance
             void OnMeasuredValueChangedHandler(TemperatureSensor* temperatureSensor) override;
     };
 
+    class ThermostatHandler : public ThermostatDelegate
+    {
+        public:
+            // Thermostat Delegate
+            void OnOccupiedHeatingSetpointChangedHandler(ThermostatDevice* thermostat) override;
+            void OnLocalTemperatureChangedHandler(ThermostatDevice* thermostat) override;
+    };
+
     class WindowCoverHandler : public WindowCoverDelegate
     {
         public:

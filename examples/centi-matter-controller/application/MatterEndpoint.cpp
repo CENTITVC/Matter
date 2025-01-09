@@ -68,7 +68,9 @@ void MatterEndpoint::AddDeviceType(chip::DeviceTypeId& deviceTypeId)
             case MATTER_DEVICE_ID_WINDOW_COVERING:
                 mMatterDevices.push_back(std::move(std::make_unique<WindowCover>()));
                 break;
-
+            case MATTER_DEVICE_ID_THERMOSTAT:
+                mMatterDevices.push_back(std::move(std::make_unique<ThermostatDevice>()));
+                break;
             default:
                 ChipLogProgress(NotSpecified, "Not handling MatterDevice with deviceType=" ChipLogFormatMEI, ChipLogValueMEI(deviceTypeId));
                 break;

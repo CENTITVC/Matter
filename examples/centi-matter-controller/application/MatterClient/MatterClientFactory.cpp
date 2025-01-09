@@ -65,7 +65,11 @@ MatterClientBase* MatterClientFactory::CreateClient(chip::ClusterId clusterId, M
                 ChipLogProgress(chipTool, "Creating ColorControl Client for node ID " ChipLogFormatX64, ChipLogValueX64(matterNode.GetNodeId()));
                 client = std::make_unique<ColorControlClient>(matterNode);
                 break;
-                
+            case chip::app::Clusters::Thermostat::Id:
+                ChipLogProgress(chipTool, "Creating Thermostat Client for node ID " ChipLogFormatX64, ChipLogValueX64(matterNode.GetNodeId()));
+                client = std::make_unique<ThermostatClient>(matterNode);
+                break;
+
             default:
                 // Handle unsupported cluster ID or throw an exception
                 ChipLogProgress(chipTool, "Unhandled Client with cluster ID " ChipLogFormatMEI, ChipLogValueMEI(clusterId));
@@ -337,6 +341,26 @@ OnOffClient* MatterClientFactory::GetOrCreateOnOffClient(MatterNode & matterNode
 
     return p_client;
 }
+
+ThermostatClient* MatterClientFactory::GetThermostatClient(MatterNode & matterNode)
+{
+    return static_cast<ThermostatClient*>(GetClient(chip::app::Clusters::Thermostat::Id, matterNode));
+}
+
+ThermostatClient* MatterClientFactory::GetOrCreateThermostatClient(MatterNode & matterNode)
+{
+    ThermostatClient* p_client = nullptr;
+
+    p_client = GetThermostatClient(matterNode);
+
+    if (p_client == nullptr)
+    {
+        p_client = static_cast<ThermostatClient*>(CreateClient(chip::app::Clusters::Thermostat::Id, matterNode));
+    }
+
+    return p_client;
+}
+
 
 void MatterClientFactory::DeleteAllClientsForNode(MatterNode & matterNode)
 {

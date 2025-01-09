@@ -20,5 +20,6 @@ bool IsIllianceContactSensor(MatterNode& node) { return (node.HasDevice(MATTER_D
 
 bool IsIllianceLight(MatterNode& node) { return node.HasDevice(MATTER_DEVICE_ID_EXTENDED_COLOR_LIGHT); }
 
+bool IsIllianceThermostat(MatterNode& node) { return node.HasDevice(MATTER_DEVICE_ID_THERMOSTAT); }
 
 } //namespace Illiance

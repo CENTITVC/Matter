@@ -41,8 +41,8 @@ CHIP_ERROR MatterSubscriptionDevice::Run()
         case MATTER_DEVICE_ID_OCCUPANCY_SENSOR:
             //err = SubscribeToOccupancySensor();
             break;
-        case MATTER_DEVICE_ID_TEMPERATURE_SENSOR:
-            //err = SubscribeToTemperatureSensor();
+        case MATTER_DEVICE_ID_THERMOSTAT:
+            err = SubscribeToThermostatDevice();
             break;
         case MATTER_DEVICE_ID_WINDOW_COVERING:
             err = SubscribeToWindowCover();
@@ -344,6 +344,43 @@ CHIP_ERROR MatterSubscriptionDevice::SubscribeToTemperatureSensor(void)
                                                     mMaxIntervalCeilingSeconds,
                                                     &temperatureSensor->OnTemperatureMeasurementSubscriptionEstablished,
                                                     nullptr);
+    ReturnLogErrorOnFailure(err);
+
+    return CHIP_NO_ERROR;
+}
+
+CHIP_ERROR MatterSubscriptionDevice::SubscribeToThermostatDevice(void)
+{
+    CHIP_ERROR err = CHIP_NO_ERROR;
+
+    ChipLogProgress(chipTool, "MatterSubscriptionDevice::SubscribeToThermostatDevice");
+
+    MatterNode* p_node = MatterManager::MatterMgr().GetMatterNode(mNodeId);
+    VerifyOrDieWithMsg(p_node != nullptr, chipTool, "MatterNode is null!");
+
+    ThermostatClient* thermostatClient = MatterClientFactory::GetInstance().GetOrCreateThermostatClient(*p_node);
+    VerifyOrDieWithMsg(thermostatClient != nullptr, chipTool, "thermostatClient is null!");
+
+    ThermostatDevice* thermostatDevice = static_cast<ThermostatDevice*>(mMatterDevice);
+
+    err = thermostatClient->SubscribeOccupiedHeatingSetpoint(
+                                            mEndpointId, thermostatDevice,
+                                            &thermostatDevice->OnNewOccupiedHeatingSetpoint,
+                                            &thermostatDevice->OnSubscriptionReadFailure,
+                                            mMinIntervalFloorSeconds,
+                                            mMaxIntervalCeilingSeconds,
+                                            &thermostatDevice->OnOccupiedHeatingSetpointSubscriptionEstablished,
+                                            nullptr);
+    ReturnLogErrorOnFailure(err);
+
+    err = thermostatClient->SubscribeLocalTemperature(
+                                            mEndpointId, thermostatDevice,
+                                            &thermostatDevice->OnNewLocalTemperature,
+                                            &thermostatDevice->OnSubscriptionReadFailure,
+                                            mMinIntervalFloorSeconds,
+                                            mMaxIntervalCeilingSeconds,
+                                            &thermostatDevice->OnLocalTemperatureSubscriptionEstablished,
+                                            nullptr);
     ReturnLogErrorOnFailure(err);
 
     return CHIP_NO_ERROR;

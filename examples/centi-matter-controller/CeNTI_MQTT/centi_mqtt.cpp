@@ -125,7 +125,7 @@ int CentiMqttClient::Publish_WindowInit(uint64_t nodeId)
     json["id"] = nodeId;
 
     #if (ILLIANCE_PROJECT_VERSION == ILLIANCE_INERGY)
-        std::string topic = mMacAddress + "/window/init";
+        std::string topic = "centi/" + mMacAddress + "/window/init";
     #else
         std::string topic = mMacAddress + "/device/init";
         json["type"] = "window";
@@ -144,7 +144,7 @@ int CentiMqttClient::Publish_SensorsInit(uint64_t nodeId)
     json["id"] = nodeId;
 
     #if (ILLIANCE_PROJECT_VERSION == ILLIANCE_INERGY)
-        std::string topic = mMacAddress + "/sensors/init";
+        std::string topic = "centi/" + mMacAddress + "/sensors/init";
     #else
         std::string topic = mMacAddress + "/device/init";
         json["type"] = "sensors";
@@ -266,7 +266,7 @@ int CentiMqttClient::Publish_MatterWindowPositionControlResponseAck(
     Json::Value json;
 
     #if (ILLIANCE_PROJECT_VERSION == ILLIANCE_INERGY)
-        std::string topic = mMacAddress + "/window/" + std::to_string(nodeId) + "/position_control_ack";
+        std::string topic = "centi/" + mMacAddress + "/window/" + std::to_string(nodeId) + "/position_control_ack";
     #else
         std::string topic = mMacAddress + "/device/" + std::to_string(nodeId) + "/control_ack";
     #endif
@@ -277,6 +277,27 @@ int CentiMqttClient::Publish_MatterWindowPositionControlResponseAck(
     json["success"] = (error == CHIP_NO_ERROR);
     json["status"] = error.AsString();
     json["pos"] = pos_req;
+
+    return Publish_MessageToTopic(json, topic);
+}
+
+
+int CentiMqttClient::Publish_MatterSetOccupiedHeatSetpointResult(uint64_t nodeId,
+												  		int16_t occupiedHeatSetpoint,
+														CHIP_ERROR error)
+{
+    Json::Value json;
+    #if (ILLIANCE_PROJECT_VERSION == ILLIANCE_INERGY)
+        std::string topic = "centi/" + mMacAddress + "/sensors/" + std::to_string(nodeId) + "/control";
+    #else
+        std::string topic = mMacAddress + "/device/" + std::to_string(nodeId) + "/control";
+    #endif
+
+    ChipLogProgress(NotSpecified, "[MQTT] Publishing Matter Set Occupied Heat Setpoint");
+
+    json["id"] = nodeId;
+    json["setpoint"] = occupiedHeatSetpoint;
+    json["error"] = error.AsString();
 
     return Publish_MessageToTopic(json, topic);
 }
@@ -363,7 +384,7 @@ int CentiMqttClient::Publish_WindowCurrentPosition(uint64_t nodeId, uint8_t posi
     Json::Value json;
 
     #if (ILLIANCE_PROJECT_VERSION == ILLIANCE_INERGY)
-        std::string topic = mMacAddress + "/window/" + std::to_string(nodeId) + "/position";
+        std::string topic = "centi/" + mMacAddress + "/window/" + std::to_string(nodeId) + "/position";
     #else
         std::string topic = mMacAddress + "/device/" + std::to_string(nodeId) + "/measurements";
     #endif
@@ -415,7 +436,7 @@ int CentiMqttClient::Publish_ElectricalSensorActivePower(uint64_t nodeId, int64_
     Json::Value json;
     
     #if (ILLIANCE_PROJECT_VERSION == ILLIANCE_INERGY)
-        std::string topic = mMacAddress + "/sensors/" + std::to_string(nodeId) + "/measurements";
+        std::string topic = "centi/" + mMacAddress + "/sensors/" + std::to_string(nodeId) + "/measurements";
     #else
         std::string topic = mMacAddress + "/device/" + std::to_string(nodeId) + "/measurements";
     #endif
@@ -432,7 +453,7 @@ int CentiMqttClient::Publish_Brightness(uint64_t nodeId, uint16_t brightnessLux)
     Json::Value json;
 
     #if (ILLIANCE_PROJECT_VERSION == ILLIANCE_INERGY)
-        std::string topic = mMacAddress + "/sensors/" + std::to_string(nodeId) + "/measurements";
+        std::string topic = "centi/" + mMacAddress + "/sensors/" + std::to_string(nodeId) + "/measurements";
     #else
         std::string topic = mMacAddress + "/device/" + std::to_string(nodeId) + "/measurements";
     #endif
@@ -449,7 +470,7 @@ int CentiMqttClient::Publish_CarbonDioxide(uint64_t nodeId, float co2Ppm)
     Json::Value json;
 
     #if (ILLIANCE_PROJECT_VERSION == ILLIANCE_INERGY)
-        std::string topic = mMacAddress + "/sensors/" + std::to_string(nodeId) + "/measurements";
+        std::string topic = "centi/" + mMacAddress + "/sensors/" + std::to_string(nodeId) + "/measurements";
     #else
         std::string topic = mMacAddress + "/device/" + std::to_string(nodeId) + "/measurements";
     #endif
@@ -466,7 +487,7 @@ int CentiMqttClient::Publish_ExtendedColorLight_CurrentLevel(uint64_t nodeId, ui
     Json::Value json;
 
     #if (ILLIANCE_PROJECT_VERSION == ILLIANCE_INERGY)
-        std::string topic = mMacAddress + "/sensors/" + std::to_string(nodeId) + "/measurements";
+        std::string topic = "centi/" + mMacAddress + "/sensors/" + std::to_string(nodeId) + "/measurements";
     #else
         std::string topic = mMacAddress + "/device/" + std::to_string(nodeId) + "/measurements";
     #endif
@@ -483,7 +504,7 @@ int CentiMqttClient::Publish_ExtendedColorLight_OnOff(uint64_t nodeId, bool isOn
     Json::Value json;
 
     #if (ILLIANCE_PROJECT_VERSION == ILLIANCE_INERGY)
-        std::string topic = mMacAddress + "/sensors/" + std::to_string(nodeId) + "/measurements";
+        std::string topic = "centi/" + mMacAddress + "/sensors/" + std::to_string(nodeId) + "/measurements";
     #else
         std::string topic = mMacAddress + "/device/" + std::to_string(nodeId) + "/measurements";
     #endif
@@ -551,7 +572,7 @@ int CentiMqttClient::Publish_RelativeHumidity(uint64_t nodeId,
     Json::Value json;
 
     #if (ILLIANCE_PROJECT_VERSION == ILLIANCE_INERGY)
-        std::string topic = mMacAddress + "/sensors/" + std::to_string(nodeId) + "/measurements";
+        std::string topic = "centi/" + mMacAddress + "/sensors/" + std::to_string(nodeId) + "/measurements";
     #else
         std::string topic = mMacAddress + "/device/" + std::to_string(nodeId) + "/measurements";
     #endif
@@ -569,7 +590,7 @@ int CentiMqttClient::Publish_Temperature(uint64_t nodeId,
     Json::Value json;
     
     #if (ILLIANCE_PROJECT_VERSION == ILLIANCE_INERGY)
-        std::string topic = mMacAddress + "/sensors/" + std::to_string(nodeId) + "/measurements";
+        std::string topic = "centi/" +mMacAddress + "/sensors/" + std::to_string(nodeId) + "/measurements";
     #else
         std::string topic = mMacAddress + "/device/" + std::to_string(nodeId) + "/measurements";
     #endif
@@ -577,6 +598,43 @@ int CentiMqttClient::Publish_Temperature(uint64_t nodeId,
     ChipLogProgress(NotSpecified, "[MQTT] Publishing Matter Temperature Measurement");
 
     json["temperature"] = temperatureCelsius;
+
+    return Publish_MessageToTopic(json, topic);
+}
+
+int CentiMqttClient::Publish_OccupiedHeatingSetpoint(uint64_t nodeId,
+                                    int16_t occupiedHeatSetpoint)
+{
+    Json::Value json;
+
+    #if (ILLIANCE_PROJECT_VERSION == ILLIANCE_INERGY)
+        std::string topic = "centi/" + mMacAddress + "/sensors/" + std::to_string(nodeId) + "/measurements";
+    #else
+        std::string topic = mMacAddress + "/device/" + std::to_string(nodeId) + "/measurements";
+    #endif
+
+    ChipLogProgress(NotSpecified, "[MQTT] Publishing Matter Occupied Heating Setpoint");
+
+    json["id"] = nodeId;
+    json["heatSetpoint"] = occupiedHeatSetpoint;
+
+    return Publish_MessageToTopic(json, topic);
+}
+
+int CentiMqttClient::Publish_LocalTemperature(uint64_t nodeId,
+                            int16_t localTemperatureCelsius)
+{
+    Json::Value json;
+
+    #if (ILLIANCE_PROJECT_VERSION == ILLIANCE_INERGY)
+        std::string topic = "centi/" + mMacAddress + "/sensors/" + std::to_string(nodeId) + "/measurements";
+    #else
+        std::string topic = mMacAddress + "/device/" + std::to_string(nodeId) + "/measurements";
+    #endif
+
+    ChipLogProgress(NotSpecified, "[MQTT] Publishing Matter Local Temperature Measurement");
+
+    json["temperature"] = localTemperatureCelsius;
 
     return Publish_MessageToTopic(json, topic);
 }
@@ -602,14 +660,18 @@ int CentiMqttClient::Publish_MessageToTopic(Json::Value& json, std::string topic
 CHIP_ERROR CentiMqttClient::Subscribe_ClientTopics(void)
 {
     std::vector<std::string> subscribeTopics = 
-    {
+    {  
+        #if (ILLIANCE_PROJECT_VERSION == ILLIANCE_IPOWER_SENSING_HOME)
+        
         mMacAddress + "/" + kMatterCommissioningTopic + "/req",
         mMacAddress + "/" + kMatterRemoveNodeTopic + "/req",
         mMacAddress + "/" + kMatterCommissioningOpenTopic + "/req",
-        #if (ILLIANCE_PROJECT_VERSION == ILLIANCE_INERGY)
-        mMacAddress + "/window/+/position_control",
-        #else
         mMacAddress + "/device/+/control",
+        #else
+        "centi/" + mMacAddress + "/" + kMatterCommissioningTopic + "/req",
+        "centi/" + mMacAddress + "/" + kMatterRemoveNodeTopic + "/req",
+        "centi/" + mMacAddress + "/" + kMatterCommissioningOpenTopic + "/req",
+        "centi/" + mMacAddress + "/window/+/position_control",
         #endif
     };
 
@@ -682,6 +744,11 @@ void CentiMqttClient::message_arrived(mqtt::const_message_ptr mqtt_msg)
             AppTask::Instance().AddMatterLightSettingCommand(static_cast<MqttCommandLightSetting*>(cmd.get())->mNodeId,
                                                             static_cast<MqttCommandLightSetting*>(cmd.get())->mLightSettings);
             break;
+            
+        case MqttCommandType::SetThermostatOccupiedHeatSetpoint:
+            AppTask::Instance().AddMatterSetOccupiedHeatSetpointCommand(static_cast<MqttCommandThermostatSetOccupiedHeatSetpoint*>(cmd.get())->mNodeId,
+                                                                        static_cast<MqttCommandThermostatSetOccupiedHeatSetpoint*>(cmd.get())->mTemperature);
+            break;
 
         case MqttCommandType::Unknown:
             break;
@@ -711,10 +778,18 @@ void CentiMqttClient::on_failure(const mqtt::token& token)
 
 std::unique_ptr<MqttCommandBase> CentiMqttClient::GetCommandFromMessage(std::string topic, std::string payload)
 {
-    std::string matterCommissioningTopic = mMacAddress + "/" + kMatterCommissioningTopic + "/req";
-    std::string matterRemoveTopic = mMacAddress + "/" + kMatterRemoveNodeTopic + "/req";
-    std::string matterSetWindowPosition = mMacAddress + "/window/<id>/position_control";
-    std::string matterCommissioningOpenTopic = mMacAddress + "/" + kMatterCommissioningOpenTopic + "/req";
+    #if (ILLIANCE_PROJECT_VERSION == ILLIANCE_INERGY)
+        std::string matterCommissioningTopic = "centi/" + mMacAddress + "/" + kMatterCommissioningTopic + "/req";
+        std::string matterRemoveTopic = "centi/" + mMacAddress + "/" + kMatterRemoveNodeTopic + "/req";
+        std::string matterSetWindowPosition = "centi/" + mMacAddress + "/window/<id>/position_control";
+        std::string matterCommissioningOpenTopic = "centi/" + mMacAddress + "/" + kMatterCommissioningOpenTopic + "/req";
+    #else
+        std::string matterCommissioningTopic = mMacAddress + "/" + kMatterCommissioningTopic + "/req";
+        std::string matterRemoveTopic = mMacAddress + "/" + kMatterRemoveNodeTopic + "/req";
+        std::string matterSetWindowPosition = mMacAddress + "/window/<id>/position_control";
+        std::string matterCommissioningOpenTopic = mMacAddress + "/" + kMatterCommissioningOpenTopic + "/req";
+    #endif
+
     Json::Value root;
     Json::String err;
     bool parsing_success = false;
@@ -827,6 +902,16 @@ std::unique_ptr<MqttCommandBase> CentiMqttClient::GetCommandFromMessage(std::str
 
                     return std::make_unique<MqttCommandLightSetting>(nodeId, lightSettings);
                 }
+                else if (deviceType.compare("thermoAccumulator") == 0)
+                {
+                    int16_t temperature;
+
+                    if (root.isMember("heatSetpoint"))
+                    {
+                        temperature = 100 * (static_cast<int16_t>(root["heatSetpoint"].asInt64()));
+                        return std::make_unique<MqttCommandThermostatSetOccupiedHeatSetpoint>(nodeId, temperature);
+                    }
+                }
             }
             else
             {
@@ -851,14 +936,20 @@ uint64_t CentiMqttClient::FindNodeIdInTopic(std::string topic)
 {
     std::vector<std::string> tokens = StringSplitter(topic, '/');
     
+
+    #if (ILLIANCE_PROJECT_VERSION == ILLIANCE_INERGY)
+    if(tokens.size() < 5) // bandora topic has centi/ preffix
+    {
+        return UINT64_MAX;
+    } 
+
+    if ( (tokens[1].compare("window") == 0) || (tokens[1].compare("sensors") == 0) )
+    #else
     if(tokens.size() < 4)
     {
         return UINT64_MAX;
     } 
 
-    #if (ILLIANCE_PROJECT_VERSION == ILLIANCE_INERGY)
-    if ( (tokens[1].compare("window") == 0) || (tokens[1].compare("sensors") == 0) )
-    #else
     if ( (tokens[1].compare("device") == 0) && (tokens[3].compare("control") == 0))
     #endif
     {
