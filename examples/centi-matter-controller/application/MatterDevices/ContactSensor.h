@@ -30,14 +30,11 @@ class ContactSensor : public MatterDevice
 
         void SetContactSensorState(bool contactSensorState) 
         {
-            if (mContactSensorState != contactSensorState)
-            {
-                mContactSensorState = contactSensorState;
+            mContactSensorState = contactSensorState;
 
-                if (mContactSensorDelegate != nullptr)
-                {
-                    mContactSensorDelegate->OnContactSensorStateChangedHandler(this);
-                }
+            if (mContactSensorDelegate != nullptr)
+            {
+                mContactSensorDelegate->OnContactSensorStateChangedHandler(this);
             }
         }
         

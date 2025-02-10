@@ -115,7 +115,7 @@ namespace Illiance
     void ElectricalSensorHandler::OnActivePowerValueChangedHandler(ElectricalSensor* pElectricalSensor)
     {
         ChipLogProgress(chipTool, "ElectricalSensor - OnActivePowerValueChangedHandler");
-        int64_t powerConsumption_mW = INT64_MIN;
+        int64_t powerConsumption = INT64_MIN;
 
         for(auto & node : MatterManager::MatterMgr().GetActiveMatterNodes())
         {
@@ -125,8 +125,16 @@ namespace Illiance
                 if (endpoint.GetMatterDevice(pElectricalSensor->GetType()) == pElectricalSensor)
                 {
                     ChipLogProgress(chipTool, "Found electricalSensor");
-                    powerConsumption_mW = pElectricalSensor->GetActivePower();
-                    (void) CentiMqttClient::ClientMgr().Publish_ElectricalSensorActivePower(node.GetNodeId(), powerConsumption_mW);
+                    powerConsumption = pElectricalSensor->GetActivePower();
+                    
+                    if (node.HasDevice(MATTER_DEVICE_ID_AIR_QUALITY_SENSOR))
+                    {
+                        (void) CentiMqttClient::ClientMgr().Publish_ElectricalSensorActivePower(node.GetNodeId(), powerConsumption);
+                    }
+                    else
+                    {
+                        (void) CentiMqttClient::ClientMgr().Publish_WindowElectricalSensorActivePower(node.GetNodeId(), powerConsumption);
+                    }
                 }
             }
         }

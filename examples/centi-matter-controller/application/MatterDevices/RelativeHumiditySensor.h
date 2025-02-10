@@ -24,15 +24,12 @@ class HumiditySensor : public MatterDevice
         std::unique_ptr<MatterDevice> clone() const override { return std::make_unique<HumiditySensor>(*this); }
 
         void SetMeasuredValue(uint16_t relativeHumidityPercent) 
-        { 
-            if (mRelativeHumidityPercent != relativeHumidityPercent)
-            {
-                mRelativeHumidityPercent = relativeHumidityPercent;
+        {
+            mRelativeHumidityPercent = relativeHumidityPercent;
 
-                if (mHumiditySensorDelegate != nullptr)
-                {
-                    mHumiditySensorDelegate->OnMeasuredValueChangedHandler(this);
-                }
+            if (mHumiditySensorDelegate != nullptr)
+            {
+                mHumiditySensorDelegate->OnMeasuredValueChangedHandler(this);
             }
         }
         

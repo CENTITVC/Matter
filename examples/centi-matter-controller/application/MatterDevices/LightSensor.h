@@ -32,14 +32,11 @@ class LightSensor : public MatterDevice
 
         void SetMeasuredValue(uint16_t illuminanceLux) 
         {
-            if (mIlluminanceLux != illuminanceLux)
-            {
-                mIlluminanceLux = illuminanceLux; 
+            mIlluminanceLux = illuminanceLux; 
 
-                if (mLightSensorDelegate != nullptr)
-                {
-                    mLightSensorDelegate->OnMeasuredValueChangedHandler(this);
-                }
+            if (mLightSensorDelegate != nullptr)
+            {
+                mLightSensorDelegate->OnMeasuredValueChangedHandler(this);
             }
         }
 

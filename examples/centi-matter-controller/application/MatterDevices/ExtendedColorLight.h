@@ -33,15 +33,12 @@ class ExtendedColorLight : public MatterDevice
         std::unique_ptr<MatterDevice> clone() const override { return std::make_unique<ExtendedColorLight>(*this); }
 
         void SetOnOff(bool on) 
-        {   
-            if (mIsOn != on)
+        {
+            mIsOn = on;
+            
+            if (mExtendedColorLightDelegate != nullptr)
             {
-                mIsOn = on;
-                
-                if (mExtendedColorLightDelegate != nullptr)
-                {
-                    mExtendedColorLightDelegate->OnOnOffStateChangedHandler(this);
-                }
+                mExtendedColorLightDelegate->OnOnOffStateChangedHandler(this);
             }
         }
 

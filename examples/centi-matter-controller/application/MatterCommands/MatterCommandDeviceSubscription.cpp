@@ -39,7 +39,7 @@ CHIP_ERROR MatterSubscriptionDevice::Run()
             err = SubscribeToLightSensor();
             break;
         case MATTER_DEVICE_ID_OCCUPANCY_SENSOR:
-            //err = SubscribeToOccupancySensor();
+            err = SubscribeToOccupancySensor();
             break;
         case MATTER_DEVICE_ID_THERMOSTAT:
             err = SubscribeToThermostatDevice();

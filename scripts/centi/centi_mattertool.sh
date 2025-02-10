@@ -157,7 +157,7 @@ Create_RPISysroot() {
 Build_RPI() {
     set -e
     local ROOT_DIR="$1"
-    local OUT_DIR="$ROOT_DIR/out/aarch64"
+    local OUT_DIR="$ROOT_DIR/out/aarch64_ipower"
 
     source $MATTER_ROOT/scripts/activate.sh
     cd $MATTER_ROOT
@@ -173,8 +173,8 @@ Install_OTBR() {
     # https://github.com/SiliconLabs/matter/releases/tag/v2.3.0-1.3
 
     if [ "$1" = "silabs" ]; then
-        otbrPosixCommit="42f98b27b"
-        otCommit="7074a43e4"
+        otbrPosixCommit="bd15f71"
+        otCommit="2aeb8b8"
     elif [ "$1" = "nrf" ]; then
         #https://docs.nordicsemi.com/bundle/ncs-latest/page/nrf/protocols/thread/tools.html#ug-thread-tools-tbr
         otbrPosixCommit="98dda6c"

@@ -255,15 +255,25 @@ CHIP_ERROR AppTask::OnMatterNodeInit(MatterNode& p_node)
     {
         subParams.endpointId = p_node.GetEndpointWithDeviceType(MATTER_DEVICE_ID_WINDOW_COVERING)->GetEndpointId();
         subParams.deviceTypeId = MATTER_DEVICE_ID_WINDOW_COVERING;
+        subParams.minIntervalFloorSeconds = 5;
+        subParams.maxIntervalCeilingSeconds = 30;
 
         WindowCover* pWindowCover = nullptr;
         pWindowCover = static_cast<WindowCover*>(p_node.GetEndpointWithDeviceType(MATTER_DEVICE_ID_WINDOW_COVERING)->GetMatterDevice(MATTER_DEVICE_ID_WINDOW_COVERING));
         VerifyOrDieWithMsg(pWindowCover != nullptr, chipTool, "pWindowCover is null!");
         pWindowCover->RegisterWindowCoverDelegate(&mWindowCoverHandler);
 
-        subParams.minIntervalFloorSeconds = 5;
-        subParams.maxIntervalCeilingSeconds = 30;
+        AddMatterDeviceSubscriptionCommand(subParams);
 
+        ElectricalSensor* pElectricalSensor = nullptr;
+        pElectricalSensor = static_cast<ElectricalSensor*>(p_node.GetEndpointWithDeviceType(MATTER_DEVICE_ID_ELECTRICAL_SENSOR)->GetMatterDevice(MATTER_DEVICE_ID_ELECTRICAL_SENSOR));
+        VerifyOrDieWithMsg(pElectricalSensor != nullptr, chipTool, "pElectricalSensor is null!");
+        pElectricalSensor->RegisterElectricalSensorDelegate(&mElectricalSensorHandler);
+
+        subParams.endpointId = p_node.GetEndpointWithDeviceType(MATTER_DEVICE_ID_ELECTRICAL_SENSOR)->GetEndpointId();
+        subParams.deviceTypeId = MATTER_DEVICE_ID_ELECTRICAL_SENSOR;
+        subParams.minIntervalFloorSeconds = 60;
+        subParams.maxIntervalCeilingSeconds = 300;
         AddMatterDeviceSubscriptionCommand(subParams);
 
         mqtt_err = CentiMqttClient::ClientMgr().Publish_WindowInit(p_node.GetNodeId());

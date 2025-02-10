@@ -25,14 +25,11 @@ class DoorLock : public MatterDevice
 
         void SetDoorLockState(chip::app::Clusters::DoorLock::DoorStateEnum doorState) 
         {
-            if (mDoorState != doorState)
-            {
-                mDoorState = doorState;
+            mDoorState = doorState;
 
-                if (mDoorLockDelegate != nullptr)
-                {
-                    mDoorLockDelegate->OnDoorLockStateChangedHandler(this);
-                }
+            if (mDoorLockDelegate != nullptr)
+            {
+                mDoorLockDelegate->OnDoorLockStateChangedHandler(this);
             }
         }
         

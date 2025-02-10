@@ -22,5 +22,5 @@ declare_args() {
   config_enable_yaml_tests = true
   config_use_local_storage = true
   config_chip_device_config_enable_both_commissioner_and_commissionee = true
-  config_cross_compilation = false
+  config_cross_compilation = true
 }

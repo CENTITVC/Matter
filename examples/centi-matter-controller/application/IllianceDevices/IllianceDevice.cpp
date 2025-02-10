@@ -5,12 +5,14 @@ namespace Illiance
 bool IsIllianceSensors(MatterNode& node)
 {
     return ((node.HasDevice(MATTER_DEVICE_ID_AIR_QUALITY_SENSOR)) && 
-        (node.HasDevice(MATTER_DEVICE_ID_LIGHT_SENSOR))); 
-        /* &&
-        (node->HasDevice(MATTER_DEVICE_ID_ELETRICAL_SENSOR)))*/
+        (node.HasDevice(MATTER_DEVICE_ID_LIGHT_SENSOR)) &&
+        (node.HasDevice(MATTER_DEVICE_ID_ELECTRICAL_SENSOR)));
 }
 
-bool IsIllianceWindow(MatterNode& node) { return (node.HasDevice(MATTER_DEVICE_ID_WINDOW_COVERING)); }
+bool IsIllianceWindow(MatterNode& node) 
+{ 
+    return (node.HasDevice(MATTER_DEVICE_ID_WINDOW_COVERING)); 
+}
 
 bool IsIllianceOccupancySensor(MatterNode& node) { return (node.HasDevice(MATTER_DEVICE_ID_OCCUPANCY_SENSOR)); }
 

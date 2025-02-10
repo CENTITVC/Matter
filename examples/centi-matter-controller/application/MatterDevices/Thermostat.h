@@ -28,15 +28,12 @@ class ThermostatDevice : public MatterDevice
         /** Occupied Heating Setpoint Attribute - Matter Application Cluster Chapter 4.3 */ 
 
         void SetOccupiedHeatingSetpoint(int16_t temperatureCelsius) 
-        { 
-            if (mOccupiedHeatingSetpointCelsius != temperatureCelsius)
-            {
-                mOccupiedHeatingSetpointCelsius = temperatureCelsius;
+        {
+            mOccupiedHeatingSetpointCelsius = temperatureCelsius;
 
-                if (mThermostatDelegate != nullptr)
-                {
-                    mThermostatDelegate->OnOccupiedHeatingSetpointChangedHandler(this);
-                }
+            if (mThermostatDelegate != nullptr)
+            {
+                mThermostatDelegate->OnOccupiedHeatingSetpointChangedHandler(this);
             }
         }
 

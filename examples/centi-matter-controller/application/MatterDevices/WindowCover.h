@@ -27,14 +27,11 @@ class WindowCover : public MatterDevice
 
         void SetCurrentLiftPositionPercent100ths(chip::Percent100ths currentLiftPositionPercent100ths) 
         {
-            if (mCurrentPositionLiftPercent100ths != currentLiftPositionPercent100ths)
-            {
-                mCurrentPositionLiftPercent100ths = currentLiftPositionPercent100ths; 
+            mCurrentPositionLiftPercent100ths = currentLiftPositionPercent100ths; 
 
-                if (mWindowCoverDelegate != nullptr)
-                {
-                    mWindowCoverDelegate->OnCurrentLiftPositionPercent100thsChangedHandler(this);
-                }
+            if (mWindowCoverDelegate != nullptr)
+            {
+                mWindowCoverDelegate->OnCurrentLiftPositionPercent100thsChangedHandler(this);
             }
         }
 

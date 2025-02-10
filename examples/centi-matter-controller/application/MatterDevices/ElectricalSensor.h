@@ -25,15 +25,12 @@ class ElectricalSensor : public MatterDevice
         std::unique_ptr<MatterDevice> clone() const override { return std::make_unique<ElectricalSensor>(*this); }
 
         void SetActivePower(int64_t activePower_mW) 
-        {   
-            if (mActivePower_mW != activePower_mW)
-            {
-                mActivePower_mW = activePower_mW; 
+        {
+            mActivePower_mW = activePower_mW; 
 
-                if (mElectricalSensorDelegate != nullptr)
-                {
-                    mElectricalSensorDelegate->OnActivePowerValueChangedHandler(this);
-                }
+            if (mElectricalSensorDelegate != nullptr)
+            {
+                mElectricalSensorDelegate->OnActivePowerValueChangedHandler(this);
             }
         }
 

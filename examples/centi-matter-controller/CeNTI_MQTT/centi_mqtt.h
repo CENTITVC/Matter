@@ -99,6 +99,7 @@ class CentiMqttClient : public virtual mqtt::callback,
 										float co2Ppm,
 										uint16_t brightnessLux,
 										int64_t powerConsumption_mW);
+		int Publish_WindowElectricalSensorActivePower(uint64_t nodeId, int64_t powerConsumption_W);
 		int Publish_ElectricalSensorActivePower(uint64_t nodeId, int64_t powerConsumption_mW);
 		int Publish_Brightness(uint64_t nodeId, uint16_t brightnessLux);
 		int Publish_ExtendedColorLight_CurrentLevel(uint64_t nodeId, uint8_t level);

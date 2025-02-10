@@ -50,14 +50,11 @@ class AirQualitySensor : public MatterDevice
                                                                         mAirQualitySensor(airQualitySensor) {}
                 void SetMeasuredValue(int16_t temperatureCelsius)
                 { 
-                    if (mTemperatureCelsius != temperatureCelsius)
-                    {
-                        mTemperatureCelsius = temperatureCelsius;
+                    mTemperatureCelsius = temperatureCelsius;
 
-                        if(mAirQualitySensor != nullptr && mAirQualitySensor->GetAirQualitySensorDelegate() != nullptr)
-                        {
-                            mAirQualitySensor->GetAirQualitySensorDelegate()->OnTemperatureMeasuredValueChangedHandler(mAirQualitySensor);
-                        }
+                    if(mAirQualitySensor != nullptr && mAirQualitySensor->GetAirQualitySensorDelegate() != nullptr)
+                    {
+                        mAirQualitySensor->GetAirQualitySensorDelegate()->OnTemperatureMeasuredValueChangedHandler(mAirQualitySensor);
                     }
                 }
 
@@ -100,14 +97,11 @@ class AirQualitySensor : public MatterDevice
 
                 void SetMeasuredValue(int16_t relativeHumidityPercent) 
                 { 
-                    if (mRelativeHumidityPercent != relativeHumidityPercent)
-                    {
-                        mRelativeHumidityPercent = relativeHumidityPercent;
+                    mRelativeHumidityPercent = relativeHumidityPercent;
 
-                        if(mAirQualitySensor != nullptr && mAirQualitySensor->GetAirQualitySensorDelegate() != nullptr)
-                        {
-                            mAirQualitySensor->GetAirQualitySensorDelegate()->OnHumidityMeasuredValueChangedHandler(mAirQualitySensor);
-                        }
+                    if(mAirQualitySensor != nullptr && mAirQualitySensor->GetAirQualitySensorDelegate() != nullptr)
+                    {
+                        mAirQualitySensor->GetAirQualitySensorDelegate()->OnHumidityMeasuredValueChangedHandler(mAirQualitySensor);
                     }
                 }
 
@@ -150,19 +144,12 @@ class AirQualitySensor : public MatterDevice
                                                                             mAirQualitySensor(airQualitySensor) {}
 
                 void SetMeasuredValue(float co2ppm) 
-                { 
-                    if (mCo2ppm != co2ppm)
-                    {
-                        mCo2ppm = co2ppm; 
+                {
+                    mCo2ppm = co2ppm; 
 
-                        if(mAirQualitySensor != nullptr && mAirQualitySensor->GetAirQualitySensorDelegate() != nullptr)
-                        {
-                            mAirQualitySensor->GetAirQualitySensorDelegate()->OnCarbonDioxideConcentrationChangedHandler(mAirQualitySensor);
-                        }
-                        if (mAirQualitySensor->GetAirQualitySensorDelegate() == nullptr)
-                        {
-                            ChipLogProgress(chipTool, "co2: mAirQualitySensorDelegate addr: %p", (void*) mAirQualitySensor->GetAirQualitySensorDelegate());
-                        }
+                    if(mAirQualitySensor != nullptr && mAirQualitySensor->GetAirQualitySensorDelegate() != nullptr)
+                    {
+                        mAirQualitySensor->GetAirQualitySensorDelegate()->OnCarbonDioxideConcentrationChangedHandler(mAirQualitySensor);
                     }
                 }
                 

@@ -27,15 +27,12 @@ class TemperatureSensor : public MatterDevice
         std::unique_ptr<MatterDevice> clone() const override { return std::make_unique<TemperatureSensor>(*this); }
 
         void SetMeasuredValue(int16_t temperatureCelsius) 
-        { 
-            if (mTemperatureCelsius != temperatureCelsius)
-            {
-                mTemperatureCelsius = temperatureCelsius;
+        {
+            mTemperatureCelsius = temperatureCelsius;
 
-                if (mTemperatureSensorDelegate != nullptr)
-                {
-                    mTemperatureSensorDelegate->OnMeasuredValueChangedHandler(this);
-                }
+            if (mTemperatureSensorDelegate != nullptr)
+            {
+                mTemperatureSensorDelegate->OnMeasuredValueChangedHandler(this);
             }
         }
 

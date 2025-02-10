@@ -27,13 +27,10 @@ class OccupancySensor : public MatterDevice
         std::unique_ptr<MatterDevice> clone() const override { return std::make_unique<OccupancySensor>(*this); }
 
         void SetOccupancyState(bool isOccupied) 
-        { 
-            if (mIsOccupied != isOccupied)
+        {
+            if (mOccupancySensorDelegate != nullptr)
             {
-                if (mOccupancySensorDelegate != nullptr)
-                {
-                    mOccupancySensorDelegate->OnOccupancyStateChangedHandler(this);
-                }
+                mOccupancySensorDelegate->OnOccupancyStateChangedHandler(this);
             }
 
             mIsOccupied = isOccupied; 

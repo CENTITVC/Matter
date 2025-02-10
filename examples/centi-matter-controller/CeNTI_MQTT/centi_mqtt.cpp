@@ -77,7 +77,7 @@ void CentiMqttClient::SSL_ErrorHandler(const std::string& errMsg)
 }
 
 CHIP_ERROR CentiMqttClient::Connect(void)
-{    
+{
     ChipLogProgress(NotSpecified, "[MQTT] Connecting to %s as %s", mClientPtr->get_server_uri().c_str(),
                                                             mClientPtr->get_client_id().c_str());
 
@@ -110,7 +110,11 @@ CHIP_ERROR CentiMqttClient::Publish_ClientInit(void)
     json["power_on"] = true;
     json["gw_mac"] = mMacAddress;
     
-    std::string topic = kGatewayInitTopic;
+    #if (ILLIANCE_PROJECT_VERSION == ILLIANCE_INERGY)
+        std::string topic = "centi/" + kGatewayInitTopic;
+    #else
+        std::string topic = kGatewayInitTopic;
+    #endif
 
     return (Publish_MessageToTopic(json, topic) == 0) ? CHIP_NO_ERROR : CHIP_ERROR_BAD_REQUEST;
 }
@@ -215,7 +219,12 @@ int CentiMqttClient::Publish_MatterCommissioningResponse(std::string setUpCode, 
 {
     Json::Value json;
     Json::StreamWriterBuilder writer;
-    std::string topic = mMacAddress + "/" + kMatterCommissioningTopic + "/resp";
+
+    #if (ILLIANCE_PROJECT_VERSION == ILLIANCE_INERGY)
+        std::string topic = "centi/" + mMacAddress + "/" + kMatterCommissioningTopic + "/resp";
+    #else
+        std::string topic = mMacAddress + "/" + kMatterCommissioningTopic + "/resp";
+    #endif
 
     ChipLogProgress(NotSpecified, "[MQTT] Publishing Matter Commissioning Response");
 
@@ -230,7 +239,12 @@ int CentiMqttClient::Publish_MatterRemoveNodeResponse(uint64_t nodeId, CHIP_ERRO
 {
     Json::Value json;
     Json::StreamWriterBuilder writer;
-    std::string topic = mMacAddress + "/" + kMatterRemoveNodeTopic + "/resp";
+
+    #if (ILLIANCE_PROJECT_VERSION == ILLIANCE_INERGY)
+        std::string topic = "centi/" + mMacAddress + "/" + kMatterRemoveNodeTopic + "/resp";
+    #else
+        std::string topic = mMacAddress + "/" + kMatterRemoveNodeTopic + "/resp";
+    #endif
 
     ChipLogProgress(NotSpecified, "[MQTT] Publishing Matter Remove Node Response");
 
@@ -246,7 +260,12 @@ int CentiMqttClient::Publish_MatterCommissioningOpenResponse(uint64_t nodeId, CH
 {
     Json::Value json;
     Json::StreamWriterBuilder writer;
-    std::string topic = mMacAddress + "/" + kMatterCommissioningOpenTopic + "/resp";
+
+    #if (ILLIANCE_PROJECT_VERSION == ILLIANCE_INERGY)
+        std::string topic = "centi/" + mMacAddress + "/" + kMatterCommissioningOpenTopic + "/resp";
+    #else
+        std::string topic = mMacAddress + "/" + kMatterCommissioningOpenTopic + "/resp";
+    #endif
 
     ChipLogProgress(NotSpecified, "[MQTT] Publishing Matter Commissioning Open Response");
 
@@ -271,6 +290,8 @@ int CentiMqttClient::Publish_MatterWindowPositionControlResponseAck(
         std::string topic = mMacAddress + "/device/" + std::to_string(nodeId) + "/control_ack";
     #endif
 
+    ChipLogProgress(NotSpecified, "Node Id: %lu", nodeId);
+    ChipLogProgress(NotSpecified, "Topic: %lu", nodeId);
     ChipLogProgress(NotSpecified, "[MQTT] Publishing Matter Window Position Control Ack");
 
     json["id"] = nodeId;
@@ -317,7 +338,12 @@ int CentiMqttClient::Publish_MatterOccupancy(uint64_t nodeId, bool is_occupied)
 int CentiMqttClient::Publish_MatterDoorLock(uint64_t nodeId, bool is_open)
 {
     Json::Value json;
-    std::string topic = mMacAddress + "/sensors/"  + std::to_string(nodeId) + "/measurements";
+
+    #if (ILLIANCE_PROJECT_VERSION == ILLIANCE_INERGY)
+        std::string topic = "centi/" + mMacAddress + "/sensors/"  + std::to_string(nodeId) + "/measurements";
+    #else
+        std::string topic = mMacAddress + "/sensors/"  + std::to_string(nodeId) + "/measurements";
+    #endif
 
     ChipLogProgress(NotSpecified, "[MQTT] Publishing Matter DoorLock State");
     
@@ -334,7 +360,7 @@ int CentiMqttClient::Publish_MatterDeviceSubscription(
 {
     Json::Value json;
     Json::StreamWriterBuilder writer;
-    std::string topic = mMacAddress + "/matter/subscription/resp";
+    std::string topic = "centi/" + mMacAddress + "/matter/subscription/resp";
 
     char deviceTypeStr[7] = {0};
     std::snprintf(deviceTypeStr, sizeof(deviceTypeStr), "0x%04X", deviceType);
@@ -431,7 +457,24 @@ int CentiMqttClient::Publish_SensorsMeasurements(uint64_t nodeId,
     return 0;    
 }
 
-int CentiMqttClient::Publish_ElectricalSensorActivePower(uint64_t nodeId, int64_t powerConsumption_mW)
+int CentiMqttClient::Publish_WindowElectricalSensorActivePower(uint64_t nodeId, int64_t powerConsumption_mW)
+{
+    Json::Value json;
+    
+    #if (ILLIANCE_PROJECT_VERSION == ILLIANCE_INERGY)
+        std::string topic = "centi/" + mMacAddress + "/window/" + std::to_string(nodeId) + "/measurements";
+    #else
+        std::string topic = mMacAddress + "/device/" + std::to_string(nodeId) + "/measurements";
+    #endif
+
+    ChipLogProgress(NotSpecified, "[MQTT] Publishing Matter Electrical Sensor Active Power Measurement");
+
+    json["power_consumption"] = powerConsumption_mW;
+
+    return Publish_MessageToTopic(json, topic);
+}
+
+int CentiMqttClient::Publish_ElectricalSensorActivePower(uint64_t nodeId, int64_t powerConsumption_W)
 {
     Json::Value json;
     
@@ -443,7 +486,7 @@ int CentiMqttClient::Publish_ElectricalSensorActivePower(uint64_t nodeId, int64_
 
     ChipLogProgress(NotSpecified, "[MQTT] Publishing Matter Electrical Sensor Active Power Measurement");
 
-    json["power_consumption"] = powerConsumption_mW;
+    json["power_consumption"] = powerConsumption_W;
 
     return Publish_MessageToTopic(json, topic);
 }
@@ -867,6 +910,8 @@ std::unique_ptr<MqttCommandBase> CentiMqttClient::GetCommandFromMessage(std::str
             if (nodeId != UINT64_MAX)
             {
                 std::string deviceType = root["type"].asString();
+                
+                std::cout << "Device Type: " << deviceType << std::endl;
 
                 if (deviceType.compare("window") == 0)
                 {
@@ -894,6 +939,7 @@ std::unique_ptr<MqttCommandBase> CentiMqttClient::GetCommandFromMessage(std::str
 
                     if (root.isMember("action"))
                     {
+                        std::cout << "Action: " << root["action"].asString() << std::endl;
                         std::string onoffStr = root["action"].asString();
 
                         lightSettings.onoff = (onoffStr.compare("on") == 0);
@@ -943,7 +989,7 @@ uint64_t CentiMqttClient::FindNodeIdInTopic(std::string topic)
         return UINT64_MAX;
     } 
 
-    if ( (tokens[1].compare("window") == 0) || (tokens[1].compare("sensors") == 0) )
+    if ( (tokens[2].compare("window") == 0) || (tokens[2].compare("sensors") == 0) )
     #else
     if(tokens.size() < 4)
     {
@@ -957,13 +1003,27 @@ uint64_t CentiMqttClient::FindNodeIdInTopic(std::string topic)
         {
             // std::stoull converts a string to an unsigned long long
             size_t pos;
-            uint64_t number = std::stoull(tokens[2], &pos, 10);
+            #if (ILLIANCE_PROJECT_VERSION == ILLIANCE_INERGY)
 
-            // Ensure the whole string was converted and there are no remaining characters
-            if (pos != tokens[2].size())
-            {
-                throw std::invalid_argument("Trailing characters after number");
-            }
+                uint64_t number = std::stoull(tokens[3], &pos, 10);
+
+                // Ensure the whole string was converted and there are no remaining characters
+                if (pos != tokens[3].size())
+                {
+                    throw std::invalid_argument("Trailing characters after number");
+                }
+
+            #else
+
+                uint64_t number = std::stoull(tokens[2], &pos, 10);
+
+                // Ensure the whole string was converted and there are no remaining characters
+                if (pos != tokens[2].size())
+                {
+                    throw std::invalid_argument("Trailing characters after number");
+                }
+
+            #endif
 
             return number;
         }

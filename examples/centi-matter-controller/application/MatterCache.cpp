@@ -72,6 +72,12 @@ CHIP_ERROR MatterCache::ReadAllMatterNodes(std::vector<MatterNode>& cachedMatter
         return CHIP_NO_ERROR;
     }
 
+    if (err == CHIP_ERROR_BUFFER_TOO_SMALL)
+    {
+        ChipLogError(AppServer, "MatterCache::ReadAllMatterNodes buffer too small");
+        return CHIP_ERROR_NO_MEMORY;
+    }
+
     ChipLogProgress(chipTool, "MatterCache::ReadAllMatterNodes Read TLV(CastingData) from KVS store with size: %lu bytes",
                 static_cast<unsigned long>(data_size));
 
@@ -104,7 +110,7 @@ CHIP_ERROR MatterCache::ReadAllMatterNodes(std::vector<MatterNode>& cachedMatter
     std::vector<chip::DeviceTypeId> deviceTypeIds;
     uint16_t port = 0;
     uint64_t lastDiscoveredMs = 0;
-    const uint8_t QRCodeSize = 22;
+    const uint16_t QRCodeSize = 53;
     char payload_str[QRCodeSize] = {0};
     std::string payload = "";
     uint8_t nodes_read_cnt = 0;
@@ -145,7 +151,9 @@ CHIP_ERROR MatterCache::ReadAllMatterNodes(std::vector<MatterNode>& cachedMatter
                 ReturnErrorOnFailure(reader.Get(lastDiscoveredMs));
                 break;
             case kMatterNodeSetupQRCodeTag:
-                ReturnErrorOnFailure(reader.GetBytes(reinterpret_cast<uint8_t *>(payload_str), QRCodeSize));
+                ChipLogProgress(AppServer, "SetupQRCode Size: %u",  reader.GetLength());
+                ReturnLogErrorOnFailure(reader.GetBytes(reinterpret_cast<uint8_t *>(payload_str), QRCodeSize));
+                payload_str[QRCodeSize - 1] = '\0';
                 payload = payload_str;
                 break;
             case kMatterNodeEndpointsContainerTag:
