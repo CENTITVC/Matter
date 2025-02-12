@@ -44,6 +44,7 @@ as RCP.
 
 -   **Boards**
     -   [BRD2601](https://www.silabs.com/development-tools/wireless/efr32xg24-dev-kit?tab=overview)
+    -   [BRD2703](https://www.silabs.com/development-tools/wireless/efr32xg24-explorer-kit?tab=overview)
         -   `bootloader-storage-internal-single 1536k`
         -   `OT-RCP`
 
@@ -53,6 +54,12 @@ SDKs tested:
 
 -   Gecko SDK 4.4.0
 -   Gecko SDK 4.4.2
+-   Simplicity SDK 2024.6.2
 
 Using Simplicity Studio, build and flash the projects (no changes needed) to the
 BRD2601 or any other board that uses the EFR32MG24 MCU family.
+
+> [!WARNING]
+>
+> Last tests with BRD2601B show that it is not working for OT-RCP. Use BRD2703
+> instead.

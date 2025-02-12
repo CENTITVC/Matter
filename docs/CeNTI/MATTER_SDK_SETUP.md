@@ -26,7 +26,7 @@ $ sudo apt-get install git gcc g++ pkg-config libssl-dev libdbus-1-dev \
 
 -   Move to the directory:
     ```shell
-    $ cd Matter
+    cd Matter
     ```
 -   If needed, create a branch. Usually, it's best practice to ensure the
     repository version is compatible with the OTBR tool. In this case, since I'm
@@ -37,16 +37,16 @@ $ sudo apt-get install git gcc g++ pkg-config libssl-dev libdbus-1-dev \
     ```
 -   Only checkout the relevant submodules for your platform:
     ```shell
-        ./scripts/checkout_submodules.py --shallow --platform linux
+    ./scripts/checkout_submodules.py --shallow --platform linux
     ```
 -   Bootstrap your environment. You only need to do this once since it's time
     expensive or if some packages go out of date:
     ```shell
-      $ source scripts/bootstrap.sh
+    source scripts/bootstrap.sh
     ```
 -   If you need to active the environment again in your shell run:
     ```shell
-      $ source scripts/activate.sh
+    source scripts/activate.sh
     ```
 
 ## Troubleshooting
@@ -56,7 +56,7 @@ If bootstrap fails:
 -   Check if all dependencies are installed
 -   Check if the right OS is installed:
     ```shell
-    $ uname -a
+    uname -a
     ```
 -   Python3 env or Pigweed errors:
     -   Reboot

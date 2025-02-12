@@ -6,7 +6,7 @@
    and connect a keyboard.
 2. Run in the command line:
     ```shell
-    $ ip a
+    ip a
     ```
 
 ### Step 2: SSH Connection
@@ -28,6 +28,6 @@ Knowing the IP, it's now possible to establish a SSH connection. Check this
     - Enter in the prompt the hostname@IP of your Matter Hub
 3. If you want to access directly through Powershell, run:
     ```shell
-    $ ssh <hostname>@<ip>
+    ssh <hostname>@<ip>
     ... Insert Password
     ```

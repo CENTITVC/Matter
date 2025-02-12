@@ -19,7 +19,7 @@ OT-RCP from official and open-source tools.
 -   Install OTBR:
 
     ```shell
-    $ sudo ./scripts/centi/centi_mattertool -iotbr
+    sudo ./scripts/centi/centi_mattertool -iotbr
     ```
 
 -   As an alternative way, you can run a VSCode task:
@@ -32,7 +32,7 @@ OT-RCP from official and open-source tools.
 
 -   If the install fails, delete the directory created:
     ```shell
-    $ sudo rm -rf ot-br-posix
+    sudo rm -rf ot-br-posix
     ```
 
 ## Troubleshooting
@@ -48,11 +48,11 @@ advertisements, as stated
 
 -   Scanning for commissionable devices
     ```shell
-    $ avahi-browse -d local _matterc._udp –resolve
+    avahi-browse -d local _matterc._udp –resolve
     ```
 -   Scanning for commissioned sionable devices
     ```shell
-    $ avahi-browse -d local _matter._tcp –resolve
+    avahi-browse -d local _matter._tcp –resolve
     ```
 -   If no mDNS advertisements are being received,
     [troubleshoot Avahi](https://project-chip.github.io/connectedhomeip-doc/tips_and_troubleshooting/troubleshooting_avahi.html).
@@ -63,7 +63,7 @@ advertisements, as stated
 -   Check if DBus is working and you can retrieve the Active Thread Dataset:
 
     ```shell
-      $ sudo dbus-send --system --dest=io.openthread.BorderRouter.wpan0 --print-reply \
+      sudo dbus-send --system --dest=io.openthread.BorderRouter.wpan0 --print-reply \
           /io/openthread/BorderRouter/wpan0 \
           io.openthread.BorderRouter.GetProperties \
           "array:string:""ActiveDatasetTlvs"
@@ -71,15 +71,15 @@ advertisements, as stated
 
 -   Check if `mdns` service is active
     ```shell
-    $ sudo service mdns status
+    sudo service mdns status
     ```
 -   Check if `otbr-agent` service is active
     ```shell
-    $ sudo service otbr-agent status
+    sudo service otbr-agent status
     ```
 -   Retrieve current Thread dataset:
     ```shell
-    $  sudo ot-ctl dataset active -x
+     sudo ot-ctl dataset active -x
     ```
 
 # Reference Guides

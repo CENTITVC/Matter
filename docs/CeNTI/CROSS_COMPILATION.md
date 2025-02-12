@@ -16,11 +16,11 @@ This guide was tested against a Raspberry Pi 4B 4GB as a Matter Hub.
     ```
 4. Transfer `centi_mattertool.sh` to the Raspberry Pi 4:
     ```shell
-    $ scp scripts/centi/centi_mattertool.sh <hostname@IP>:/<directory_path_rpi>
+    scp scripts/centi/centi_mattertool.sh <hostname@IP>:/<directory_path_rpi>
     ```
 5. Install OTBR:
     ```shell
-    $ centi_mattertool.sh -iotbr
+    centi_mattertool.sh -iotbr
     ```
 
 ### Host Setup
@@ -28,11 +28,11 @@ This guide was tested against a Raspberry Pi 4B 4GB as a Matter Hub.
 1. Install the appropriate toolchain for the cross compilation target, which in
    this case is the RPi:
     ```shell
-    $ sudo apt install g++-aarch64-linux-gnu
+    sudo apt install g++-aarch64-linux-gnu
     ```
 2. Create a directory in order to store the RPi Sysroot:
     ```shell
-    $ sudo mkdir /opt/rpi-sysroot
+    sudo mkdir /opt/rpi-sysroot
     ```
 
 ## Building for target
@@ -64,7 +64,7 @@ commands are run.
 In the directory you have stored the binary, you can simply run:
 
 ```shell
-$ ./<path_to_binary>
+./<path_to_binary>
 ```
 
 # Reference Guide
