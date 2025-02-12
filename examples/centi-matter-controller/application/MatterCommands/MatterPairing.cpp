@@ -2,7 +2,6 @@
 
 
 #include "MatterPairing.h"
-#include "../MatterManager.h"
 #include "../MatterClient/MatterClientFactory.h"
 
 #include "../MatterClient/ClusterClients/DescriptorClient.h"
@@ -15,6 +14,7 @@
 #include <iostream>
 #include <iomanip>  // For std::setw and std::setfill
 #include <cstdint>  // For uint8_t
+#include <semaphore.h>
 
 using namespace chip;
 using namespace chip::Controller;
@@ -358,7 +358,6 @@ exit:
     return commissioningParameters;
 }
 
-
 void MatterPairing::OnReadPartsListSuccess(void* context, const chip::app::DataModel::DecodableList<chip::EndpointId> & endpointList)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
@@ -367,58 +366,22 @@ void MatterPairing::OnReadPartsListSuccess(void* context, const chip::app::DataM
     MatterNode* matterNode = MatterManager::MatterMgr().GetMatterNode(currentPairing->mNodeId);
     ChipLogProgress(Controller, "MatterNode address: %p", static_cast<void *>(matterNode));
 
-    DescriptorClient * descriptorClient = nullptr;
-
     ChipLogProgress(Controller, "DescriptorReadParts: Default Success Response endpoint=root");
 
     auto iter = endpointList.begin();
+    currentPairing->mEndpointList.clear();
 
-    while (iter.Next())
+    // Optionally, if the DecodableList provides a count you can reserve space:
+    // mEndpoints.reserve(endpoints.Count());
+
+    // Iterate over the DecodableList and copy each endpoint into mEndpoints.
+    for (auto iter = endpointList.begin(); iter.Next(); )
     {
-        const chip::EndpointId & endpointId = iter.GetValue();
-        ChipLogProgress(NotSpecified, "Endpoint %u is from PartsList", endpointId);
-        matterNode->AddEndpoint(endpointId);
-        currentPairing->AddOrUpdateEndpointToTrack(endpointId);
-        
-        ClusterInteractionContext* clusterInteractionContext = new ClusterInteractionContext();
-
-        clusterInteractionContext->currentPairing = currentPairing;
-        clusterInteractionContext->currentEndpoint = endpointId;
-
-        descriptorClient = MatterClientFactory::GetInstance().GetOrCreateDescriptorClient(*matterNode);
-
-        if (descriptorClient != nullptr)
-        {
-            /* Every endpoint shall have a ServerList attribute to read the clusters contained... */
-            err = descriptorClient->ReadServerList(clusterInteractionContext->currentEndpoint, clusterInteractionContext,
-                                                    OnReadServerListSuccess, OnReadServerListFailure);
-            
-            if (err == CHIP_NO_ERROR)
-            {
-                /* Every endpoint shall have a DeviceTypeList attribute to read the deviceTypes contained in the endpoint... */
-                err = descriptorClient->ReadDeviceTypeList(clusterInteractionContext->currentEndpoint, clusterInteractionContext,
-                                                            OnReadDeviceTypeListSuccess, OnReadDeviceTypeListFailure);
-                
-                if (err != CHIP_NO_ERROR)
-                {
-                    ChipLogProgress(Controller, "Failed to ReadDeviceTypeList for endpoint %u and node %lu", endpointId, matterNode->GetNodeId());
-                    currentPairing->notifyComplete(err);
-                    delete clusterInteractionContext;
-                }
-            }
-            else
-            {
-                ChipLogProgress(Controller, "Failed to read ServerList for endpoint %u and node %lu", endpointId, matterNode->GetNodeId());
-                currentPairing->notifyComplete(err);
-                delete clusterInteractionContext;
-            }
-        }
-        else
-        {
-            ChipLogProgress(Controller, "descriptorClient for MatterNode %lu is null", matterNode->GetNodeId());
-            delete clusterInteractionContext;
-        }
+        const chip::EndpointId endpointId = iter.GetValue();
+        currentPairing->mEndpointList.push_back(endpointId);
     }
+
+    ProcessNextEndpoint(matterNode, currentPairing);
 }
 
 void MatterPairing::OnReadPartsListFailure(void* context, CHIP_ERROR error)
@@ -430,6 +393,52 @@ void MatterPairing::OnReadPartsListFailure(void* context, CHIP_ERROR error)
 
     delete clusterInteractionContext;
 }
+
+void MatterPairing::ProcessNextEndpoint(MatterNode* matterNode, MatterPairing* currentPairing)
+{
+    if (currentPairing->mEndpointList.empty())
+    {
+        ChipLogProgress(Controller, "All endpoints read and discovered, saving now Matter Node to cache");
+
+        CHIP_ERROR err = CHIP_NO_ERROR;
+        err = MatterManager::MatterMgr().SaveMatterNodeToCache(currentPairing->mNodeId);
+        LogErrorOnFailure(err);
+        currentPairing->notifyComplete(err);
+        return;
+    }
+
+    chip::EndpointId endpointId = currentPairing->mEndpointList.front();
+    ChipLogProgress(NotSpecified, "Processing endpoint %u from PartsList", endpointId);
+    matterNode->AddEndpoint(endpointId);
+    currentPairing->mEndpointList.erase(currentPairing->mEndpointList.begin());
+
+    ClusterInteractionContext* clusterInteractionContext = new ClusterInteractionContext();
+    clusterInteractionContext->currentPairing  = currentPairing;
+    clusterInteractionContext->currentEndpoint = endpointId;
+
+    DescriptorClient* descriptorClient =
+        MatterClientFactory::GetInstance().GetOrCreateDescriptorClient(*matterNode);
+
+    if (descriptorClient == nullptr)
+    {
+        ChipLogProgress(Controller, "descriptorClient for MatterNode %lu is null", matterNode->GetNodeId());
+        delete clusterInteractionContext;
+        // Continue with next endpoint
+        ProcessNextEndpoint(matterNode, currentPairing);
+        return;
+    }
+
+    CHIP_ERROR err = descriptorClient->ReadServerList(clusterInteractionContext->currentEndpoint, clusterInteractionContext,
+                                                      OnReadServerListSuccess, OnReadServerListFailure);
+
+    if (err != CHIP_NO_ERROR)
+    {
+        ChipLogProgress(Controller, "Failed to read ServerList for endpoint %u and node %lu", endpointId, matterNode->GetNodeId());
+        currentPairing->notifyComplete(err);
+        delete clusterInteractionContext;
+    }
+}
+
 
 void MatterPairing::OnReadServerListSuccess(void* context, const chip::app::DataModel::DecodableList<chip::ClusterId> & clusterList)
 {
@@ -460,6 +469,23 @@ void MatterPairing::OnReadServerListSuccess(void* context, const chip::app::Data
             matterEndpoint->AddCluster(clusterId);
         }
     }
+
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    DescriptorClient * descriptorClient = nullptr;
+
+    descriptorClient = MatterClientFactory::GetInstance().GetOrCreateDescriptorClient(*matterNode);
+
+    /* Every endpoint shall have a DeviceTypeList attribute to read the deviceTypes contained in the endpoint... */
+    err = descriptorClient->ReadDeviceTypeList(clusterInteractionContext->currentEndpoint, clusterInteractionContext,
+                OnReadDeviceTypeListSuccess, OnReadDeviceTypeListFailure);
+
+    if (err != CHIP_NO_ERROR)
+    {
+        ChipLogProgress(Controller, "Failed to ReadDeviceTypeList for endpoint %u and node %lu", currentEndpoint, matterNode->GetNodeId());
+        currentPairing->notifyComplete(err);
+        delete clusterInteractionContext;
+    }
+    
 }
 
 void MatterPairing::OnReadServerListFailure(void* context, CHIP_ERROR error)
@@ -518,17 +544,7 @@ void MatterPairing::OnReadDeviceTypeListSuccess(void* context,
 
     matterEndpoint->PrintInfo();
 
-    currentPairing->MarkEndpointAsRead(currentEndpoint);
-
-    if (currentPairing->AllEndpointsRead())
-    {
-        ChipLogProgress(Controller, "All endpoints read and discovered, saving now Matter Node to cache");
-        
-        CHIP_ERROR err = CHIP_NO_ERROR;
-        err = MatterManager::MatterMgr().SaveMatterNodeToCache(currentPairing->mNodeId);
-        LogErrorOnFailure(err);
-        currentPairing->notifyComplete(err);
-    }
+    ProcessNextEndpoint(matterNode, currentPairing);
 
     delete clusterInteractionContext;
 }

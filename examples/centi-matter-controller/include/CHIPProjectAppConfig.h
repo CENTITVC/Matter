@@ -64,4 +64,9 @@
 // Allow us, for test purposes, to encode invalid enum values.
 #define CHIP_CONFIG_IM_ENABLE_ENCODING_SENTINEL_ENUM_VALUES 1
 
+#define ILLIANCE_INERGY                 (0)
+#define ILLIANCE_IPOWER_SENSING_HOME    (1)
+#define ILLIANCE_PROJECT_VERSION        ILLIANCE_IPOWER_SENSING_HOME
+
+
 #endif /* CHIPPROJECTCONFIG_H */

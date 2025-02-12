@@ -27,10 +27,11 @@ class MatterCommandBase
         {
             std::unique_lock<std::mutex> lock(mMutex);
             auto timeout = std::chrono::system_clock::now() + std::chrono::duration_cast<std::chrono::seconds>(this->GetWaitDuration());
-
+            
             if (!mCondition.wait_until(lock, timeout, [this]() { return this->mIsComplete; })) 
             {
                 std::cout << "Condition timeout" << std::endl;
+                std::cout << "Timeout: " << std::chrono::duration_cast<std::chrono::seconds>(this->GetWaitDuration()).count() << " seconds" << std::endl;
                 notifyComplete(CHIP_ERROR_TIMEOUT);
             }
 

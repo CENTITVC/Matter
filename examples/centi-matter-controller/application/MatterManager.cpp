@@ -434,7 +434,11 @@ CHIP_ERROR MatterManager::InitializeCommissioner(CommissionerIdentity & identity
 
     // TODO: Initialize IPK epoch key in ExampleOperationalCredentials issuer rather than relying on DefaultIpkValue
     commissionerParams.operationalCredentialsDelegate = mCredIssuerCmds.GetCredentialIssuer();
-    commissionerParams.controllerVendorId             = mCommissionerVendorId.ValueOr(chip::VendorId::TestVendor1);
+    #if (ILLIANCE_PROJECT_VERSION == ILLIANCE_INERGY)
+        commissionerParams.controllerVendorId             = mCommissionerVendorId.ValueOr(chip::VendorId::TestVendor1);
+    #else
+        commissionerParams.controllerVendorId             = mCommissionerVendorId.ValueOr(chip::VendorId::TestVendor2);
+    #endif
 
     ReturnLogErrorOnFailure(chip::Controller::DeviceControllerFactory::GetInstance().SetupCommissioner(commissionerParams, *(commissioner.get())));
 

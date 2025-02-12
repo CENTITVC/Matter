@@ -9,7 +9,7 @@ bool IsIllianceSensors(MatterNode& node)
         (node.HasDevice(MATTER_DEVICE_ID_ELECTRICAL_SENSOR)));
 }
 
-bool IsIllianceWindow(MatterNode& node) 
+bool IsIllianceWindow(MatterNode& node)
 { 
     return (node.HasDevice(MATTER_DEVICE_ID_WINDOW_COVERING)); 
 }

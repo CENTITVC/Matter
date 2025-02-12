@@ -7,6 +7,7 @@
 #include <lib/support/ThreadOperationalDataset.h>
 
 #include "MatterCommandBase.h"
+#include "../MatterManager.h"
 #include "../MatterEndpoint.h"
 
 using namespace chip;
@@ -37,7 +38,7 @@ class MatterPairing :   public MatterCommandBase,
         }
 
         CHIP_ERROR Run(void) override;
-        chip::System::Clock::Timeout GetWaitDuration() const override { return chip::System::Clock::Seconds16(120); }
+        chip::System::Clock::Timeout GetWaitDuration() const override { return chip::System::Clock::Seconds16(600); }
         void callback() override
         {
             if (sOnCompleteCallback != nullptr)
@@ -83,6 +84,8 @@ class MatterPairing :   public MatterCommandBase,
         static void OnReadDeviceTypeListSuccess(void* context, 
                                                 const chip::app::DataModel::DecodableList<chip::app::Clusters::Descriptor::Structs::DeviceTypeStruct::DecodableType> & deviceTypeStructList);
         static void OnReadDeviceTypeListFailure(void * context, CHIP_ERROR error);
+        
+        static void ProcessNextEndpoint(MatterNode* matterNode, MatterPairing* currentPairing);
 
         void AddOrUpdateEndpointToTrack(EndpointId endpointId)
         {
@@ -95,6 +98,7 @@ class MatterPairing :   public MatterCommandBase,
             {
                 if (!isRead)
                 {
+                    ChipLogProgress(Controller, "Endpoint %u is not read", id);
                     return false;
                 }
             }
@@ -114,6 +118,19 @@ class MatterPairing :   public MatterCommandBase,
             }            
         }
 
+        chip::EndpointId GetEndpointUnread(void)
+        {
+            for (const auto& [id, isRead] : mEndpointsTracker)
+            {
+                if (!isRead)
+                {
+                    return id;
+                }
+            }
+
+            return chip::kInvalidEndpointId;
+        }
+
         /**
          * Generate a random operational node id.
          *
@@ -124,6 +141,7 @@ class MatterPairing :   public MatterCommandBase,
         CHIP_ERROR GetRandomOperationalNodeId(NodeId * aNodeId);
         NodeId mNodeId;
         std::vector<chip::DeviceTypeId> mDeviceTypeIdList;
+        std::vector<chip::EndpointId> mEndpointList;
         std::unordered_map< chip::EndpointId, bool > mEndpointsTracker;
 
         std::function<void(MatterPairing *, CHIP_ERROR)> sOnCompleteCallback;
