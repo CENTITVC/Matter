@@ -82,7 +82,13 @@ help the install of various components needed to compile this project. This
 approach was choosen due to its simplicity and to rely on the Matter SDK build
 system.
 
+On top of the script, the current code saves a list of Matter devices connected
+to their Matter network in the directory `var/matter`, which you should create
+before running this controller.
+
 ## Support for other Matter device types
+
+### Adding Matter Devices
 
 1.  `MatterDeviceTypes.h`: Create a new define for the new device type ID.
 2.  Create your `<MatterDeviceName>.h`. See the other devices for examples and
@@ -104,16 +110,18 @@ system.
     MatterDeviceDelegate. Add the device handlers as a AppTask member class in
     `AppTask.h`.
 
-### Support with MQTT commands
+### Adding MQTT commands
 
-1. Following the steps mentioned before, you must add inside the `CeNTI_MQTT/`
-   folder the necessary command classes, topic parsing and arguments needed for
-   your application. Check other commands to see how it is implemented.
-2. Add to AppTask the necessary routines to include these new command.
-3. Create the command class logic in `application/MatterCommands/` folder
-   (again, like in chiptool, better way would be to generalize all commands,
-   however didn't think the string commands approach would be the best due to
-   being error prone and harder to make it modular).
+1. Inside the `CeNTI_MQTT/` folder sadd the necessary command classes, topic
+   parsing and arguments needed for your application.
+    - `centi_mqtt_commands.h` are commands received from the MQTT that need to
+      interact with a Matter device. Check other commands to see how it is
+      implemented.
+    - `centi_mqtt.cpp` have the topic parsing and other necessary routines to
+      publish measurements or any responses to commands. Check other commmands
+      to see how they are implemented.
+2. Add to AppTask the necessary routines to include these new commands.
+3. Create the command class logic in `application/MatterCommands/` folder.
 
 ## TO-DO
 

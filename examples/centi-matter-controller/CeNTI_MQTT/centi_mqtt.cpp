@@ -293,11 +293,13 @@ int CentiMqttClient::Publish_MatterWindowPositionControlResponseAck(
     ChipLogProgress(NotSpecified, "Node Id: %lu", nodeId);
     ChipLogProgress(NotSpecified, "Topic: %lu", nodeId);
     ChipLogProgress(NotSpecified, "[MQTT] Publishing Matter Window Position Control Ack");
-
-    json["id"] = nodeId;
+    
+    json["type"] = "window";
     json["success"] = (error == CHIP_NO_ERROR);
-    json["status"] = error.AsString();
-    json["pos"] = pos_req;
+    if (error != CHIP_NO_ERROR)
+    {
+        json["error"] = error.AsString();
+    }
 
     return Publish_MessageToTopic(json, topic);
 }
@@ -309,17 +311,19 @@ int CentiMqttClient::Publish_MatterSetOccupiedHeatSetpointResult(uint64_t nodeId
 {
     Json::Value json;
     #if (ILLIANCE_PROJECT_VERSION == ILLIANCE_INERGY)
-        std::string topic = "centi/" + mMacAddress + "/sensors/" + std::to_string(nodeId) + "/control";
+        std::string topic = "centi/" + mMacAddress + "/sensors/" + std::to_string(nodeId) + "/control_ack";
     #else
-        std::string topic = mMacAddress + "/device/" + std::to_string(nodeId) + "/control";
+        std::string topic = mMacAddress + "/device/" + std::to_string(nodeId) + "/control_ack";
     #endif
 
     ChipLogProgress(NotSpecified, "[MQTT] Publishing Matter Set Occupied Heat Setpoint");
 
-    json["id"] = nodeId;
-    json["setpoint"] = occupiedHeatSetpoint;
-    json["error"] = error.AsString();
-
+    json["type"] = "thermoAccumulator";
+    json["success"] = (error == CHIP_NO_ERROR);
+    if (error != CHIP_NO_ERROR)
+    {
+        json["error"] = error.AsString();
+    }
     return Publish_MessageToTopic(json, topic);
 }
 
@@ -370,7 +374,10 @@ int CentiMqttClient::Publish_MatterDeviceSubscription(
     json["id"] = nodeId;
     json["endpoint"] = endpoint;
     json["deviceType"] = deviceTypeStr;
-    json["status"] = error.AsString();
+    if (error != CHIP_NO_ERROR)
+    {
+        json["error"] = error.AsString();
+    }
 
     std::string payload = Json::writeString(writer, json);
 
@@ -658,7 +665,6 @@ int CentiMqttClient::Publish_OccupiedHeatingSetpoint(uint64_t nodeId,
 
     ChipLogProgress(NotSpecified, "[MQTT] Publishing Matter Occupied Heating Setpoint");
 
-    json["id"] = nodeId;
     json["heatSetpoint"] = occupiedHeatSetpoint;
 
     return Publish_MessageToTopic(json, topic);
@@ -703,7 +709,7 @@ int CentiMqttClient::Publish_MessageToTopic(Json::Value& json, std::string topic
 CHIP_ERROR CentiMqttClient::Subscribe_ClientTopics(void)
 {
     std::vector<std::string> subscribeTopics = 
-    {  
+    {
         #if (ILLIANCE_PROJECT_VERSION == ILLIANCE_IPOWER_SENSING_HOME)
         
         mMacAddress + "/" + kMatterCommissioningTopic + "/req",

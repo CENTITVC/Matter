@@ -170,6 +170,7 @@ CHIP_ERROR AppTask::Matter__Initialize(void)
     for (MatterNode& node : MatterManager::MatterMgr().GetActiveMatterNodes())
     {
         AppTask::Instance().OnMatterNodeInit(node);
+        std::this_thread::sleep_for(std::chrono::milliseconds(300));
     }
 
     err = DeviceLayer::PlatformMgr().StartEventLoopTask();
