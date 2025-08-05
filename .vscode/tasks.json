@@ -411,7 +411,7 @@
                 }
             }
         },
-        {
+        /*{
             "label": "[CeNTI] Build CeNTI Application",
             "type": "shell",
             "command": "./scripts/examples/gn_build_example.sh",
@@ -421,7 +421,7 @@
                 "base": "$gcc",
                 "fileLocation": ["relative", "${workspaceFolder}/examples/"]
             }
-        },
+        },*/
         {
             "label": "[CeNTI] Build Matter Application",
             "type": "shell",
@@ -709,9 +709,9 @@
         },
         {
             "id": "centiTargetHost",
-            "type": "promptString",
+            "type": "pickString",
             "description": "Enter RPi address with hostname (format <hostname>@<ip>)",
-            "default": "ubuntu@192.168.62.42"
+            "options": ["ubuntu@192.168.62.35", "ubuntu@192.168.62.36"]
         },
         {
             "id": "centiBuildApp",

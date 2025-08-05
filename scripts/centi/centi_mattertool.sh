@@ -157,7 +157,7 @@ Create_RPISysroot() {
 Build_RPI() {
     set -e
     local ROOT_DIR="$1"
-    local OUT_DIR="$ROOT_DIR/out/aarch64_ipower"
+    local OUT_DIR="$ROOT_DIR/out/aarch64_RPI"
 
     source $MATTER_ROOT/scripts/activate.sh
     cd $MATTER_ROOT
