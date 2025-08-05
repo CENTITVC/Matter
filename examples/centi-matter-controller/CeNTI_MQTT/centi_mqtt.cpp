@@ -293,9 +293,14 @@ int CentiMqttClient::Publish_MatterWindowPositionControlResponseAck(
     ChipLogProgress(NotSpecified, "Node Id: %lu", nodeId);
     ChipLogProgress(NotSpecified, "Topic: %lu", nodeId);
     ChipLogProgress(NotSpecified, "[MQTT] Publishing Matter Window Position Control Ack");
-    
+    #if (ILLIANCE_PROJECT_VERSION == ILLIANCE_INERGY)
+    json["pos"] = (100 - pos_req);
+    #else
     json["type"] = "window";
+    #endif
+
     json["success"] = (error == CHIP_NO_ERROR);
+    
     if (error != CHIP_NO_ERROR)
     {
         json["error"] = error.AsString();
@@ -424,7 +429,7 @@ int CentiMqttClient::Publish_WindowCurrentPosition(uint64_t nodeId, uint8_t posi
 
     ChipLogProgress(NotSpecified, "[MQTT] Publishing Matter Window Current Position");
 
-    json["pos"] = position;
+    json["pos"] = (position);
 
     return Publish_MessageToTopic(json, topic);
 }

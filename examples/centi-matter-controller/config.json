@@ -7,7 +7,8 @@
             "password": "Qweasd123zxc",
             "tls": {
                 "enabled": true,
-                "ca_certificate": "/home/smart_systems/connectedhomeip/examples/centi-matter-controller/CeNTI_MQTT/centi_broker_CA.pem"
+                "ca_certificate": "/home/smart_systems/Matter/examples/centi-matter-controller/out/centi_broker_CA.pem"
+                //"ca_certificate": "/home/smart_systems/connectedhomeip/examples/centi-matter-controller/CeNTI_MQTT/centi_broker_CA.pem"
             }
         },
         "client": {
