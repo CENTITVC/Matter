@@ -951,6 +951,8 @@ CHIP_ERROR ReadClient::RefreshLivenessCheckTimer()
     System::Clock::Timeout timeout;
     ReturnErrorOnFailure(ComputeLivenessCheckTimerTimeout(&timeout));
 
+    timeout = System::Clock::Timeout(200000); // Temporário, para alterar no controlador. Na versão 2.0 dos sensores este parâmetro será ajustado no próprio dispositivo.
+
     // EFR32/MBED/INFINION/K32W's chrono count return long unsigned, but other platform returns unsigned
     ChipLogProgress(
         DataManagement,

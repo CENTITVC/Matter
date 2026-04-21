@@ -52,7 +52,7 @@ using ReadResponseFailureCallback     = void (*)(void * context, CHIP_ERROR err)
 using ReadDoneCallback                = void (*)(void * context);
 using SubscriptionEstablishedCallback = void (*)(void * context, SubscriptionId subscriptionId);
 using ResubscriptionAttemptCallback   = void (*)(void * context, CHIP_ERROR aError, uint32_t aNextResubscribeIntervalMsec);
-using SubscriptionOnDoneCallback      = std::function<void(void)>;
+using SubscriptionOnDoneCallback      = std::function<void(void)>; // void (*)(void * context);
 
 class DLL_EXPORT ClusterBase
 {
@@ -269,6 +269,8 @@ public:
                        bool aKeepPreviousSubscriptions = false, const Optional<DataVersion> & aDataVersion = NullOptional,
                        SubscriptionOnDoneCallback subscriptionDoneCb = nullptr)
     {
+        ChipLogProgress(Controller, "First CHIPCluster.h SubscribeAttribute");
+
         return SubscribeAttribute<typename AttributeInfo::DecodableType, typename AttributeInfo::DecodableArgType>(
             context, AttributeInfo::GetClusterId(), AttributeInfo::GetAttributeId(), reportCb, failureCb, minIntervalFloorSeconds,
             maxIntervalCeilingSeconds, subscriptionEstablishedCb, resubscriptionAttemptCb, aIsFabricFiltered,
@@ -311,9 +313,13 @@ public:
                                                                             uint32_t aNextResubscribeIntervalMsec) {
             if (resubscriptionAttemptCb != nullptr)
             {
+                ChipLogProgress(Controller, "onResubscriptionAttemptCb, inside the if, before associating the callback");
                 resubscriptionAttemptCb(context, aError, aNextResubscribeIntervalMsec);
+                ChipLogProgress(Controller, "onResubscriptionAttemptCb, inside the if, after associating the callback");
             }
         };
+
+        ChipLogProgress(Controller, "Second CHIPCluster.h SubscribeAttribute");
 
         return Controller::SubscribeAttribute<DecodableType>(
             &mExchangeManager, mSession.Get().Value(), mEndpoint, clusterId, attributeId, onReportCb, onFailureCb,

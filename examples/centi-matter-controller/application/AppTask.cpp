@@ -471,7 +471,7 @@ CHIP_ERROR AppTask::MQTT__Initialize(void)
         "gw_mac": ")" + eth_mac + R"(",
         "power_on": false
     })";
-    clientConfig.last_will.qos = 0;
+    clientConfig.last_will.qos = 1;
     clientConfig.last_will.retained = false;
     clientConfig.clean_session = true;
 

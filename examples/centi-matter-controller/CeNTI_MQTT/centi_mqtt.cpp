@@ -700,7 +700,11 @@ int CentiMqttClient::Publish_MessageToTopic(Json::Value& json, std::string topic
 
     try
     {
-        mClientPtr->publish(mqtt::make_message(topic, payload))->wait();
+        auto msg = mqtt::make_message(topic,payload);
+	msg->set_qos(1);
+	msg->set_retained(false);
+
+	mClientPtr->publish(msg)->wait();
     }
     catch (const mqtt::exception& e)
     {

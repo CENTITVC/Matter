@@ -568,12 +568,16 @@ void MatterPairing::OnCurrentFabricRemove(void * context, NodeId nodeId, CHIP_ER
     {
         ChipLogProgress(chipTool, "Device unpair completed with success: " ChipLogFormatX64, ChipLogValueX64(nodeId));
     }
+    else if(err == CHIP_ERROR_TIMEOUT)
+    {
+        ChipLogProgress(chipTool, "Device connection timed out. Removing device information from controller anyway: " ChipLogFormatX64, ChipLogValueX64(nodeId));
+    }
     else
     {
         ChipLogProgress(chipTool, "Device unpair Failure: " ChipLogFormatX64 " %s", ChipLogValueX64(nodeId), ErrorStr(err));
     }
 
-    if (err == CHIP_NO_ERROR)
+    if (err == CHIP_NO_ERROR || err == CHIP_ERROR_TIMEOUT)
     {
         MatterManager::MatterMgr().RemoveMatterNode(nodeId);
     }
