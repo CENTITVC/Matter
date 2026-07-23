@@ -13,17 +13,43 @@ CHIP_ERROR ThermostatClient::WriteOccupiedHeatingSetpoint(int16_t occupiedHeatin
                                         chip::Controller::WriteResponseDoneCallback onDoneCb,
                                         const chip::Optional<DataVersion> & aDataVersion)
 {
-    mOccupiedHeatingSetpointWriter.SetTargetEndPoint(endpointId);
+    // "Ligeira" trafulhice para alterar o system mode. 
+    // Altera-se atributo system mode quando controlador recebe um comando SetThermostatOccupiedHeatSetpoint com valor específico
+    if(occupiedHeatingSetpoint >= 10000)
+    {
+        mSystemModeWriter.SetTargetEndPoint(endpointId);
+    }else{
+        mOccupiedHeatingSetpointWriter.SetTargetEndPoint(endpointId);
+    }
 
     auto onConnectionSuccessCb = [this, context, occupiedHeatingSetpoint, successCb, failureCb](Messaging::ExchangeManager & exchangeMgr,
                                                                         const SessionHandle & sessionHandle) 
     {
         CHIP_ERROR error = CHIP_NO_ERROR;
-        Thermostat::Attributes::OccupiedHeatingSetpoint::TypeInfo::Type request = occupiedHeatingSetpoint;
 
-        mOccupiedHeatingSetpointWriter.SetTargetNode(exchangeMgr, sessionHandle);
+        ChipLogProgress(NotSpecified, "[DEBUG] OCCUPIEDHEATINGSETPOINT: %d", occupiedHeatingSetpoint);
 
-        error = mOccupiedHeatingSetpointWriter.WriteAttribute(request, context, successCb, failureCb, chip::NullOptional, nullptr, chip::NullOptional);
+        if(occupiedHeatingSetpoint >= 10000)
+        {
+            Thermostat::Attributes::SystemMode::TypeInfo::Type request;
+
+            // Se occupiedHeatingSetpoint recebido == 10000, System Mode = 0
+            // Se occupiedHeatingSetpoint recebido == 10100, System Mode = 1
+            request = (occupiedHeatingSetpoint == 10000) ? Thermostat::SystemModeEnum::kOff : Thermostat::SystemModeEnum::kHeat;
+
+            ChipLogProgress(NotSpecified, "[DEBUG] a escrever para system mode:");
+
+            mSystemModeWriter.SetTargetNode(exchangeMgr, sessionHandle);
+            error = mSystemModeWriter.WriteAttribute(request, context, successCb, failureCb, chip::NullOptional, nullptr, chip::NullOptional);
+        }
+        else
+        {
+            ChipLogProgress(NotSpecified, "[DEBUG] a escrever para occupiedheatingsetpoint");
+
+            Thermostat::Attributes::OccupiedHeatingSetpoint::TypeInfo::Type request = occupiedHeatingSetpoint;
+            mOccupiedHeatingSetpointWriter.SetTargetNode(exchangeMgr, sessionHandle);
+            error = mOccupiedHeatingSetpointWriter.WriteAttribute(request, context, successCb, failureCb, chip::NullOptional, nullptr, chip::NullOptional);
+        }
 
         if (failureCb != nullptr && error != CHIP_NO_ERROR)
         {

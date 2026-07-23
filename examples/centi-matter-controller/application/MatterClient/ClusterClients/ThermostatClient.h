@@ -16,6 +16,12 @@ class OccupiedHeatingSetpointWriter : public MatterClientWriteBase<chip::app::Cl
         OccupiedHeatingSetpointWriter() : MatterClientWriteBase(chip::app::Clusters::Thermostat::Id) {}
 };
 
+class SystemModeWriter : public MatterClientWriteBase<chip::app::Clusters::Thermostat::Attributes::SystemMode::TypeInfo>
+{
+    public:
+        SystemModeWriter() : MatterClientWriteBase(chip::app::Clusters::Thermostat::Id) {}
+};
+
 /* Command Classes */
 class SetpointRaiseLowerCommand : public MatterClientClusterCommandBase<chip::app::Clusters::Thermostat::Commands::SetpointRaiseLower::Type>
 {
@@ -80,6 +86,7 @@ class ThermostatClient : public MatterClientBase
 
     private:
         OccupiedHeatingSetpointWriter       mOccupiedHeatingSetpointWriter;
+        SystemModeWriter                    mSystemModeWriter;
         SetpointRaiseLowerCommand           mSetpointRaiseLowerCommand;
         OccupiedHeatingSetpointSubscriber   mOccupiedHeatingSetpointSubscriber;
         LocalTemperatureSubscriber          mLocalTemperatureSubscriber;

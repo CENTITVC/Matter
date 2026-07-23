@@ -97,8 +97,9 @@ CHIP_ERROR CentiMqttClient::Connect(void)
 }
 
 void CentiMqttClient::connected(const std::string& cause)
-    {
-    std::cout << "\nConnection success" << std::endl;
+{
+    std::cout << "\n(Re)connection success. (Re)subscribing to topics" << std::endl;
+    Subscribe_ClientTopics();
 }
 
 CHIP_ERROR CentiMqttClient::Publish_ClientInit(void)
@@ -213,6 +214,27 @@ int CentiMqttClient::Publish_OccupancySensorInit(uint64_t nodeId)
         return 0; // not implemented
     
     #endif
+}
+
+int CentiMqttClient::Publish_ThermostatInit(uint64_t nodeId)
+{
+    #if (ILLIANCE_PROJECT_VERSION == ILLIANCE_IPOWER_SENSING_HOME)
+        ChipLogProgress(NotSpecified, "[MQTT] Publishing ThermoAccumulator Init");
+        Json::Value json;
+
+        json["power_on"] = true;
+        json["id"] = nodeId;
+        json["type"] = "thermoAccumulator";
+        std::string topic = mMacAddress + "/device/init";
+
+        return Publish_MessageToTopic(json, topic);
+
+    #else
+        return 0;
+    
+    #endif
+
+    //return Publish_MessageToTopic(json, topic);
 }
 
 int CentiMqttClient::Publish_MatterCommissioningResponse(std::string setUpCode, CHIP_ERROR error)
@@ -748,7 +770,7 @@ CHIP_ERROR CentiMqttClient::Subscribe_ClientTopics(void)
     
     try
     {
-        mClientPtr->subscribe(topics, qos)->wait();
+        mClientPtr->subscribe(topics, qos, nullptr, *this);
     }
     catch(const std::exception& e)
     {
@@ -802,7 +824,8 @@ void CentiMqttClient::message_arrived(mqtt::const_message_ptr mqtt_msg)
             AppTask::Instance().AddMatterLightSettingCommand(static_cast<MqttCommandLightSetting*>(cmd.get())->mNodeId,
                                                             static_cast<MqttCommandLightSetting*>(cmd.get())->mLightSettings);
             break;
-            
+        
+        // Altera SystemMode quando recebe valores específicos. Ver ThermostatClient.cpp
         case MqttCommandType::SetThermostatOccupiedHeatSetpoint:
             AppTask::Instance().AddMatterSetOccupiedHeatSetpointCommand(static_cast<MqttCommandThermostatSetOccupiedHeatSetpoint*>(cmd.get())->mNodeId,
                                                                         static_cast<MqttCommandThermostatSetOccupiedHeatSetpoint*>(cmd.get())->mTemperature);

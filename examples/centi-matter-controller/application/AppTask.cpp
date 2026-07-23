@@ -31,7 +31,13 @@ CHIP_ERROR AppTask::StartApp(void)
 //    signal(SIGINT, StopSignalHandler);
 //    signal(SIGTERM, StopSignalHandler);
 
-    RunLoop();
+    ChipLogProgress(chipTool, "Starting workers!");
+    StartWorkers(); 
+    //RunLoop();
+     while (mRunning.load())
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
 
     Shutdown();
     
@@ -40,43 +46,43 @@ CHIP_ERROR AppTask::StartApp(void)
 
 void AppTask::AddMatterPairingCommand(std::string setUpCode)
 {
-    AddMatterCommandToQueue(std::make_unique<MatterPairing>(HandleMatterPairingResult, setUpCode));
+    AddMatterCommandToQueue(std::make_unique<MatterPairing>(HandleMatterPairingResult, setUpCode), chip::kUndefinedNodeId);
 }
 
 void AppTask::AddMatterRemoveNodeCommand(chip::NodeId nodeId)
 {
-    AddMatterCommandToQueue(std::make_unique<MatterPairing>(HandleMatterRemoveNodeResult, nodeId));
+    AddMatterCommandToQueue(std::make_unique<MatterPairing>(HandleMatterRemoveNodeResult, nodeId), nodeId);
 }
 
 void AppTask::AddMatterCommissioningOpenCommand(chip::NodeId nodeId)
 {
-    AddMatterCommandToQueue(std::make_unique<MatterOpenCommissioningWindow>(HandleMatterCommissioningOpenResult, nodeId));
+    AddMatterCommandToQueue(std::make_unique<MatterOpenCommissioningWindow>(HandleMatterCommissioningOpenResult, nodeId), nodeId);
 }
 
 void AppTask::AddMatterCommandWindowPositionSet(chip::NodeId nodeId, uint8_t pos)
 {
-    AddMatterCommandToQueue(std::make_unique<MatterCommandSetWindowPosition>(HandleMatterCommandWindowPositionSet, nodeId, pos));
+    AddMatterCommandToQueue(std::make_unique<MatterCommandSetWindowPosition>(HandleMatterCommandWindowPositionSet, nodeId, pos), nodeId);
 }
 
 void AppTask::AddMatterDeviceSubscriptionCommand(SubscriptionParameters subParams)
 {
     subParams.PrintInfo();
-    AddMatterCommandToQueue(std::make_unique<MatterSubscriptionDevice>(HandleMatterDeviceSubscriptionResult, subParams));
+    AddMatterCommandToQueue(std::make_unique<MatterSubscriptionDevice>(HandleMatterDeviceSubscriptionResult, subParams), chip::kUndefinedNodeId);
 }
 
 void AppTask::AddMatterLightSettingCommand(chip::NodeId nodeId, LightSettings lightSettings)
 {
-    AddMatterCommandToQueue(std::make_unique<MatterLightSettings>(HandleMatterLightSettingsResult, nodeId, lightSettings));
+    AddMatterCommandToQueue(std::make_unique<MatterLightSettings>(HandleMatterLightSettingsResult, nodeId, lightSettings), nodeId);
 }
 
 void AppTask::AddMatterSetOccupiedHeatSetpointCommand(chip::NodeId nodeId, int16_t occupiedHeatSetpoint)
 {
-    AddMatterCommandToQueue(std::make_unique<MatterSetOccupiedHeatSetpoint>(HandleMatterSetOccupiedHeatSetpointResult, nodeId, occupiedHeatSetpoint));
+    AddMatterCommandToQueue(std::make_unique<MatterSetOccupiedHeatSetpoint>(HandleMatterSetOccupiedHeatSetpointResult, nodeId, occupiedHeatSetpoint), nodeId);
 }
 
 void AppTask::AddMatterDummyCommand(uint8_t timeout)
 {
-    AddMatterCommandToQueue(std::make_unique<DummyCommand>(HandleDummyResult, timeout));
+    AddMatterCommandToQueue(std::make_unique<DummyCommand>(HandleDummyResult, timeout), chip::kUndefinedNodeId);
 }
 
 void AppTask::HandleMatterCommandWindowPositionSet(MatterCommandSetWindowPosition* command, CHIP_ERROR error)
@@ -352,6 +358,8 @@ CHIP_ERROR AppTask::OnMatterNodeInit(MatterNode& p_node)
         pThermostat->RegisterThermostatDelegate(&mThermostatHandler);
         
         AddMatterDeviceSubscriptionCommand(subParams);
+
+        mqtt_err = CentiMqttClient::ClientMgr().Publish_ThermostatInit(p_node.GetNodeId());
     }
     else
     {
@@ -447,9 +455,9 @@ CHIP_ERROR AppTask::MQTT__Initialize(void)
         #endif /* ILLIANCE_PROJECT_VERSION == ILLIANCE_IPOWER_SENSING_HOME */
     #else
         #if (ILLIANCE_PROJECT_VERSION == ILLIANCE_IPOWER_SENSING_HOME)
-            brokerConfig.tls.ca_certificate = "/home/smart_systems/connectedhomeip/examples/centi-matter-controller/CeNTI_MQTT/centi_broker_CA.pem";
+            brokerConfig.tls.ca_certificate = "/home/smart_systems/Matter/examples/centi-matter-controller/CeNTI_MQTT/centi_broker_CA.pem";
         #else
-            brokerConfig.tls.ca_certificate = "/home/smart_systems/connectedhomeip/examples/centi-matter-controller/CeNTI_MQTT/bandora_broker_CA.pem";
+            brokerConfig.tls.ca_certificate = "/home/smart_systems/Matter/examples/centi-matter-controller/CeNTI_MQTT/bandora_broker_CA.pem";
         #endif /* ILLIANCE_PROJECT_VERSION == ILLIANCE_IPOWER_SENSING_HOME */
     #endif /* CONFIG_CROSS_COMPILATION */
     
@@ -502,12 +510,12 @@ CHIP_ERROR AppTask::MQTT__Initialize(void)
         return err;
     }
     
-    err = CentiMqttClient::ClientMgr().Subscribe_ClientTopics();
+/*     err = CentiMqttClient::ClientMgr().Subscribe_ClientTopics();
     if (err != CHIP_NO_ERROR)
     {
         ChipLogProgress(NotSpecified, "MQTT Subscribe_ClientTopics failed: %s ", ErrorStr(err));
         return err;
-    }
+    } */
 
     return CHIP_NO_ERROR;
 } 
@@ -539,13 +547,22 @@ CHIP_ERROR AppTask::GetMacAddress(std::string & str )
     return CHIP_NO_ERROR;
 }
 
-void AppTask::AddMatterCommandToQueue(std::unique_ptr<MatterCommandBase> command)
+/* void AppTask::AddMatterCommandToQueue(std::unique_ptr<MatterCommandBase> command)
 {
     {
         std::lock_guard<std::mutex> lock(mMutexQueue);
         commandQueue.push(std::move(command));
     }
     cvQueueCondition.notify_all();    
+} */
+
+void AppTask::AddMatterCommandToQueue(std::unique_ptr<MatterCommandBase> command, chip::NodeId nodeId)
+{
+    {
+        std::lock_guard<std::mutex> lock(mDeviceQueuesMutex);
+        mDeviceQueues[nodeId].push(std::move(command));
+    }
+    mWorkAvailable.notify_one();
 }
 
 void AppTask::RunOnMatterQueue(intptr_t context)
@@ -592,6 +609,112 @@ void AppTask::RunLoop(void)
     }
 }
 
+std::unique_ptr<MatterCommandBase> AppTask::TryGetNextCommand(chip::NodeId& outNodeId)
+{
+    std::lock_guard<std::mutex> queueLock(mDeviceQueuesMutex);
+    std::lock_guard<std::mutex> inFlightLock(mInFlightMutex);
+
+    for (auto& [nodeId, queue] : mDeviceQueues)
+    {
+        if (mDevicesInFlight.count(nodeId) > 0)
+        {
+            continue;
+        }
+
+        if (!queue.empty())
+        {
+            auto command = std::move(queue.front());
+            queue.pop();
+            
+            mDevicesInFlight.insert(nodeId);
+            outNodeId = nodeId;
+            
+            return command;
+        }
+    }
+
+    return nullptr;
+}
+
+void AppTask::MarkCommandComplete(chip::NodeId nodeId)
+{
+    {
+        std::lock_guard<std::mutex> lock(mInFlightMutex);
+        mDevicesInFlight.erase(nodeId);
+    }
+
+    mWorkAvailable.notify_all();
+}
+
+void AppTask::WorkerLoop()
+{
+    while (mRunning.load())
+    {
+        chip::NodeId nodeId;
+        std::unique_ptr<MatterCommandBase> command;
+
+        {
+            std::unique_lock<std::mutex> lock(mWorkMutex);
+            
+            mWorkAvailable.wait(lock, [this, &command, &nodeId] {
+                command = TryGetNextCommand(nodeId);
+                return command != nullptr || !mRunning.load();
+            });
+        }
+
+        if (!mRunning.load())
+        {
+            break;
+        }
+
+        if (command)
+        {
+            MatterCommandBase* commandRawPtr = command.get();
+            
+            CHIP_ERROR err = chip::DeviceLayer::PlatformMgr().ScheduleWork(
+                RunOnMatterQueue, reinterpret_cast<intptr_t>(commandRawPtr));
+            
+            if (err == CHIP_NO_ERROR)
+            {
+                ChipLogProgress(AppServer, "Worker executing command for node " ChipLogFormatX64, 
+                               ChipLogValueX64(nodeId));
+                command->WaitForCompletionOrTimeout();
+                ChipLogProgress(AppServer, "Command complete for node " ChipLogFormatX64, 
+                               ChipLogValueX64(nodeId));
+            }
+            else
+            {
+                ChipLogError(AppServer, "Failed to schedule work: %s", ErrorStr(err));
+            }
+
+            MarkCommandComplete(nodeId);
+        }
+    }
+}
+
+void AppTask::StartWorkers()
+{
+    for (size_t i = 0; i < kNumWorkers; i++)
+    {
+        mWorkerThreads.emplace_back(&AppTask::WorkerLoop, this);
+    }
+}
+
+
+void AppTask::StopWorkers()
+{
+    mRunning.store(false);
+    mWorkAvailable.notify_all();
+    
+    for (auto& thread : mWorkerThreads)
+    {
+        if (thread.joinable())
+        {
+            thread.join();
+        }
+    }
+}
+
 void AppTask::StopSignalHandler(int signal)
 {
     std::cout << "StopSignalHandler" << std::endl;
@@ -601,6 +724,8 @@ void AppTask::StopSignalHandler(int signal)
 void AppTask::Shutdown(void)
 {
     std::cout << "Shutdown" << std::endl;
+
+    StopWorkers();
 
     sem_init (&mChipShutdownWaitSemaphore, 0, 0);
     chip::DeviceLayer::PlatformMgr().ScheduleWork(

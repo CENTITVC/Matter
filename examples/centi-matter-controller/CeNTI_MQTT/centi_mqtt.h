@@ -71,6 +71,7 @@ class CentiMqttClient : public virtual mqtt::callback,
 		int Publish_OccupancySensorInit(uint64_t nodeId);
 		int Publish_ElectricalSensorInit(uint64_t nodeId);
 		int Publish_LightInit(uint64_t nodeId);
+		int Publish_ThermostatInit(uint64_t nodeId);
 		int Publish_MatterCommissioningResponse(std::string setUpCode, CHIP_ERROR error);
 		int Publish_MatterRemoveNodeResponse(uint64_t nodeId, CHIP_ERROR error);
 		int Publish_MatterCommissioningOpenResponse(uint64_t nodeId, 

@@ -8,6 +8,9 @@
 #include <iostream>
 #include <semaphore.h>
 
+#include <map>
+#include <thread>
+
 #include "CHIPProjectAppConfig.h"
 #include "../CeNTI_MQTT/centi_mqtt.h"
 
@@ -81,7 +84,7 @@ private:
     
     static void StopSignalHandler(int signal);
     void Shutdown();
-    void AddMatterCommandToQueue(std::unique_ptr<MatterCommandBase> command);
+    //void AddMatterCommandToQueue(std::unique_ptr<MatterCommandBase> command);
 
     CHIP_ERROR OnMatterNodeInit(MatterNode& p_node);
 
@@ -109,4 +112,23 @@ private:
     Illiance::TemperatureSensorHandler mTemperatureSensorHandler;
     Illiance::ThermostatHandler mThermostatHandler;
     Illiance::WindowCoverHandler mWindowCoverHandler;
+
+    void StartWorkers();
+    void StopWorkers();
+    void WorkerLoop();
+    std::unique_ptr<MatterCommandBase> TryGetNextCommand(chip::NodeId& outNodeId);
+    void MarkCommandComplete(chip::NodeId nodeId);
+    void AddMatterCommandToQueue(std::unique_ptr<MatterCommandBase> command, chip::NodeId nodeId);
+
+    std::map<chip::NodeId, std::queue<std::unique_ptr<MatterCommandBase>>> mDeviceQueues;
+    std::mutex mDeviceQueuesMutex;
+
+    std::set<chip::NodeId> mDevicesInFlight;
+    std::mutex mInFlightMutex;
+
+    std::vector<std::thread> mWorkerThreads;
+    static constexpr size_t kNumWorkers = 2;
+
+    std::condition_variable mWorkAvailable;
+    std::mutex mWorkMutex;
 };
